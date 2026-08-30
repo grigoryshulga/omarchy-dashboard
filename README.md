@@ -1,45 +1,45 @@
 # Omarchy Dashboard
 
-Полноэкранный, keyboard-first дашборд для плагинов Omarchy Shell. Dashboard
-похож по поведению на scratchpad workspace, но остаётся одной Quickshell
-surface: поэтому страницы плагинов можно размещать в общей сетке, менять их
-размер и переключать с клавиатуры.
+A fullscreen, keyboard-first dashboard for Omarchy Shell plugins. The Dashboard
+behaves like a scratchpad workspace while remaining a single Quickshell surface:
+plugin pages can therefore share a grid, be resized, and be switched with the
+keyboard.
 
-## Возможности
+## Features
 
-- свободная пиксельная сетка с настраиваемым шагом 5–80 px, drag-and-drop,
-  resize и запретом пересечений;
-- декоративные элементы поверх сетки: горизонтальные/вертикальные разделители
-  между точками и текстовые подписи с автоматическим масштабированием шрифта;
-- несколько именованных Spaces с компактным переключателем и inline rename;
-- режимы `browse`, `interact` и `edit` с предсказуемым владением фокусом;
-- открытие на мониторе, с которого вызван launcher, либо на focused monitor;
-- каталог установленных системных и пользовательских плагинов;
-- универсальные плитки: embedded page, компактный `dashboardWidget`,
-  service-control, Dashboard popout или native/information fallback;
-- два surface-режима: классический `Framed` и полноэкранный `Glass`;
-- изолированная wallpaper-подложка без окон: текущие обои берутся из
-  `omarchy.background`, а эффект следует live-настройкам blur Hyprland;
-- тема, размеры, отступы и скругления из текущего Omarchy Shell; скругления
-  обновляются после Hyprland config reload без перезапуска shell;
-- ограниченное по размеру и проверяемое состояние в XDG state directory.
+- a free-form pixel grid with a configurable 5–80 px step, drag and drop,
+  resizing, and collision prevention;
+- decorative grid overlays: horizontal and vertical dividers between grid points
+  plus text labels with automatically scaled fonts;
+- multiple named Spaces with a compact switcher and inline renaming;
+- `browse`, `interact`, and `edit` modes with predictable focus ownership;
+- opening on the monitor that invoked the launcher, or on the focused monitor;
+- a catalog of installed system and user plugins;
+- universal tiles: embedded pages, compact `dashboardWidget`s, service controls,
+  Dashboard popouts, or native/information fallbacks;
+- two surface modes: classic `Framed` and fullscreen `Glass`;
+- an isolated, window-free wallpaper backdrop: the current wallpaper comes from
+  `omarchy.background`, and its effect follows live Hyprland blur settings;
+- theme, dimensions, spacing, and corner radii from the current Omarchy Shell;
+  corner radii update after a Hyprland config reload without restarting the shell;
+- bounded, validated state in the XDG state directory.
 
-## Установка
+## Installation
 
-Из Git-репозитория:
+From the Git repository:
 
 ```bash
 omarchy plugin add https://github.com/grigoryshulga/omarchy-dashboard.git --enable
 ```
 
-Если launcher не был добавлен автоматически:
+If the launcher was not added automatically:
 
 ```bash
 omarchy plugin enable gshulga.dashboard --section left
 ```
 
-Для локальной разработки скопируйте содержимое репозитория в
-`~/.config/omarchy/plugins/gshulga.dashboard`, затем выполните:
+For local development, copy the repository contents to
+`~/.config/omarchy/plugins/gshulga.dashboard`, then run:
 
 ```bash
 omarchy plugin validate ~/.config/omarchy/plugins/gshulga.dashboard
@@ -47,15 +47,15 @@ omarchy plugin enable gshulga.dashboard --section left
 omarchy restart shell
 ```
 
-Dashboard можно открыть кнопкой в bar или командой:
+Open the Dashboard with its bar button or this command:
 
 ```bash
 omarchy-shell shell toggle gshulga.dashboard
 ```
 
-## Управление плагинами из CLI
+## Managing plugins from the CLI
 
-После установки Dashboard его CLI можно добавить в пользовательский `PATH`:
+After installing Dashboard, its CLI can be added to the user's `PATH`:
 
 ```bash
 mkdir -p ~/.local/bin
@@ -63,26 +63,26 @@ ln -sfn ~/.config/omarchy/plugins/gshulga.dashboard/bin/omarchy-dashboard \
   ~/.local/bin/omarchy-dashboard
 ```
 
-Установка из Git по умолчанию создаёт **Pending Placement**: плагин уже
-принадлежит Dashboard, но ещё не занимает место ни в одном Space.
+Installing from Git creates a **Pending Placement** by default: the plugin is
+already managed by Dashboard, but does not yet occupy a place in any Space.
 
 ```bash
 omarchy-dashboard plugin install https://github.com/acme/weather.git
 ```
 
-Такой плагин появляется первым в каталоге с отметкой `Pending placement`.
-Откройте Dashboard, нажмите `Alt+E`, затем `Alt++`, выберите плагин и разместите
-его обычным силуэтом.
+The plugin appears first in the catalog with a `Pending placement` label. Open
+Dashboard, press `Alt+E`, then `Alt++`, select the plugin, and place it using
+the normal preview silhouette.
 
-Уже установленный плагин также можно отправить в pending:
+An installed plugin can also be sent to pending placement:
 
 ```bash
 omarchy-dashboard plugin add acme.weather
 ```
 
-Если Space и геометрия известны заранее, создайте **Placed Tile** сразу. `Rect`
-задаётся в логических QML-пикселях как `X,Y,W,H` и проверяется строго: Dashboard
-не сдвигает и не уменьшает его при коллизии.
+When the Space and geometry are known in advance, create a **Placed Tile**
+directly. `Rect` uses logical QML pixels in the form `X,Y,W,H` and is validated
+strictly: Dashboard never shifts or shrinks it when it collides.
 
 ```bash
 omarchy-dashboard plugin install https://github.com/acme/weather.git \
@@ -92,13 +92,13 @@ omarchy-dashboard plugin add acme.weather \
   --space space-main --rect 0,0,420,300
 ```
 
-Автоматическое размещение включается только явно:
+Automatic placement is enabled only explicitly:
 
 ```bash
 omarchy-dashboard plugin add acme.weather --space space-main --auto
 ```
 
-Полный набор команд:
+Full command set:
 
 ```bash
 omarchy-dashboard space list
@@ -122,9 +122,9 @@ omarchy-dashboard plugin uninstall acme.weather
 omarchy-dashboard plugin uninstall acme.weather --remove-placement --yes
 ```
 
-Встроенная справка рассчитана и на человека, и на агента: общий `--help`
-описывает coordinate model, безопасный provisioning workflow, JSON-контракт и
-коды выхода; help групп и отдельных команд содержит семантику и готовые примеры.
+The built-in help is designed for both people and agents: top-level `--help`
+describes the coordinate model, safe provisioning workflow, JSON contract, and
+exit codes; group and command help include semantics and ready-to-run examples.
 
 ```bash
 omarchy-dashboard --help
@@ -133,185 +133,180 @@ omarchy-dashboard plugin add --help
 omarchy-dashboard element --help
 ```
 
-`element` управляет Dashboard-owned текстом и разделителями; координаты задаются
-в тех же логических пикселях canvas, что и `plugin --rect`. `remove` удаляет
-только Host Placement и сохраняет Plugin Installation на
-диске. `uninstall` удаляет код, но отказывается делать это, пока плагин находится
-в Dashboard, если явно не указан `--remove-placement`. Для automation все
-команды чтения и изменения поддерживают `--json`.
+`element` manages Dashboard-owned text and dividers; coordinates use the same
+logical canvas pixels as `plugin --rect`. `remove` deletes only the Host
+Placement and keeps the Plugin Installation on disk. `uninstall` removes the
+code, but refuses while the plugin remains in Dashboard unless
+`--remove-placement` is supplied explicitly. Every read and mutation command
+supports `--json` for automation.
 
-Пример пользовательского Hyprland binding:
+Example user Hyprland binding:
 
 ```ini
 bindd = SUPER, D, Dashboard, exec, omarchy-shell shell toggle gshulga.dashboard
 ```
 
-## Управление
+## Controls
 
-| Клавиши | Действие |
+| Keys | Action |
 | --- | --- |
-| `← ↑ ↓ →` | Выбрать ближайшую плитку по геометрии |
-| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Следующая / предыдущая плитка |
-| `Enter` | Передать фокус выбранному плагину (`interact`) |
-| `Esc` | Выйти из `interact`, затем из `edit`, затем закрыть Dashboard |
-| `Page Up` / `Page Down` | Предыдущее / следующее Space |
-| `Alt+1` … `Alt+9` | Перейти к Space по номеру |
-| `Alt++` | Открыть каталог плагинов в `edit` |
-| `Alt+E` | Включить или выключить `edit` |
-| `Alt+V` | Переключить `Framed` / `Glass` в `edit` |
-| `Alt+стрелки` | Переместить выбранную плитку или графический элемент в `edit` |
-| `Ctrl+Alt+стрелки` | Изменить размер выбранной плитки или графического элемента в `edit` |
-| `стрелки` / `Ctrl+стрелки` | Переместить / изменить размер силуэта новой плитки |
-| `Enter` / `Esc` | Разместить / отменить новую плитку |
-| `Alt+C` / `Alt+R` | Создать / переименовать Space |
-| `Alt+X` | Удалить текущее Space с подтверждением (последнее удалить нельзя) |
-| `Delete` | Удалить выбранную плитку или графический элемент |
-| `?` | Показать встроенную шпаргалку |
+| `← ↑ ↓ →` | Select the nearest tile by geometry |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tile |
+| `Enter` | Give the selected plugin focus (`interact`) |
+| `Esc` | Leave `interact`, then `edit`, then close Dashboard |
+| `Page Up` / `Page Down` | Previous / next Space |
+| `Alt+1` … `Alt+9` | Go to a Space by number |
+| `Alt++` | Open the plugin catalog in `edit` |
+| `Alt+E` | Toggle `edit` |
+| `Alt+V` | Toggle `Framed` / `Glass` in `edit` |
+| `Alt+arrow keys` | Move the selected tile or graphic element in `edit` |
+| `Ctrl+Alt+arrow keys` | Resize the selected tile or graphic element in `edit` |
+| `arrow keys` / `Ctrl+arrow keys` | Move / resize a new-tile silhouette |
+| `Enter` / `Esc` | Place / cancel a new tile |
+| `Alt+C` / `Alt+R` | Create / rename a Space |
+| `Alt+X` | Delete the current Space with confirmation (the last one cannot be deleted) |
+| `Delete` | Delete the selected tile or graphic element |
+| `?` | Show the built-in cheat sheet |
 
-`Alt+1` … `Alt+9` зарегистрированы как оконные shortcuts Dashboard, поэтому
-переключают Space даже тогда, когда клавиатурный фокус находится внутри
-встроенного плагина. Во время rename, каталога и popout они приостанавливаются.
+`Alt+1` … `Alt+9` are registered as Dashboard window shortcuts, so they switch
+Spaces even while the keyboard focus is inside an embedded plugin. They are
+suspended during rename, the catalog, and popouts.
 
-В `edit` плитка перемещается перетаскиванием за любую её область и изменяет
-размер за маркер в правом нижнем углу. Собственной шапки у Tile нет, а между
-рамкой и обычной Plugin Page остаётся theme-aware внутренний отступ. Панели,
-адаптированные из отдельного окна наподобие Omaland, размещаются от края до
-края: их типовая оконная `BorderSurface` разворачивается до границ плитки и не
-получает второй внешний отступ. Шаг сетки настраивается блоком `Grid step` в
-правом нижнем углу холста от 5 до 80 px и сохраняется в layout.
-Он одновременно задаёт расстояние между точками, keyboard move/resize, snap
-при drag/resize и позиции автоматического размещения. Если существующая плитка
-не кратна новому шагу, первая keyboard-операция выравнивает изменяемую грань
-по ближайшей линии в направлении действия; mouse resize снапит итоговый размер,
-а не сохраняет старый остаток. При перетаскивании плитки, силуэта новой плитки
-или текстового блока возле центра холста включается магнитное выравнивание:
-полупрозрачные акцентные направляющие отдельно показывают совпадение по
-вертикальной и горизонтальной центральным осям. Сами оси проходят по ближайшим
-линиям активной сетки и не уводят начало объекта с её шага; несовместимая с
-текущим размером объекта ось не активируется. Двойной клик по
-содержимому переводит плитку в `interact`; `Escape` всегда возвращает в
-`browse`, не закрывая внутреннюю панель.
+In `edit`, drag a tile by any area and resize it with the handle in its
+bottom-right corner. Tiles have no separate title bar, while a theme-aware inner
+padding remains between the frame and a regular Plugin Page. Panels adapted from
+standalone windows such as Omaland are placed edge to edge: their usual window
+`BorderSurface` expands to the tile boundaries and does not receive a second
+outer padding. Configure the grid step in the `Grid step` control at the
+bottom-right of the canvas, from 5 to 80 px; it is saved in the layout. It sets
+the dot spacing, keyboard move/resize increment, drag/resize snap, and automatic
+placement positions. If a current tile is not a multiple of the new step, the
+first keyboard operation aligns the modified edge with the nearest line in the
+direction of movement; mouse resizing snaps the resulting size rather than
+preserving the old remainder. Dragging a tile, new-tile silhouette, or text
+block near the canvas center activates magnetic alignment: translucent accent
+guides independently show vertical and horizontal center-axis matches. The axes
+fall on the nearest active grid lines and do not shift an object's origin from
+the grid step; an axis incompatible with the object's current size is not
+activated. Double-click a tile's content to enter `interact`; `Escape` always
+returns to `browse` without closing the inner panel.
 
-Кнопка `Draw Divider` включает короткий режим рисования: нужно протянуть линию
-между двумя точками сетки, после чего Dashboard зафиксирует доминирующую ось и
-сохранит строго горизонтальный или вертикальный разделитель. В `edit` линию
-можно перемещать целиком, а её круглые концы — растягивать независимо. `Add Text`
-создаёт текстовую подпись; размер шрифта автоматически подстраивается под рамку,
-которую можно перетаскивать и растягивать. Двойной клик по подписи повторно
-открывает редактор текста. Декоративные элементы не участвуют в запрете
-пересечений и поэтому могут проходить поверх плиток и друг друга.
+The `Draw Divider` button starts a brief drawing mode: drag a line between two
+grid points and Dashboard locks its dominant axis, saving a strictly horizontal
+or vertical divider. In `edit`, move the entire line or stretch its round ends
+independently. `Add Text` creates a text label whose font size automatically
+fits its frame; drag and resize that frame as usual. Double-click the label to
+reopen its text editor. Decorative elements do not participate in collision
+prevention, so they may overlap tiles and one another.
 
-Добавление из каталога проходит через короткий режим предварительного
-размещения: Dashboard сначала показывает на холсте силуэт, автоматически
-подбирая свободный размер между `preferred` и `min` плагина. Силуэт можно
-переместить за любую область и уменьшить маркером до подтверждения. Зелёный
-контур означает допустимое место, красный — пересечение; в этом режиме
-существующие плитки по-прежнему можно двигать, поэтому место разрешается
-освободить без отмены добавления. `Enter` или кнопка `Place` сохраняют плитку,
-`Escape` отменяет черновик. При перемещении и resize уже размещённой плитки её
-живое содержимое остаётся приглушённым на исходном месте, а за указателем
-движется такой же лёгкий силуэт.
+Adding from the catalog starts a short preview-placement mode: Dashboard first
+shows a canvas silhouette and automatically finds an available size between the
+plugin's `preferred` and `min` values. Move the silhouette by any area and
+reduce it with its handle before confirming. A green outline means the position
+is valid; red means a collision. Existing tiles can still be moved in this mode,
+letting you free space without cancelling the addition. `Enter` or `Place`
+saves the tile; `Escape` cancels the draft. When an existing tile is moved or
+resized, its live content remains dimmed in the original position and an equally
+light silhouette follows the pointer.
 
-Холст использует единый системный `panelGap`: такой же отступ отделяет его от
-шапки, боковых и нижней границ. Геометрия одинакова в `Framed` и `Glass`,
-обновляется вместе с системным spacing и не уменьшает полезную область плиток.
-Внутри доступной области холст центрируется по обеим осям и, когда layout это
-позволяет, получает размеры, кратные текущему шагу. Точки начинаются на верхней
-и левой границах и отдельным рядом отмечают правую и нижнюю: move/resize
-используют ровно этот видимый прямоугольник как bounds.
+The canvas uses the system-wide `panelGap`: the same spacing separates it from
+the header and the side and bottom edges. Geometry is identical in `Framed` and
+`Glass`, updates with system spacing, and does not reduce usable tile space.
+Within the available area, the canvas is centered on both axes and, where the
+layout permits, receives dimensions divisible by the current step. Dots start at
+the top and left edges, with separate rows marking the right and bottom edges;
+move/resize uses exactly this visible rectangle as its bounds.
 
-В центре шапки находится название активного Space в акцентном цвете; остальные
-индикаторы располагаются вокруг него круглыми точками. В `edit` индикатор можно
-перетащить, чтобы изменить порядок Spaces; отдельная кнопка
-удаления текущего Space находится слева от карусели и всегда запрашивает
-подтверждение. Двойной клик по названию включает редактирование имени прямо в
-шапке, без диалога.
+The center of the header shows the active Space name in the accent color; other
+indicators appear around it as circular dots. In `edit`, drag an indicator to
+reorder Spaces; a separate control for deleting the current Space is left of the
+carousel and always asks for confirmation. Double-click the name to edit it
+inline, without a dialog.
 
-## Surface и системный blur
+## Surface and system blur
 
-Оформление выбирается в настройке bar widget `Surface mode`:
+Select the appearance in the bar widget's `Surface mode` setting:
 
-- `Framed` сохраняет непрозрачную карточку с системными отступами и радиусом;
-- `Glass` рисует Dashboard от края до края, не изменяя геометрию окон.
+- `Framed` keeps an opaque card with system spacing and radius;
+- `Glass` renders Dashboard edge to edge without changing window geometry.
 
-В `edit` оба варианта доступны отдельной группой `Appearance` в шапке: кнопка
-окна включает `Framed`, а кнопка разворота — `Glass`. Активный вариант
-подсвечивается; `Alt+V` переключает их с клавиатуры.
+In `edit`, both options are available as a separate `Appearance` group in the
+header: the window button selects `Framed`, and the maximize button selects
+`Glass`. The active choice is highlighted; `Alt+V` toggles between them from the
+keyboard.
 
-Для `Glass` Dashboard берёт путь текущих обоев непосредственно у
-живого сервиса `omarchy.background` и рисует их внутри собственной поверхности.
-Поэтому перемещённые окна не попадают в backdrop даже во время анимации.
-Поддерживаемые параметры `enabled`, `size`, `passes`, `brightness`, `contrast`
-и `vibrancy` читаются из текущего `decoration.blur` Hyprland и обновляются после
-`configreloaded`; они переводятся в ограниченный `MultiEffect` Qt, поскольку
-compositor blur не умеет исключать окна без внешней layer rule. Цвет и
-прозрачность затемнения берутся из live-токена `Color.menu.scrim` темы Omarchy.
-Опцию `Blur wallpaper` можно отключить независимо от затемнения.
+For `Glass`, Dashboard reads the current wallpaper path directly from the live
+`omarchy.background` service and renders it inside its own surface. Moved
+windows therefore never appear in the backdrop, even during animation. The
+supported `enabled`, `size`, `passes`, `brightness`, `contrast`, and `vibrancy`
+parameters are read from live Hyprland `decoration.blur` and updated after
+`configreloaded`; they are translated into a bounded Qt `MultiEffect`, because
+the compositor blur cannot exclude windows without an external layer rule. The
+color and opacity of the scrim come from Omarchy's live `Color.menu.scrim` theme
+token. `Blur wallpaper` can be disabled independently of the scrim.
 
-## Как встраиваются плагины
+## Plugin embedding
 
-Dashboard выбирает первый доступный вариант:
+Dashboard selects the first available option:
 
-1. встроенный Dashboard-side control для известных не-визуальных сервисов;
-2. `entryPoints.dashboardPage` или совместимая `sidePanelPage`;
-3. `entryPoints.dashboardWidget` — компактный безопасный Widget;
-4. локальная адаптация стандартного `KeyboardPanel`;
-5. консервативная адаптация `panel`/`overlay` с одной вложенной `PanelWindow`;
-6. Launcher, открывающий native surface или независимый Dashboard popout;
-7. информационная плитка, если безопасного действия нет.
+1. an embedded Dashboard-side control for known non-visual services;
+2. `entryPoints.dashboardPage` or a compatible `sidePanelPage`;
+3. `entryPoints.dashboardWidget` — a compact, safe Widget;
+4. local adaptation of the standard `KeyboardPanel`;
+5. conservative `panel`/`overlay` adaptation containing one nested `PanelWindow`;
+6. a Launcher that opens a native surface or independent Dashboard popout;
+7. an information tile when no safe action is available.
 
-Dashboard никогда не записывает изменения в каталог чужого плагина. Для
-адаптации он создаёт fingerprinted копию в XDG cache. Встроенные управляющие
-плитки сейчас доступны для Stay Awake (`omarchy.idle`), Night Light и Do Not
-Disturb; они обращаются к тем же публичным service-методам, что и штатные
-индикаторы Omarchy.
+Dashboard never writes changes into another plugin's directory. For adaptation,
+it creates a fingerprinted copy in the XDG cache. Embedded control tiles are
+currently available for Stay Awake (`omarchy.idle`), Night Light, and Do Not
+Disturb; they use the same public service methods as the standard Omarchy
+indicators.
 
-Для `bar-widget` launcher сначала использует живой экземпляр в bar. Если
-плагин не добавлен в bar, но его QML удалось безопасно адаптировать, интерфейс
-открывается в popout внутри Dashboard. Поэтому Bluetooth может работать как
-кнопка без отдельной настройки bar.
+For a `bar-widget`, the launcher first uses the live instance in the bar. If the
+plugin is absent from the bar but its QML can be adapted safely, the UI opens in
+a Dashboard popout. Bluetooth can therefore function as a button without a
+separate bar configuration.
 
-Launcher выглядит как цельная плитка-кнопка: иконка, название и никаких
-служебных описаний. Обычный клик сразу запускает действие. Иконка выбирается из
-явного manifest-поля, живого bar-widget, conventional `icon.svg`/`icon.png`,
-литерального `icon`/`heroGlyph` в entry point или семантического Nerd Font
-fallback. Discovery только читает ограниченный объём файлов и никогда не
-импортирует и не исполняет чужой QML.
+The Launcher is a self-contained button tile: icon, name, and no implementation
+details. A regular click immediately runs its action. The icon comes from an
+explicit manifest field, a live bar widget, conventional `icon.svg`/`icon.png`,
+a literal `icon`/`heroGlyph` in an entry point, or a semantic Nerd Font fallback.
+Discovery reads only a bounded amount of data and never imports or executes
+another plugin's QML.
 
-В `edit` маленькая кнопка в левом верхнем углу плитки циклически переключает
-автоматический выбор, `Embedded`, `Widget` и `Launcher`, оставляя только реально
-доступные варианты. Произвольный `barWidget` не загружается как компактный
-Widget автоматически: он может создавать собственные Wayland surfaces.
-Dashboard либо адаптирует его стандартную панель, либо честно оставляет
-native/information fallback.
+In `edit`, a small button at the top-left of a tile cycles automatic selection,
+`Embedded`, `Widget`, and `Launcher`, retaining only options that are actually
+available. An arbitrary `barWidget` is not loaded automatically as a compact
+Widget: it can create its own Wayland surfaces. Dashboard either adapts its
+standard panel or honestly keeps the native/information fallback.
 
-Один plugin id может занимать только одну плитку во всём Dashboard. Это
-исключает конкурирующие IPC handlers, таймеры и singleton service state.
-Подробный контракт для авторов находится в
-[`docs/PLUGIN_CONTRACT.md`](docs/PLUGIN_CONTRACT.md).
+A plugin ID can occupy only one tile across the entire Dashboard. This prevents
+competing IPC handlers, timers, and singleton service state. The detailed author
+contract is in [`docs/PLUGIN_CONTRACT.md`](docs/PLUGIN_CONTRACT.md).
 
-## Состояние и кэш
+## State and cache
 
-- layout: `$XDG_STATE_HOME/omarchy/gshulga.dashboard.json` или
+- layout: `$XDG_STATE_HOME/omarchy/gshulga.dashboard.json` or
   `~/.local/state/omarchy/gshulga.dashboard.json`;
-- адаптированные копии: `$XDG_CACHE_HOME/omarchy-dashboard` или
+- adapted copies: `$XDG_CACHE_HOME/omarchy-dashboard` or
   `~/.cache/omarchy-dashboard`.
 
-Исходные каталоги плагинов никогда не изменяются. Кэш адресуется fingerprint
-содержимого, создаётся через staging directory и проверяется перед повторным
-использованием. Служебные каталоги систем контроля версий (`.git`, `.hg`,
-`.svn`) не копируются в runtime-кэш. State ограничен 256 KiB, читается без
-следования symlink и сохраняется атомарно.
+Source plugin directories are never changed. The cache is content-fingerprint
+addressed, created through a staging directory, and validated before reuse.
+Version-control metadata directories (`.git`, `.hg`, `.svn`) are not copied into
+the runtime cache. State is limited to 256 KiB, read without following symlinks,
+and saved atomically.
 
-## IPC и диагностика
+## IPC and diagnostics
 
-`status` доступен напрямую:
+`status` is available directly:
 
 ```bash
 omarchy-shell shell call gshulga.dashboard status x
 ```
 
-Сложные операции передаются одним JSON-аргументом через `execute`:
+Complex operations are passed as one JSON argument through `execute`:
 
 ```bash
 omarchy-shell shell call gshulga.dashboard execute '{"type":"getState"}'
@@ -325,29 +320,29 @@ omarchy-shell shell call gshulga.dashboard execute '{"type":"addText","text":"Sy
 omarchy-shell shell call gshulga.dashboard execute '{"type":"addDivider","x1":0,"y1":100,"x2":600,"y2":100}'
 ```
 
-Поддерживаются `status`, `getState`, `listPlugins`, `listHostEntries`, `open`, `close`, `toggle`,
-`selectSpace`, `nextSpace`, `addSpace`, `renameSpace`, `removeSpace`,
-`addPlugin`, `selectTile`, `removeTile`, `moveTile`, `resizeTile`, `placeTile`,
-`activateTile`, `setTileEmbedding`, `addText`, `updateText`, `addDivider`,
-`placeElement`, `removeElement`, `setGridSpacing`, `reorderSpace` и `setMode`.
-Все layout-команды проходят ту же валидацию, что
-и UI.
+Supported operations are `status`, `getState`, `listPlugins`, `listHostEntries`,
+`open`, `close`, `toggle`, `selectSpace`, `nextSpace`, `addSpace`,
+`renameSpace`, `removeSpace`, `addPlugin`, `selectTile`, `removeTile`,
+`moveTile`, `resizeTile`, `placeTile`, `activateTile`, `setTileEmbedding`,
+`addText`, `updateText`, `addDivider`, `placeElement`, `removeElement`,
+`setGridSpacing`, `reorderSpace`, and `setMode`. All layout commands use the
+same validation as the UI.
 
-## Разработка и проверки
+## Development and verification
 
 ```bash
 bash tests/all.sh
 ```
 
-При запущенных Hyprland и Omarchy Shell live-обновление системного радиуса
-проверяется отдельно: `bash tests/live-corner-radius.sh`. Скрипт временно
-меняет effective rounding через тот же Lua `eval`, проверяет реакцию на
-`configreloaded` и восстанавливает исходное значение.
+With Hyprland and Omarchy Shell running, verify live system-radius updates
+separately with `bash tests/live-corner-radius.sh`. The script temporarily
+changes the effective rounding through the same Lua `eval`, checks the reaction
+to `configreloaded`, and restores the original value.
 
-Набор включает QML unit tests модели/сетки/навигации, Python-тесты безопасного
-адаптера и state reader, adapter smoke test и проверку manifest Omarchy.
-`Dashboard.qml` отвечает только за сессию и команды интерфейса;
-`DashboardStore.qml` скрывает persistence, а `PluginRuntime.qml` — discovery,
-инъекцию lifecycle и адаптацию страниц плагинов.
-Архитектурные решения и этапы реализации зафиксированы в
+The suite includes QML unit tests for the model, grid, and navigation; Python
+tests for the secure adapter and state reader; an adapter smoke test; and
+Omarchy manifest validation. `Dashboard.qml` owns only the session and UI
+commands; `DashboardStore.qml` encapsulates persistence, and `PluginRuntime.qml`
+encapsulates discovery, lifecycle injection, and plugin-page adaptation.
+Architectural decisions and implementation stages are recorded in
 [`MASTER_PLAN.md`](MASTER_PLAN.md).

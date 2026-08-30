@@ -16,3 +16,16 @@ Thumbs.db
 *.swp
 *.swo
 
+# Local AI coding-agent state and workspace metadata
+.aider/
+.agents/
+.agent/
+.claude/
+.codex/
+.continue/
+.cursor/
+.gemini/
+.kilocode/
+.qodo/
+.roo/
+.windsurf/
