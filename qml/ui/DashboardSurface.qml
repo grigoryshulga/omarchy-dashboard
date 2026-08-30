@@ -286,6 +286,10 @@ PanelWindow {
 
   Connections {
     target: dashboard
+    function onActiveSpaceChanged() {
+      if (root.visible)
+        Qt.callLater(function() { if (root.visible) keyCatcher.forceActiveFocus() })
+    }
     function onModeChanged() {
       if (root.visible && dashboard.mode !== "interact")
         Qt.callLater(function() { if (root.visible) keyCatcher.forceActiveFocus() })
