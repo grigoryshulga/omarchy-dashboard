@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+ADAPTER_DIR = ROOT / "qml" / "adapters"
 SPEC = importlib.util.spec_from_file_location("adapter", ROOT / "lib" / "omarchy_dashboard_adapter.py")
 adapter = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -148,13 +149,13 @@ class AdapterTests(unittest.TestCase):
             root = Path(temporary)
             source = self.write_source(root)
             cache = root / "cache"
-            output = adapter.build(source, "Panel.qml", cache, "example.plugin", ROOT)
+            output = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
             self.assertTrue(output.is_file())
             self.assertEqual((source / "Panel.qml").read_text(), PANEL)
             self.assertTrue((output.parent / "DashboardHost.qml").is_file())
             self.assertIn("property bool dimmed", (output.parent / "DashboardHiddenBarButton.qml").read_text())
             self.assertEqual(adapter.artifact_layout(output, cache), adapter.PADDED_LAYOUT)
-            self.assertEqual(output, adapter.build(source, "Panel.qml", cache, "example.plugin", ROOT))
+            self.assertEqual(output, adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR))
 
     def test_ignores_root_vcs_metadata_when_building_a_runtime_artifact(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -164,7 +165,7 @@ class AdapterTests(unittest.TestCase):
             pack.parent.mkdir(parents=True)
             pack.write_bytes(b"x" * (adapter.MAX_SOURCE_FILE_BYTES + 1))
 
-            output = adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ROOT)
+            output = adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
 
             self.assertTrue(output.is_file())
             self.assertFalse((output.parent / ".git").exists())
@@ -175,7 +176,7 @@ class AdapterTests(unittest.TestCase):
             source = self.write_source(root, MAPPED_PANEL)
             cache = root / "cache"
 
-            output = adapter.build(source, "Panel.qml", cache, "example.plugin", ROOT)
+            output = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
 
             self.assertEqual(adapter.artifact_layout(output, cache), adapter.EDGE_TO_EDGE_LAYOUT)
 
@@ -196,7 +197,7 @@ Panel {
 """
             )
 
-            output = adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ROOT)
+            output = adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
             self.assertIn(f'import "{components.as_uri()}" as Components', output.read_text())
 
     def test_rejects_escape_and_symlinked_source(self):
@@ -204,10 +205,10 @@ Panel {
             root = Path(temporary)
             source = self.write_source(root)
             with self.assertRaisesRegex(adapter.AdaptationError, "outside"):
-                adapter.build(source, "../outside.qml", root / "cache", "example.plugin", ROOT)
+                adapter.build(source, "../outside.qml", root / "cache", "example.plugin", ADAPTER_DIR)
             (source / "linked.qml").symlink_to(source / "Panel.qml")
             with self.assertRaisesRegex(adapter.AdaptationError, "symlink"):
-                adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ROOT)
+                adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
 
     def test_rejects_an_entry_point_larger_than_one_megabyte_before_adapting(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -215,7 +216,7 @@ Panel {
             source = self.write_source(root, PANEL + " " * (1024 * 1024))
 
             with self.assertRaisesRegex(adapter.AdaptationError, "entry point exceeds"):
-                adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ROOT)
+                adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
 
     def test_rejects_a_plugin_tree_with_more_than_512_files_before_copying(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -225,7 +226,7 @@ Panel {
                 (source / f"extra-{index}.qml").write_text("Item {}\n")
 
             with self.assertRaisesRegex(adapter.AdaptationError, "too many files"):
-                adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ROOT)
+                adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
 
     def test_rejects_a_plugin_tree_larger_than_its_byte_budget_before_copying(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -235,14 +236,14 @@ Panel {
 
             with mock.patch.object(adapter, "MAX_SOURCE_TREE_BYTES", len(PANEL.encode("utf-8"))):
                 with self.assertRaisesRegex(adapter.AdaptationError, "tree exceeds"):
-                    adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ROOT)
+                    adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
 
     def test_rejects_cache_overlap_before_creating_staging_files(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = self.write_source(root)
             with self.assertRaisesRegex(adapter.AdaptationError, "overlap"):
-                adapter.build(source, "Panel.qml", source / "cache", "example.plugin", ROOT)
+                adapter.build(source, "Panel.qml", source / "cache", "example.plugin", ADAPTER_DIR)
             self.assertFalse((source / "cache").exists())
 
     def test_rejects_symlinked_cache_ancestor_before_reading_destination(self):
@@ -254,21 +255,21 @@ Panel {
             linked_cache = root / "linked-cache"
             linked_cache.symlink_to(real_cache, target_is_directory=True)
             with self.assertRaisesRegex(adapter.AdaptationError, "symlinked ancestors"):
-                adapter.build(source, "Panel.qml", linked_cache, "example.plugin", ROOT)
+                adapter.build(source, "Panel.qml", linked_cache, "example.plugin", ADAPTER_DIR)
 
     def test_repairs_a_corrupted_cached_artifact(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = self.write_source(root)
             cache = root / "cache"
-            output = adapter.build(source, "Panel.qml", cache, "example.plugin", ROOT)
+            output = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
             artifact = output.parent
             artifact.chmod(0o700)
             output.chmod(0o600)
             output.write_text("Item {}")
             artifact.chmod(0o500)
 
-            repaired = adapter.build(source, "Panel.qml", cache, "example.plugin", ROOT)
+            repaired = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
 
             self.assertEqual(repaired, output)
             self.assertIn("DashboardHost {", repaired.read_text())
@@ -278,12 +279,12 @@ Panel {
             root = Path(temporary)
             source = self.write_source(root)
             cache = root / "cache"
-            output = adapter.build(source, "Panel.qml", cache, "example.plugin", ROOT)
+            output = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
             marker = output.parent / adapter.MARKER_NAME
             marker.chmod(0o600)
             marker.write_text('["version","fingerprint","entryPoint","artifactDigest"]')
 
-            repaired = adapter.build(source, "Panel.qml", cache, "example.plugin", ROOT)
+            repaired = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
 
             self.assertEqual(repaired, output)
             self.assertIn("DashboardHost {", repaired.read_text())
@@ -294,8 +295,8 @@ Panel {
             source = self.write_source(root)
             (source / "Other.qml").write_text(PANEL.replace("id: root", "id: other"))
 
-            first = adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ROOT)
-            second = adapter.build(source, "Other.qml", root / "cache", "example.plugin", ROOT)
+            first = adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
+            second = adapter.build(source, "Other.qml", root / "cache", "example.plugin", ADAPTER_DIR)
 
             self.assertNotEqual(first.parent, second.parent)
             self.assertIn("DashboardHost {", first.read_text())
@@ -309,9 +310,9 @@ Panel {
             helper.write_text("#!/bin/sh\n")
             helper.chmod(0o644)
 
-            first = adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ROOT)
+            first = adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
             helper.chmod(0o755)
-            second = adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ROOT)
+            second = adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
 
             self.assertNotEqual(first.parent, second.parent)
             self.assertFalse(os.stat(first.parent / "helper.sh").st_mode & 0o111)
@@ -324,7 +325,7 @@ Panel {
             adapter_dir = root / "adapter"
             adapter_dir.mkdir()
             for helper in adapter.HELPER_NAMES:
-                (adapter_dir / helper).write_bytes((ROOT / helper).read_bytes())
+                (adapter_dir / helper).write_bytes((ADAPTER_DIR / helper).read_bytes())
 
             first = adapter.build(source, "Panel.qml", root / "cache", "example.plugin", adapter_dir)
             host = adapter_dir / "DashboardHost.qml"
@@ -342,7 +343,7 @@ Panel {
             (nested / "BarWidget.qml").write_text("import QtQuick\nItem {}\n")
             (nested / "Panel.qml").write_text(PANEL)
 
-            output = adapter.build(source, "nested/BarWidget.qml", root / "cache", "example.plugin", ROOT)
+            output = adapter.build(source, "nested/BarWidget.qml", root / "cache", "example.plugin", ADAPTER_DIR)
 
             self.assertEqual(output.name, "Panel.qml")
             self.assertEqual(output.parent.name, "nested")
@@ -356,20 +357,20 @@ Panel {
             (source / "DashboardHost.qml").write_text("Item {}\n")
 
             with self.assertRaisesRegex(adapter.AdaptationError, "collides"):
-                adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ROOT)
+                adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
 
     def test_rejects_relative_and_insecure_cache_roots(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = self.write_source(root)
             with self.assertRaisesRegex(adapter.AdaptationError, "absolute"):
-                adapter.build(source, "Panel.qml", Path("relative-cache"), "example.plugin", ROOT)
+                adapter.build(source, "Panel.qml", Path("relative-cache"), "example.plugin", ADAPTER_DIR)
 
             insecure = root / "insecure"
             insecure.mkdir()
             insecure.chmod(0o777)
             with self.assertRaisesRegex(adapter.AdaptationError, "insecure cache ancestor"):
-                adapter.build(source, "Panel.qml", insecure / "cache", "example.plugin", ROOT)
+                adapter.build(source, "Panel.qml", insecure / "cache", "example.plugin", ADAPTER_DIR)
 
     def test_tree_digest_has_unambiguous_file_boundaries(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -391,7 +392,7 @@ Panel {
             cache = root / "cache"
 
             def build(_: int) -> Path:
-                return adapter.build(source, "Panel.qml", cache, "example.plugin", ROOT)
+                return adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
 
             with ThreadPoolExecutor(max_workers=4) as executor:
                 outputs = list(executor.map(build, range(4)))

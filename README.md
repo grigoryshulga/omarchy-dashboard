@@ -368,8 +368,19 @@ to `configreloaded`, and restores the original value.
 
 The suite includes QML unit tests for the model, grid, and navigation; Python
 tests for the secure adapter and state reader; an adapter smoke test; and
-Omarchy manifest validation. `Dashboard.qml` owns only the session and UI
-commands; `DashboardStore.qml` encapsulates persistence, and `PluginRuntime.qml`
-encapsulates discovery, lifecycle injection, and plugin-page adaptation.
+Omarchy manifest validation. `qml/Dashboard.qml` owns only the session and UI
+commands; `qml/runtime/DashboardStore.qml` encapsulates persistence, and
+`qml/runtime/PluginRuntime.qml` encapsulates discovery, lifecycle injection,
+and plugin-page adaptation.
+
+The source tree follows the module seams used by the implementation:
+
+- `qml/` contains the two manifest entry points;
+- `qml/core/` contains state, geometry, navigation, and other pure logic;
+- `qml/runtime/` contains persistence and Omarchy/plugin integration;
+- `qml/ui/` contains the visual Dashboard implementation;
+- `qml/adapters/` contains helpers copied into adapted plugin panels;
+- `lib/` and `bin/` contain the Python implementation and executable wrappers.
+
 Architectural decisions and implementation stages are recorded in
-[`MASTER_PLAN.md`](MASTER_PLAN.md).
+[`docs/MASTER_PLAN.md`](docs/MASTER_PLAN.md).

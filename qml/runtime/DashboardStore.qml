@@ -1,6 +1,6 @@
 import QtQuick
 import Quickshell.Io
-import "DashboardModel.js" as DashboardModel
+import "../core/DashboardModel.js" as DashboardModel
 
 Item {
   id: root

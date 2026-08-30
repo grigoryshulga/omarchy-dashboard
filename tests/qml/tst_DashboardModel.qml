@@ -1,15 +1,15 @@
 import QtQuick
 import QtTest
-import "../.." as Dashboard
-import "../../DashboardAppearance.js" as DashboardAppearance
-import "../../DashboardModel.js" as DashboardModel
-import "../../GridEngine.js" as GridEngine
-import "../../HostPlacements.js" as HostPlacements
-import "../../HyprlandBlur.js" as HyprlandBlur
-import "../../PluginControls.js" as PluginControls
-import "../../PluginIconResolver.js" as PluginIconResolver
-import "../../PluginPresentation.js" as PluginPresentation
-import "../../SpatialNavigation.js" as SpatialNavigation
+import "../../qml/ui" as DashboardUi
+import "../../qml/core/DashboardAppearance.js" as DashboardAppearance
+import "../../qml/core/DashboardModel.js" as DashboardModel
+import "../../qml/core/GridEngine.js" as GridEngine
+import "../../qml/core/HostPlacements.js" as HostPlacements
+import "../../qml/core/HyprlandBlur.js" as HyprlandBlur
+import "../../qml/runtime/PluginControls.js" as PluginControls
+import "../../qml/runtime/PluginIconResolver.js" as PluginIconResolver
+import "../../qml/runtime/PluginPresentation.js" as PluginPresentation
+import "../../qml/core/SpatialNavigation.js" as SpatialNavigation
 
 TestCase {
   name: "DashboardModel"
@@ -27,7 +27,7 @@ TestCase {
     function selectSpace(id) { selectedSpaceId = id }
   }
 
-  Dashboard.DashboardSpaceShortcuts {
+  DashboardUi.DashboardSpaceShortcuts {
     id: spaceShortcuts
     dashboard: shortcutDashboard
     active: true

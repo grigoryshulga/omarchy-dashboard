@@ -13,6 +13,6 @@ fi
 
 XDG_CONFIG_HOME="$qml_config_dir" "$runner" \
   -input "$project_dir/tests/qml/tst_DashboardModel.qml" \
-  -import "$project_dir" \
+  -import "$project_dir/qml" \
   -o -,txt \
   "$@"

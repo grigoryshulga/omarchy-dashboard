@@ -1,7 +1,7 @@
 import QtQuick
 import Quickshell.Io
-import "GridEngine.js" as GridEngine
-import "HostPlacements.js" as HostPlacements
+import "../core/GridEngine.js" as GridEngine
+import "../core/HostPlacements.js" as HostPlacements
 import "PluginControls.js" as PluginControls
 import "PluginIconResolver.js" as PluginIconResolver
 import "PluginPresentation.js" as PluginPresentation
@@ -423,7 +423,7 @@ Item {
       String(entryPoint),
       cacheRoot,
       pluginId,
-      pluginDirectory
+      pluginDirectory + "/qml/adapters"
     ]
     adapter.running = true
     adapterTimeout.restart()

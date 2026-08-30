@@ -9,8 +9,8 @@
   "kinds": ["panel", "bar-widget"],
   "keepLoaded": true,
   "entryPoints": {
-    "panel": "Dashboard.qml",
-    "barWidget": "BarWidget.qml"
+    "panel": "qml/Dashboard.qml",
+    "barWidget": "qml/BarWidget.qml"
   },
   "barWidget": {
     "displayName": "Dashboard",

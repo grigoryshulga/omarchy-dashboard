@@ -121,7 +121,7 @@ Manifest Dashboard объявляет обычные Omarchy kinds `panel + bar-
 иметь singleton panel host и launcher в bar
 ([manifest.json](../manifest.json):1). Сам `Dashboard.qml` получает от shell
 `pluginRegistry` и создаёт собственный runtime
-([Dashboard.qml](../Dashboard.qml):11).
+([Dashboard.qml](../qml/Dashboard.qml):13).
 
 `PluginRuntime`:
 
@@ -143,7 +143,7 @@ host API.
 
 Состояние Dashboard отдельно от `shell.json`: layout лежит в
 `$XDG_STATE_HOME/omarchy/gshulga.dashboard.json` (см.
-[Dashboard.qml](../Dashboard.qml):31). Это удобно для сложной геометрии и Spaces,
+[Dashboard.qml](../qml/Dashboard.qml):33). Это удобно для сложной геометрии и Spaces,
 но создаёт два источника истины: shell решает, загружен ли plugin, Dashboard —
 где и сколько раз он размещён.
 

@@ -22,8 +22,8 @@ Dashboard стоит реализовать как полноэкранный la
 Рекомендуемая форма Omarchy-плагина:
 
 - `kinds: ["panel", "bar-widget"]`;
-- `Dashboard.qml` — единственный долгоживущий host сессии и окон;
-- `BarWidget.qml` — тонкая кнопка-launcher на каждом мониторе;
+- `qml/Dashboard.qml` — единственный долгоживущий host сессии и окон;
+- `qml/BarWidget.qml` — тонкая кнопка-launcher на каждом мониторе;
 - `keepLoaded: true` — host остаётся живым между открытиями;
 - один `PanelWindow`-вариант на монитор, но в каждый момент виден только вариант
   целевого монитора;
@@ -145,8 +145,8 @@ Dashboard. Это повторяет безопасную модель side pane
 ```text
 Omarchy shell
 ├── PluginRegistry / services / theme
-├── BarWidget.qml × monitor          тонкие launchers
-└── Dashboard.qml × 1                singleton panel host
+├── qml/BarWidget.qml × monitor      тонкие launchers
+└── qml/Dashboard.qml × 1            singleton panel host
     ├── DashboardStore               state + normalization + persistence
     ├── DashboardSession             open/close + target monitor + modes
     ├── DashboardSurface × monitor   полноэкранный framed/glass overlay
@@ -194,7 +194,7 @@ Side panel создаётся внутри bar widget, поэтому на не�
 
 ## 6. Surface и lifecycle
 
-`Dashboard.qml` держит `Variants { model: Quickshell.screens }`. Каждый delegate
+`qml/Dashboard.qml` держит `Variants { model: Quickshell.screens }`. Каждый delegate
 создаёт полноэкранный `PanelWindow`, но visible только окно с именем
 `session.activeScreenName`.
 
@@ -456,7 +456,7 @@ tile order. Этот алгоритм должен быть чистым и по
 
 ### Этап 1 — вертикальный slice host
 
-Сделать singleton `Dashboard.qml`, bar launcher, IPC open/close/toggle, выбор
+Сделать singleton `qml/Dashboard.qml`, bar launcher, IPC open/close/toggle, выбор
 focused/clicked monitor, fullscreen surface, focus prime и одну статическую
 fixture Tile.
 
@@ -600,8 +600,8 @@ bash tests/qml-model.sh
 Начать не с catalog и не с drag-and-drop, а с минимального end-to-end среза:
 
 1. `manifest.json` с `panel + bar-widget`.
-2. `BarWidget.qml`, передающий имя своего экрана.
-3. Singleton `Dashboard.qml` с `open/close/toggle`.
+2. `qml/BarWidget.qml`, передающий имя своего экрана.
+3. Singleton `qml/Dashboard.qml` с `open/close/toggle`.
 4. `DashboardSurface.qml` через per-screen `Variants`.
 5. Одна fixture Tile в свободной сетке с настраиваемым шагом.
 6. Store с одним Space и атомарным versioned state.

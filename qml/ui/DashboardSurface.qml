@@ -6,7 +6,7 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
-import "GridEngine.js" as GridEngine
+import "../core/GridEngine.js" as GridEngine
 
 PanelWindow {
   id: root

@@ -4,10 +4,12 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import qs.Commons
-import "DashboardAppearance.js" as DashboardAppearance
-import "DashboardModel.js" as DashboardModel
-import "GridEngine.js" as GridEngine
-import "SpatialNavigation.js" as SpatialNavigation
+import "core/DashboardAppearance.js" as DashboardAppearance
+import "core/DashboardModel.js" as DashboardModel
+import "core/GridEngine.js" as GridEngine
+import "core/SpatialNavigation.js" as SpatialNavigation
+import "runtime" as Runtime
+import "ui" as Ui
 
 Item {
   id: root
@@ -37,7 +39,7 @@ Item {
   }
   readonly property string stateDirectory: stateHome + "/omarchy"
   readonly property string statePath: stateDirectory + "/gshulga.dashboard.json"
-  readonly property string pluginDirectory: decodeURIComponent(Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "").replace(/\/$/, ""))
+  readonly property string pluginDirectory: decodeURIComponent(Qt.resolvedUrl("../").toString().replace(/^file:\/\//, "").replace(/\/$/, ""))
   readonly property string cacheHome: {
     var configured = Quickshell.env("XDG_CACHE_HOME")
     return configured && String(configured).charAt(0) === "/" ? String(configured) : home + "/.cache"
@@ -1045,7 +1047,7 @@ Item {
     }
   }
 
-  DashboardStore {
+  Runtime.DashboardStore {
     id: stateStore
     directoryPath: root.stateDirectory
     statePath: root.statePath
@@ -1058,11 +1060,11 @@ Item {
     }
   }
 
-  DashboardBlurSettings {
+  Runtime.DashboardBlurSettings {
     id: blurSettings
   }
 
-  PluginRuntime {
+  Runtime.PluginRuntime {
     id: pluginRuntime
     dashboardHost: root
     shell: root.shell
@@ -1079,7 +1081,7 @@ Item {
   Variants {
     model: Quickshell.screens
     delegate: Component {
-      DashboardSurface {
+      Ui.DashboardSurface {
         required property var modelData
         dashboard: root
         screen: modelData
