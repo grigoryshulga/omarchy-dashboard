@@ -20,6 +20,7 @@ Item {
   property string selectedTileId: ""
   property string overlay: ""
   property var popoutTile: null
+  property var placementDraft: null
   property double lastEscapeAt: 0
   readonly property var dashboardState: stateStore.document
   property real gridWidth: GridEngine.DEFAULT_WIDTH
@@ -51,6 +52,9 @@ Item {
     var space = root.activeSpace
     return space && space.tiles ? space.tiles : []
   }
+  readonly property bool placingPlugin: placementDraft !== null
+  readonly property bool placementValid: placingPlugin
+    && GridEngine.canPlace(placementDraft.rect, activeTiles, "", gridWidth, gridHeight)
   readonly property bool dimBackground: plugins.dashboardSetting("dimBackground", true) === true
   readonly property string surfaceMode: DashboardAppearance.surfaceMode(
     plugins.dashboardSetting("surfaceMode", "Glass"))
@@ -78,6 +82,7 @@ Item {
   }
 
   function toggleEditMode() {
+    if (placingPlugin) cancelPluginPlacement()
     mode = mode === "edit" ? "browse" : "edit"
   }
 
@@ -119,6 +124,7 @@ Item {
   function close() {
     overlay = ""
     popoutTile = null
+    placementDraft = null
     mode = "browse"
     selectedTileId = ""
     opened = false
@@ -223,7 +229,8 @@ Item {
     var now = Date.now()
     if (now - lastEscapeAt < 120) return
     lastEscapeAt = now
-    if (mode === "interact" || mode === "edit") mode = "browse"
+    if (placingPlugin) cancelPluginPlacement()
+    else if (mode === "interact" || mode === "edit") mode = "browse"
     else close()
   }
 
@@ -311,6 +318,7 @@ Item {
   }
 
   function selectSpace(spaceId) {
+    if (placingPlugin) cancelPluginPlacement()
     closePluginPopout()
     commit({ type: "selectSpace", spaceId: spaceId })
     mode = mode === "interact" ? "browse" : mode
@@ -390,22 +398,122 @@ Item {
     })
   }
 
-  function addPlugin(pluginIdValue, embedding) {
+  function centeredMinimumRect(hints) {
+    var step = dashboardState.gridSpacing
+    var width = Math.min(gridWidth, GridEngine.floorStep(hints.minW))
+    var height = Math.min(gridHeight, GridEngine.floorStep(hints.minH))
+    var x = GridEngine.snap((gridWidth - width) / 2, step)
+    var y = GridEngine.snap((gridHeight - height) / 2, step)
+    return {
+      x: Math.max(0, Math.min(gridWidth - width, x)),
+      y: Math.max(0, Math.min(gridHeight - height, y)),
+      w: width,
+      h: height
+    }
+  }
+
+  function beginPluginPlacement(pluginIdValue, embedding) {
     var descriptor = plugins.descriptor(pluginIdValue)
-    if (!descriptor) return
-    plugins.enable(pluginIdValue, descriptor.manifest)
+    if (!descriptor) return false
     var hints = plugins.sizeHints(pluginIdValue, gridWidth, gridHeight)
-    var rect = GridEngine.firstFree(hints.preferredW, hints.preferredH, activeTiles,
-                                    gridWidth, gridHeight, dashboardState.gridSpacing)
-    if (!rect) return
+    var rect = GridEngine.bestFree(
+      hints.preferredW, hints.preferredH, hints.minW, hints.minH,
+      activeTiles, gridWidth, gridHeight, dashboardState.gridSpacing)
+    placementDraft = {
+      pluginId: pluginIdValue,
+      label: descriptor.name,
+      embedding: embedding || "auto",
+      manifest: descriptor.manifest,
+      minW: hints.minW,
+      minH: hints.minH,
+      preferredW: hints.preferredW,
+      preferredH: hints.preferredH,
+      previousTileId: selectedTileId,
+      rect: rect || centeredMinimumRect(hints)
+    }
+    selectedTileId = ""
+    overlay = ""
+    mode = "edit"
+    return true
+  }
+
+  function updatePlacementRect(rect) {
+    if (!placingPlugin || !rect) return
+    var next = placementDraft
+    placementDraft = {
+      pluginId: next.pluginId,
+      label: next.label,
+      embedding: next.embedding,
+      manifest: next.manifest,
+      minW: next.minW,
+      minH: next.minH,
+      preferredW: next.preferredW,
+      preferredH: next.preferredH,
+      previousTileId: next.previousTileId,
+      rect: rect
+    }
+  }
+
+  function movePlacementByGrid(dx, dy) {
+    if (!placingPlugin) return
+    var rect = placementDraft.rect
+    var step = dashboardState.gridSpacing
+    var x = GridEngine.advanceOnGrid(rect.x, dx, step)
+    var y = GridEngine.advanceOnGrid(rect.y, dy, step)
+    updatePlacementRect({
+      x: Math.max(0, Math.min(gridWidth - rect.w, x)),
+      y: Math.max(0, Math.min(gridHeight - rect.h, y)),
+      w: rect.w,
+      h: rect.h
+    })
+  }
+
+  function resizePlacementByGrid(dw, dh) {
+    if (!placingPlugin) return
+    var draft = placementDraft
+    var rect = draft.rect
+    var step = dashboardState.gridSpacing
+    updatePlacementRect({
+      x: rect.x,
+      y: rect.y,
+      w: Math.max(draft.minW, Math.min(gridWidth - rect.x,
+        GridEngine.advanceOnGrid(rect.w, dw, step))),
+      h: Math.max(draft.minH, Math.min(gridHeight - rect.y,
+        GridEngine.advanceOnGrid(rect.h, dh, step)))
+    })
+  }
+
+  function cancelPluginPlacement() {
+    var previousTileId = placingPlugin ? String(placementDraft.previousTileId || "") : ""
+    placementDraft = null
+    selectedTileId = previousTileId
+    ensureSelection()
+  }
+
+  function confirmPluginPlacement() {
+    if (!placementValid) return false
+    var draft = placementDraft
     var tileId = "tile-" + Date.now() + "-" + activeTiles.length
     commit({
       type: "addTile", spaceId: activeSpace.id, id: tileId,
-      pluginId: pluginIdValue, label: descriptor.name, rect: rect,
-      embedding: embedding || "auto"
+      pluginId: draft.pluginId, label: draft.label, rect: draft.rect,
+      embedding: draft.embedding
     })
+    var added = false
+    for (var index = 0; index < activeTiles.length; index++)
+      if (activeTiles[index].id === tileId) added = true
+    if (!added) return false
+    plugins.enable(draft.pluginId, draft.manifest)
     selectedTileId = tileId
-    overlay = ""
+    placementDraft = null
+    return true
+  }
+
+  function addPlugin(pluginIdValue, embedding) {
+    if (!beginPluginPlacement(pluginIdValue, embedding)) return false
+    if (placementValid) return confirmPluginPlacement()
+    cancelPluginPlacement()
+    return false
   }
 
   onOpenedChanged: {

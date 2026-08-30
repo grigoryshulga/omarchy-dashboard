@@ -19,6 +19,7 @@ Item {
     { key: "Alt+E", action: "Toggle edit mode" },
     { key: "Alt+arrows", action: "Move a tile in edit mode" },
     { key: "Ctrl+Alt+arrows", action: "Resize a tile in edit mode" },
+    { key: "Placement: arrows / Ctrl", action: "Move / resize; Enter places, Esc cancels" },
     { key: "Alt+C / Alt+R", action: "Create or rename a Space" },
     { key: "Alt+X", action: "Remove a Space (confirmation required)" },
     { key: "Delete", action: "Remove selected tile in edit mode" },

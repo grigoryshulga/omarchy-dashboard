@@ -82,7 +82,10 @@ PanelWindow {
   }
 
   function handleEscape() {
-    if (dashboard.overlay !== "") {
+    if (dashboard.placingPlugin) {
+      dashboard.cancelPluginPlacement()
+      keyCatcher.forceActiveFocus()
+    } else if (dashboard.overlay !== "") {
       if (dashboard.overlay === "plugin") dashboard.closePluginPopout()
       else dashboard.overlay = ""
       keyCatcher.forceActiveFocus()
@@ -121,6 +124,20 @@ PanelWindow {
       return
     }
     if (dashboard.overlay === "remove-space") {
+      return
+    }
+
+    if (dashboard.placingPlugin) {
+      if ([Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down].indexOf(event.key) >= 0) {
+        var horizontal = event.key === Qt.Key_Left ? -1 : (event.key === Qt.Key_Right ? 1 : 0)
+        var vertical = event.key === Qt.Key_Up ? -1 : (event.key === Qt.Key_Down ? 1 : 0)
+        if (ctrl) dashboard.resizePlacementByGrid(horizontal, vertical)
+        else dashboard.movePlacementByGrid(horizontal, vertical)
+        event.accepted = true
+      } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+        dashboard.confirmPluginPlacement()
+        event.accepted = true
+      }
       return
     }
 
@@ -511,6 +528,7 @@ PanelWindow {
               visible: toolbar.controlsVisible && dashboard.mode === "edit"
               icon: "\uf12e"
               text: "Add Plugin"
+              enabled: !dashboard.placingPlugin
               onClicked: dashboard.overlay = "catalog"
             }
             DashboardActionButton {
@@ -544,6 +562,48 @@ PanelWindow {
           width: parent.width
           height: parent.height - toolbar.height - parent.spacing
           clip: true
+
+          Rectangle {
+            anchors.top: parent.top
+            anchors.topMargin: Style.spacing.sm
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: placementControls.implicitWidth + Style.spacing.lg * 2
+            height: Style.space(42)
+            visible: dashboard.placingPlugin
+            radius: Style.cornerRadius > 0 ? height / 2 : 0
+            color: Color.popups.background
+            border.width: 1
+            border.color: dashboard.placementValid
+              ? Color.accent : Qt.rgba(0.95, 0.25, 0.30, 1)
+            z: 60
+
+            Row {
+              id: placementControls
+              anchors.centerIn: parent
+              spacing: Style.spacing.sm
+
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: dashboard.placementValid
+                  ? "Move or resize, then place"
+                  : "No room here — resize it or move another tile"
+                color: dashboard.placementValid
+                  ? Color.popups.text : Qt.rgba(0.95, 0.45, 0.48, 1)
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+              }
+              DashboardActionButton {
+                text: "Place"
+                accent: true
+                enabled: dashboard.placementValid
+                onClicked: dashboard.confirmPluginPlacement()
+              }
+              DashboardActionButton {
+                text: "Cancel"
+                onClicked: dashboard.cancelPluginPlacement()
+              }
+            }
+          }
 
           Item {
             id: gridCanvas
@@ -612,6 +672,11 @@ PanelWindow {
               }
             }
 
+            PlacementGhost {
+              dashboard: root.dashboard
+              canvas: gridCanvas
+            }
+
             Row {
               id: gridStepControls
               anchors.right: parent.right
@@ -657,7 +722,7 @@ PanelWindow {
 
             Column {
               anchors.centerIn: parent
-              visible: dashboard.activeTiles.length === 0
+              visible: dashboard.activeTiles.length === 0 && !dashboard.placingPlugin
               spacing: Style.spacing.md
               Text {
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -709,7 +774,7 @@ PanelWindow {
         keyCatcher.forceActiveFocus()
       }
       onPluginRequested: function(pluginId) {
-        dashboard.addPlugin(pluginId)
+        dashboard.beginPluginPlacement(pluginId)
         keyCatcher.forceActiveFocus()
       }
     }

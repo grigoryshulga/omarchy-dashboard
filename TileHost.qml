@@ -26,15 +26,16 @@ Item {
   readonly property bool selected: dashboard.selectedTileId === tile.id
   readonly property bool editing: dashboard.mode === "edit"
   readonly property bool interacting: dashboard.mode === "interact" && selected
-  readonly property var displayRect: previewRect || tile
+  readonly property bool previewValid: previewRect !== null
+    && GridEngine.canPlace(previewRect, dashboard.activeTiles, tile.id, gridWidth, gridHeight)
   readonly property var presentation: dashboard.plugins.presentation(tile)
   readonly property string sourceUrl: String(presentation.source || "")
 
-  x: displayRect.x
-  y: displayRect.y
-  width: displayRect.w
-  height: displayRect.h
-  z: dragging || resizing ? 10 : (selected ? 2 : 1)
+  x: tile.x
+  y: tile.y
+  width: tile.w
+  height: tile.h
+  z: selected ? 2 : 1
 
   function pointInCanvas(mouseArea, mouse) {
     return mouseArea.mapToItem(canvas, mouse.x, mouse.y)
@@ -62,23 +63,26 @@ Item {
       candidate = {
         x: startRect.x,
         y: startRect.y,
-        w: Math.max(hints.minW, GridEngine.snapFrom(startRect.w, deltaX, gridStep)),
-        h: Math.max(hints.minH, GridEngine.snapFrom(startRect.h, deltaY, gridStep))
+        w: Math.max(hints.minW, Math.min(gridWidth - startRect.x,
+          GridEngine.snapFrom(startRect.w, deltaX, gridStep))),
+        h: Math.max(hints.minH, Math.min(gridHeight - startRect.y,
+          GridEngine.snapFrom(startRect.h, deltaY, gridStep)))
       }
     } else {
       candidate = {
-        x: GridEngine.snapFrom(startRect.x, deltaX, gridStep),
-        y: GridEngine.snapFrom(startRect.y, deltaY, gridStep),
+        x: Math.max(0, Math.min(gridWidth - startRect.w,
+          GridEngine.snapFrom(startRect.x, deltaX, gridStep))),
+        y: Math.max(0, Math.min(gridHeight - startRect.h,
+          GridEngine.snapFrom(startRect.y, deltaY, gridStep))),
         w: startRect.w,
         h: startRect.h
       }
     }
-    if (GridEngine.canPlace(candidate, dashboard.activeTiles, tile.id, gridWidth, gridHeight))
-      previewRect = candidate
+    previewRect = candidate
   }
 
   function finishPointer() {
-    if (previewRect) dashboard.placeTile(tile.id, previewRect)
+    if (previewValid) dashboard.placeTile(tile.id, previewRect)
     clearPointer()
   }
 
@@ -195,6 +199,7 @@ Item {
   Rectangle {
     id: frame
     anchors.fill: parent
+    opacity: root.dragging || root.resizing ? 0.28 : 1
     radius: Style.cornerRadius
     color: root.presentation.kind === "launcher" && actionMouse.containsMouse
       ? Style.hoverFillFor(Color.popups.text, Color.accent)
@@ -203,6 +208,8 @@ Item {
     border.color: root.selected
       ? Color.accent
       : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.09)
+
+    Behavior on opacity { NumberAnimation { duration: 90 } }
 
     Item {
       id: content
@@ -524,6 +531,23 @@ Item {
         onReleased: root.finishPointer()
         onCanceled: root.cancelPointer()
       }
+    }
+  }
+
+  Item {
+    parent: root.canvas
+    visible: root.previewRect !== null
+    x: visible ? root.previewRect.x : 0
+    y: visible ? root.previewRect.y : 0
+    width: visible ? root.previewRect.w : 0
+    height: visible ? root.previewRect.h : 0
+    z: 50
+
+    TileSilhouette {
+      anchors.fill: parent
+      valid: root.previewValid
+      title: root.presentation.name || root.tile.label || root.tile.pluginId
+      detail: parent.width + " × " + parent.height
     }
   }
 }

@@ -162,6 +162,83 @@ function firstFree(width, height, tiles, boundWidth, boundHeight, step) {
   return null
 }
 
+function appendUnique(values, value) {
+  for (var index = 0; index < values.length; index++)
+    if (values[index] === value) return
+  values.push(value)
+}
+
+function alignedUp(value, step) {
+  var increment = gridStep(step)
+  return Math.ceil(finiteNumber(value, 0) / increment) * increment
+}
+
+// Finds the least-shrunk free rectangle between preferred and minimum size.
+// Candidate edges come from the canvas and occupied tile edges, which keeps
+// the search bounded by the number of tiles instead of the pixel dimensions.
+function bestFree(preferredWidth, preferredHeight, minimumWidth, minimumHeight,
+                  tiles, boundWidth, boundHeight, step) {
+  var limit = bounds(boundWidth, boundHeight)
+  var increment = gridStep(step)
+  var preferredW = clamp(floorStep(preferredWidth), MIN_WIDTH, limit.width)
+  var preferredH = clamp(floorStep(preferredHeight), MIN_HEIGHT, limit.height)
+  var minW = clamp(floorStep(minimumWidth), MIN_WIDTH, preferredW)
+  var minH = clamp(floorStep(minimumHeight), MIN_HEIGHT, preferredH)
+  var source = Array.isArray(tiles) ? tiles : []
+  var startsX = [0]
+  var startsY = [0]
+  var endsX = [limit.width]
+  var endsY = [limit.height]
+
+  for (var tileIndex = 0; tileIndex < source.length; tileIndex++) {
+    var tile = tileRect(source[tileIndex])
+    if (!tile) continue
+    appendUnique(startsX, alignedUp(tile.x + tile.w, increment))
+    appendUnique(startsY, alignedUp(tile.y + tile.h, increment))
+    appendUnique(endsX, floorStep(tile.x))
+    appendUnique(endsY, floorStep(tile.y))
+  }
+  startsX.sort(function(left, right) { return left - right })
+  startsY.sort(function(left, right) { return left - right })
+  endsX.sort(function(left, right) { return left - right })
+  endsY.sort(function(left, right) { return left - right })
+
+  var best = null
+  var bestBalance = -1
+  var bestArea = -1
+  for (var yIndex = 0; yIndex < startsY.length; yIndex++) {
+    var y = startsY[yIndex]
+    if (y < 0 || y + minH > limit.height) continue
+    for (var xIndex = 0; xIndex < startsX.length; xIndex++) {
+      var x = startsX[xIndex]
+      if (x < 0 || x + minW > limit.width) continue
+      for (var bottomIndex = 0; bottomIndex < endsY.length; bottomIndex++) {
+        var height = Math.min(preferredH, endsY[bottomIndex] - y)
+        height = floorStep(height)
+        if (height < minH) continue
+        for (var rightIndex = 0; rightIndex < endsX.length; rightIndex++) {
+          var width = Math.min(preferredW, endsX[rightIndex] - x)
+          width = floorStep(width)
+          if (width < minW) continue
+          var candidate = { x: x, y: y, w: width, h: height }
+          if (!canPlace(candidate, source, "", limit.width, limit.height)) continue
+          var balance = Math.min(width / preferredW, height / preferredH)
+          var area = width * height
+          if (!best || balance > bestBalance
+              || (balance === bestBalance && area > bestArea)
+              || (balance === bestBalance && area === bestArea && y < best.y)
+              || (balance === bestBalance && area === bestArea && y === best.y && x < best.x)) {
+            best = candidate
+            bestBalance = balance
+            bestArea = area
+          }
+        }
+      }
+    }
+  }
+  return best
+}
+
 function move(tile, deltaX, deltaY, tiles, boundWidth, boundHeight) {
   if (!tile) return null
   var candidate = {

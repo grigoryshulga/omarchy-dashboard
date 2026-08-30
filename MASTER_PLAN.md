@@ -232,6 +232,9 @@ Lifecycle:
 - gap и outer padding берутся из `Style`;
 - Tile не может выйти за bounds или пересечь другую Tile;
 - invalid drop/resize не меняет model и визуально показывает причину;
+- добавление Tile сначала создаёт несохранённый placement draft: GridEngine
+  ищет наименее уменьшенный свободный rect между preferred и min, а UI
+  подтверждает его только после move/resize preview;
 - все pointer и keyboard операции проходят через одни команды GridEngine.
 
 Такой state переносим между разрешениями и мониторами. Пиксельные координаты

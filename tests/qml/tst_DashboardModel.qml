@@ -117,6 +117,41 @@ TestCase {
     compare(rect.y, 0)
   }
 
+  function test_best_free_keeps_preferred_size_when_it_fits() {
+    var rect = GridEngine.bestFree(360, 260, 160, 120,
+                                   [tile("a", 0, 0, 360, 260)], 800, 600, 20)
+    compare(rect.x, 360)
+    compare(rect.y, 0)
+    compare(rect.w, 360)
+    compare(rect.h, 260)
+  }
+
+  function test_best_free_shrinks_to_use_a_narrow_gap() {
+    var rect = GridEngine.bestFree(360, 260, 160, 120,
+                                   [tile("a", 0, 0, 600, 600)], 800, 600, 20)
+    verify(rect !== null)
+    compare(rect.x, 600)
+    compare(rect.y, 0)
+    compare(rect.w, 200)
+    compare(rect.h, 260)
+    verify(GridEngine.canPlace(rect, [tile("a", 0, 0, 600, 600)], "", 800, 600))
+  }
+
+  function test_best_free_can_use_minimum_size_between_coarse_grid_lines() {
+    var rect = GridEngine.bestFree(360, 260, 160, 120,
+                                   [tile("a", 0, 0, 630, 600)], 800, 600, 30)
+    verify(rect !== null)
+    compare(rect.x, 630)
+    compare(rect.w, 170)
+    compare(rect.h, 260)
+  }
+
+  function test_best_free_returns_null_when_minimum_size_does_not_fit() {
+    var rect = GridEngine.bestFree(360, 260, 160, 120,
+                                   [tile("a", 0, 0, 800, 600)], 800, 600, 20)
+    verify(rect === null)
+  }
+
   function test_model_normalizes_duplicate_plugins_and_overlaps() {
     var state = DashboardModel.normalize({
       version: DashboardModel.VERSION,
