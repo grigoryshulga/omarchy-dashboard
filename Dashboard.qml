@@ -18,9 +18,11 @@ Item {
   property string activeScreenName: ""
   property string mode: "browse"
   property string selectedTileId: ""
+  property string selectedElementId: ""
   property string overlay: ""
   property var popoutTile: null
   property var placementDraft: null
+  property var dividerDraft: null
   property double lastEscapeAt: 0
   readonly property var dashboardState: stateStore.document
   property real gridWidth: GridEngine.DEFAULT_WIDTH
@@ -52,7 +54,12 @@ Item {
     var space = root.activeSpace
     return space && space.tiles ? space.tiles : []
   }
+  readonly property var activeElements: {
+    var space = root.activeSpace
+    return space && space.elements ? space.elements : []
+  }
   readonly property bool placingPlugin: placementDraft !== null
+  readonly property bool placingDivider: dividerDraft !== null
   readonly property bool placementValid: placingPlugin
     && GridEngine.canPlace(placementDraft.rect, activeTiles, "", gridWidth, gridHeight)
   readonly property bool dimBackground: plugins.dashboardSetting("dimBackground", true) === true
@@ -83,7 +90,12 @@ Item {
 
   function toggleEditMode() {
     if (placingPlugin) cancelPluginPlacement()
+    if (placingDivider) cancelDividerPlacement()
     mode = mode === "edit" ? "browse" : "edit"
+    if (mode !== "edit") {
+      selectedElementId = ""
+      ensureSelection()
+    }
   }
 
   function focusedScreenName() {
@@ -116,6 +128,7 @@ Item {
     activeScreenName = screenFromPayload(payloadJson)
     opened = true
     mode = "browse"
+    selectedElementId = ""
     overlay = ""
     popoutTile = null
     ensureSelection()
@@ -125,8 +138,10 @@ Item {
     overlay = ""
     popoutTile = null
     placementDraft = null
+    dividerDraft = null
     mode = "browse"
     selectedTileId = ""
+    selectedElementId = ""
     opened = false
     stateStore.flush()
   }
@@ -149,8 +164,10 @@ Item {
       popoutPluginId: popoutTile ? String(popoutTile.pluginId || "") : "",
       activeSpaceId: dashboardState ? dashboardState.activeSpaceId : "",
       tileCount: count,
+      elementCount: activeElements.length,
       spaceCount: dashboardState && dashboardState.spaces ? dashboardState.spaces.length : 0,
       selectedTileId: selectedTileId,
+      selectedElementId: selectedElementId,
       adaptingPluginId: plugins.adaptingPluginId,
       cornerRadius: Style.cornerRadius,
       surfaceMode: surfaceMode,
@@ -201,22 +218,30 @@ Item {
     else if (type === "removeSpace") removeActiveSpace()
     else if (type === "setGridSpacing") setGridSpacing(Number(command.value))
     else if (type === "addPlugin") addPlugin(String(command.pluginId || ""), String(command.embedding || "auto"))
+    else if (type === "addDivider") addDivider(
+      Number(command.x1), Number(command.y1), Number(command.x2), Number(command.y2))
+    else if (type === "addText") addText(String(command.text || ""), command.rect || null)
+    else if (type === "updateText") updateText(
+      String(command.elementId || selectedElementId || ""), String(command.text || ""))
+    else if (type === "removeElement") removeElement(
+      String(command.elementId || selectedElementId || ""))
     else if (type === "removeTile") removeTile(String(command.tileId || selectedTileId || ""))
     else if (type === "selectTile") {
-      selectedTileId = String(command.tileId || "")
-      ensureSelection()
+      selectTileId(String(command.tileId || ""))
     } else if (type === "activateTile") {
-      if (command.tileId) selectedTileId = String(command.tileId)
+      if (command.tileId) selectTileId(String(command.tileId))
       ensureSelection()
       activateSelectedTile()
     } else if (type === "moveTile") {
-      if (command.tileId) selectedTileId = String(command.tileId)
+      if (command.tileId) selectTileId(String(command.tileId))
       moveSelectedTile(Number(command.dx) || 0, Number(command.dy) || 0)
     } else if (type === "resizeTile") {
-      if (command.tileId) selectedTileId = String(command.tileId)
+      if (command.tileId) selectTileId(String(command.tileId))
       resizeSelectedTile(Number(command.dw) || 0, Number(command.dh) || 0)
     } else if (type === "placeTile") {
       placeTile(String(command.tileId || selectedTileId || ""), command.rect || ({}))
+    } else if (type === "placeElement") {
+      placeElement(String(command.elementId || selectedElementId || ""), command.geometry || ({}))
     } else if (type === "setTileEmbedding") {
       setTileEmbedding(String(command.tileId || selectedTileId || ""), String(command.embedding || "auto"))
     } else if (type === "setMode" && ["browse", "edit", "interact"].indexOf(command.mode) >= 0) {
@@ -230,7 +255,12 @@ Item {
     if (now - lastEscapeAt < 120) return
     lastEscapeAt = now
     if (placingPlugin) cancelPluginPlacement()
-    else if (mode === "interact" || mode === "edit") mode = "browse"
+    else if (placingDivider) cancelDividerPlacement()
+    else if (mode === "interact" || mode === "edit") {
+      mode = "browse"
+      selectedElementId = ""
+      ensureSelection()
+    }
     else close()
   }
 
@@ -240,19 +270,43 @@ Item {
   }
 
   function selectTile(direction) {
+    selectedElementId = ""
     selectedTileId = SpatialNavigation.next(activeTiles, selectedTileId, direction)
   }
 
   function cycleTile(delta) {
+    selectedElementId = ""
     selectedTileId = SpatialNavigation.sequential(activeTiles, selectedTileId, delta)
   }
 
   function ensureSelection() {
+    if (mode === "edit" && selectedElementId) {
+      for (var elementIndex = 0; elementIndex < activeElements.length; elementIndex++) {
+        if (activeElements[elementIndex].id === selectedElementId) {
+          selectedTileId = ""
+          return
+        }
+      }
+    }
+    selectedElementId = ""
     var tiles = root.activeTiles
     if (!tiles || typeof tiles.length !== "number") tiles = []
     for (var index = 0; index < tiles.length; index++)
       if (tiles[index].id === selectedTileId) return
     selectedTileId = tiles.length > 0 ? String(tiles[0].id) : ""
+  }
+
+  function selectTileId(tileId) {
+    selectedElementId = ""
+    selectedTileId = String(tileId || "")
+    ensureSelection()
+  }
+
+  function selectElement(elementId) {
+    if (mode !== "edit") return
+    selectedTileId = ""
+    selectedElementId = String(elementId || "")
+    ensureSelection()
   }
 
   function selectedTile() {
@@ -263,8 +317,15 @@ Item {
     return null
   }
 
+  function selectedElement() {
+    for (var index = 0; index < activeElements.length; index++)
+      if (activeElements[index].id === selectedElementId) return activeElements[index]
+    return null
+  }
+
   function activateTile(tileValue) {
     if (!tileValue) return false
+    selectedElementId = ""
     selectedTileId = String(tileValue.id || "")
     var tilePresentation = plugins.presentation(tileValue)
     if (tilePresentation.kind === "control")
@@ -319,6 +380,8 @@ Item {
 
   function selectSpace(spaceId) {
     if (placingPlugin) cancelPluginPlacement()
+    if (placingDivider) cancelDividerPlacement()
+    selectedElementId = ""
     closePluginPopout()
     commit({ type: "selectSpace", spaceId: spaceId })
     mode = mode === "interact" ? "browse" : mode
@@ -358,9 +421,64 @@ Item {
     commit({ type: "placeTile", spaceId: activeSpace.id, tileId: tileId, rect: rect })
   }
 
+  function placeElement(elementId, geometry) {
+    if (!elementId) return
+    commit({
+      type: "placeElement", spaceId: activeSpace.id,
+      elementId: elementId, geometry: geometry
+    })
+  }
+
   function moveSelectedTile(dx, dy) {
     if (!selectedTileId) return
     commit({ type: "moveTile", spaceId: activeSpace.id, tileId: selectedTileId, dx: dx, dy: dy })
+  }
+
+  function moveSelectedItemByGrid(dx, dy) {
+    if (selectedElementId) moveSelectedElementByGrid(dx, dy)
+    else nudgeSelectedTile(dx, dy)
+  }
+
+  function resizeSelectedItemByGrid(dw, dh) {
+    if (selectedElementId) resizeSelectedElementByGrid(dw, dh)
+    else resizeSelectedTileByGrid(dw, dh)
+  }
+
+  function moveSelectedElementByGrid(dx, dy) {
+    var element = selectedElement()
+    if (!element) return
+    var x = element.kind === "divider" ? element.x1 : element.x
+    var y = element.kind === "divider" ? element.y1 : element.y
+    var nextX = GridEngine.advanceOnGrid(x, dx, dashboardState.gridSpacing)
+    var nextY = GridEngine.advanceOnGrid(y, dy, dashboardState.gridSpacing)
+    var deltaX = nextX - x
+    var deltaY = nextY - y
+    if (element.kind === "divider") placeElement(element.id, {
+      x1: element.x1 + deltaX, y1: element.y1 + deltaY,
+      x2: element.x2 + deltaX, y2: element.y2 + deltaY
+    })
+    else placeElement(element.id, {
+      x: element.x + deltaX, y: element.y + deltaY, w: element.w, h: element.h
+    })
+  }
+
+  function resizeSelectedElementByGrid(dw, dh) {
+    var element = selectedElement()
+    if (!element) return
+    if (element.kind === "divider") {
+      var geometry = { x1: element.x1, y1: element.y1, x2: element.x2, y2: element.y2 }
+      if (element.y1 === element.y2 && dw !== 0)
+        geometry.x2 = GridEngine.advanceOnGrid(element.x2, dw, dashboardState.gridSpacing)
+      else if (element.x1 === element.x2 && dh !== 0)
+        geometry.y2 = GridEngine.advanceOnGrid(element.y2, dh, dashboardState.gridSpacing)
+      placeElement(element.id, geometry)
+      return
+    }
+    placeElement(element.id, {
+      x: element.x, y: element.y,
+      w: Math.max(40, GridEngine.advanceOnGrid(element.w, dw, dashboardState.gridSpacing)),
+      h: Math.max(20, GridEngine.advanceOnGrid(element.h, dh, dashboardState.gridSpacing))
+    })
   }
 
   function nudgeSelectedTile(dx, dy) {
@@ -388,6 +506,94 @@ Item {
 
   function removeTile(tileId) {
     commit({ type: "removeTile", spaceId: activeSpace.id, tileId: tileId })
+  }
+
+  function removeElement(elementId) {
+    if (!elementId) return
+    commit({ type: "removeElement", spaceId: activeSpace.id, elementId: elementId })
+    if (selectedElementId === elementId) selectedElementId = ""
+    ensureSelection()
+  }
+
+  function updateText(elementId, text) {
+    if (!elementId || !String(text || "").trim()) return false
+    commit({
+      type: "updateText", spaceId: activeSpace.id,
+      elementId: elementId, text: String(text)
+    })
+    return true
+  }
+
+  function defaultTextRect(text) {
+    var step = dashboardState.gridSpacing
+    var width = Math.min(gridWidth, GridEngine.snap(
+      Math.max(160, Math.min(520, String(text || "").length * 18)), step))
+    var height = Math.min(gridHeight, GridEngine.snap(70, step))
+    return {
+      x: Math.max(0, Math.min(gridWidth - width,
+        GridEngine.snap((gridWidth - width) / 2, step))),
+      y: Math.max(0, Math.min(gridHeight - height,
+        GridEngine.snap((gridHeight - height) / 2, step))),
+      w: width, h: height
+    }
+  }
+
+  function addText(text, requestedRect) {
+    var value = String(text || "").trim()
+    if (!value) return false
+    var elementId = "element-text-" + Date.now() + "-" + activeElements.length
+    commit({
+      type: "addText", spaceId: activeSpace.id, id: elementId,
+      text: value, rect: requestedRect || defaultTextRect(value)
+    })
+    for (var index = 0; index < activeElements.length; index++) {
+      if (activeElements[index].id === elementId) {
+        selectElement(elementId)
+        return true
+      }
+    }
+    return false
+  }
+
+  function addDivider(x1, y1, x2, y2) {
+    var elementId = "element-divider-" + Date.now() + "-" + activeElements.length
+    commit({
+      type: "addDivider", spaceId: activeSpace.id, id: elementId,
+      x1: x1, y1: y1, x2: x2, y2: y2
+    })
+    for (var index = 0; index < activeElements.length; index++) {
+      if (activeElements[index].id === elementId) {
+        selectElement(elementId)
+        return true
+      }
+    }
+    return false
+  }
+
+  function beginDividerPlacement() {
+    if (placingPlugin) cancelPluginPlacement()
+    dividerDraft = { x1: 0, y1: 0, x2: 0, y2: 0, started: false }
+    selectedTileId = ""
+    selectedElementId = ""
+    overlay = ""
+    mode = "edit"
+  }
+
+  function updateDividerDraft(x1, y1, x2, y2, started) {
+    if (!placingDivider) return
+    dividerDraft = { x1: x1, y1: y1, x2: x2, y2: y2, started: started !== false }
+  }
+
+  function cancelDividerPlacement() {
+    dividerDraft = null
+    ensureSelection()
+  }
+
+  function confirmDividerPlacement() {
+    if (!placingDivider || !dividerDraft.started) return false
+    var draft = dividerDraft
+    dividerDraft = null
+    return addDivider(draft.x1, draft.y1, draft.x2, draft.y2)
   }
 
   function setTileEmbedding(tileId, embedding) {
@@ -432,6 +638,7 @@ Item {
       rect: rect || centeredMinimumRect(hints)
     }
     selectedTileId = ""
+    selectedElementId = ""
     overlay = ""
     mode = "edit"
     return true

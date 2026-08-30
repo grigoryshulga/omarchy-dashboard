@@ -17,12 +17,13 @@ Item {
     { key: "Alt+1 … 9", action: "Open Space by number" },
     { key: "Alt++", action: "Open plugin catalog (edit)" },
     { key: "Alt+E", action: "Toggle edit mode" },
-    { key: "Alt+arrows", action: "Move a tile in edit mode" },
-    { key: "Ctrl+Alt+arrows", action: "Resize a tile in edit mode" },
+    { key: "Alt+arrows", action: "Move the selected tile, text, or divider" },
+    { key: "Ctrl+Alt+arrows", action: "Resize the selected tile, text, or divider" },
+    { key: "Edit toolbar", action: "Draw a divider or add scalable text" },
     { key: "Placement: arrows / Ctrl", action: "Move / resize; Enter places, Esc cancels" },
     { key: "Alt+C / Alt+R", action: "Create or rename a Space" },
     { key: "Alt+X", action: "Remove a Space (confirmation required)" },
-    { key: "Delete", action: "Remove selected tile in edit mode" },
+    { key: "Delete", action: "Remove the selected tile or graphic element" },
     { key: "?", action: "Show or hide this guide" }
   ]
 

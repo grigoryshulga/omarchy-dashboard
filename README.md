@@ -9,6 +9,8 @@ surface: поэтому страницы плагинов можно разме�
 
 - свободная пиксельная сетка с настраиваемым шагом 5–80 px, drag-and-drop,
   resize и запретом пересечений;
+- декоративные элементы поверх сетки: горизонтальные/вертикальные разделители
+  между точками и текстовые подписи с автоматическим масштабированием шрифта;
 - несколько именованных Spaces с компактным переключателем и inline rename;
 - режимы `browse`, `interact` и `edit` с предсказуемым владением фокусом;
 - открытие на мониторе, с которого вызван launcher, либо на focused monitor;
@@ -70,13 +72,13 @@ bindd = SUPER, D, Dashboard, exec, omarchy-shell shell toggle gshulga.dashboard
 | `Alt++` | Открыть каталог плагинов в `edit` |
 | `Alt+E` | Включить или выключить `edit` |
 | `Alt+V` | Переключить `Framed` / `Glass` в `edit` |
-| `Alt+стрелки` | Переместить плитку в `edit` |
-| `Ctrl+Alt+стрелки` | Изменить размер плитки в `edit` |
+| `Alt+стрелки` | Переместить выбранную плитку или графический элемент в `edit` |
+| `Ctrl+Alt+стрелки` | Изменить размер выбранной плитки или графического элемента в `edit` |
 | `стрелки` / `Ctrl+стрелки` | Переместить / изменить размер силуэта новой плитки |
 | `Enter` / `Esc` | Разместить / отменить новую плитку |
 | `Alt+C` / `Alt+R` | Создать / переименовать Space |
 | `Alt+X` | Удалить текущее Space с подтверждением (последнее удалить нельзя) |
-| `Delete` | Удалить выбранную плитку |
+| `Delete` | Удалить выбранную плитку или графический элемент |
 | `?` | Показать встроенную шпаргалку |
 
 `Alt+1` … `Alt+9` зарегистрированы как оконные shortcuts Dashboard, поэтому
@@ -97,6 +99,15 @@ bindd = SUPER, D, Dashboard, exec, omarchy-shell shell toggle gshulga.dashboard
 а не сохраняет старый остаток. Двойной клик по
 содержимому переводит плитку в `interact`; `Escape` всегда возвращает в
 `browse`, не закрывая внутреннюю панель.
+
+Кнопка `Draw Divider` включает короткий режим рисования: нужно протянуть линию
+между двумя точками сетки, после чего Dashboard зафиксирует доминирующую ось и
+сохранит строго горизонтальный или вертикальный разделитель. В `edit` линию
+можно перемещать целиком, а её круглые концы — растягивать независимо. `Add Text`
+создаёт текстовую подпись; размер шрифта автоматически подстраивается под рамку,
+которую можно перетаскивать и растягивать. Двойной клик по подписи повторно
+открывает редактор текста. Декоративные элементы не участвуют в запрете
+пересечений и поэтому могут проходить поверх плиток и друг друга.
 
 Добавление из каталога проходит через короткий режим предварительного
 размещения: Dashboard сначала показывает на холсте силуэт, автоматически
@@ -217,12 +228,16 @@ omarchy-shell shell call gshulga.dashboard execute '{"type":"addPlugin","pluginI
 omarchy-shell shell call gshulga.dashboard execute '{"type":"setTileEmbedding","embedding":"launcher"}'
 omarchy-shell shell call gshulga.dashboard execute '{"type":"setMode","mode":"edit"}'
 omarchy-shell shell call gshulga.dashboard execute '{"type":"setGridSpacing","value":20}'
+omarchy-shell shell call gshulga.dashboard execute '{"type":"addText","text":"System status"}'
+omarchy-shell shell call gshulga.dashboard execute '{"type":"addDivider","x1":0,"y1":100,"x2":600,"y2":100}'
 ```
 
 Поддерживаются `status`, `getState`, `listPlugins`, `open`, `close`, `toggle`,
 `selectSpace`, `nextSpace`, `addSpace`, `renameSpace`, `removeSpace`,
 `addPlugin`, `selectTile`, `removeTile`, `moveTile`, `resizeTile`, `placeTile`,
-`activateTile`, `setTileEmbedding`, `setGridSpacing`, `reorderSpace` и `setMode`. Все layout-команды проходят ту же валидацию, что
+`activateTile`, `setTileEmbedding`, `addText`, `updateText`, `addDivider`,
+`placeElement`, `removeElement`, `setGridSpacing`, `reorderSpace` и `setMode`.
+Все layout-команды проходят ту же валидацию, что
 и UI.
 
 ## Разработка и проверки

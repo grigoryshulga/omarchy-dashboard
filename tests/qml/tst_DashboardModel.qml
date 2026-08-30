@@ -187,6 +187,72 @@ TestCase {
     compare(state.spaces[1].tiles[0].h, 210)
   }
 
+  function test_commands_manage_graphic_elements_without_tile_collisions() {
+    var state = DashboardModel.defaultState()
+    state = DashboardModel.apply(state, {
+      type: "addTile", id: "plugin", pluginId: "example.plugin",
+      rect: { x: 0, y: 0, w: 300, h: 200 }
+    }, 800, 600)
+    state = DashboardModel.apply(state, {
+      type: "addDivider", id: "divider", x1: 0, y1: 100, x2: 300, y2: 100
+    }, 800, 600)
+    state = DashboardModel.apply(state, {
+      type: "addText", id: "heading", text: "System status",
+      rect: { x: 20, y: 20, w: 240, h: 60 }
+    }, 800, 600)
+
+    compare(state.spaces[0].elements.length, 2)
+    compare(state.spaces[0].elements[0].kind, "divider")
+    compare(state.spaces[0].elements[1].text, "System status")
+
+    state = DashboardModel.apply(state, {
+      type: "placeElement", elementId: "divider",
+      geometry: { x1: 400, y1: 0, x2: 400, y2: 300 }
+    }, 800, 600)
+    compare(state.spaces[0].elements[0].x1, 400)
+    compare(state.spaces[0].elements[0].x2, 400)
+    compare(state.spaces[0].elements[0].y2, 300)
+
+    state = DashboardModel.apply(state, {
+      type: "updateText", elementId: "heading", text: "Updated"
+    }, 800, 600)
+    compare(state.spaces[0].elements[1].text, "Updated")
+
+    state = DashboardModel.apply(state, {
+      type: "removeElement", elementId: "divider"
+    }, 800, 600)
+    compare(state.spaces[0].elements.length, 1)
+    compare(state.spaces[0].elements[0].id, "heading")
+  }
+
+  function test_graphic_elements_are_axis_aligned_bounded_and_normalized() {
+    var state = DashboardModel.normalize({
+      version: DashboardModel.VERSION,
+      activeSpaceId: "main",
+      spaces: [{ id: "main", name: "Main", tiles: [], elements: [
+        { id: "diagonal", kind: "divider", x1: 0, y1: 0, x2: 100, y2: 50 },
+        { id: "zero", kind: "divider", x1: 20, y1: 20, x2: 20, y2: 20 },
+        { id: "line", kind: "divider", x1: 2, y1: 18, x2: 102, y2: 18 },
+        { id: "empty", kind: "text", text: " ", x: 0, y: 0, w: 100, h: 30 },
+        { id: "label", kind: "text", text: " Label ", x: 12, y: 17, w: 81, h: 29 }
+      ] }]
+    })
+    compare(state.spaces[0].elements.length, 2)
+    compare(state.spaces[0].elements[0].id, "line")
+    compare(state.spaces[0].elements[0].x1, 0)
+    compare(state.spaces[0].elements[0].y1, 20)
+    compare(state.spaces[0].elements[0].x2, 100)
+    compare(state.spaces[0].elements[1].text, "Label")
+    compare(state.spaces[0].elements[1].x, 10)
+    compare(state.spaces[0].elements[1].w, 80)
+
+    var unchanged = DashboardModel.apply(state, {
+      type: "placeElement", elementId: "line",
+      geometry: { x1: 0, y1: 20, x2: 900, y2: 20 }
+    }, 800, 600)
+    compare(unchanged.spaces[0].elements[0].x2, 100)
+  }
+
   function test_tile_presentation_preference_is_normalized_and_mutable() {
     var state = DashboardModel.defaultState()
     state = DashboardModel.apply(state, {
@@ -377,6 +443,17 @@ TestCase {
     compare(parsed.spaces[0].tiles[0].h, 300)
   }
 
+  function test_v3_state_is_upgraded_with_an_empty_element_collection() {
+    var parsed = DashboardModel.parse(JSON.stringify({
+      version: 3,
+      activeSpaceId: "main",
+      spaces: [{ id: "main", name: "Main", tiles: [tile("a", 10, 20, 400, 300)] }]
+    }))
+    verify(parsed !== null)
+    compare(parsed.version, DashboardModel.VERSION)
+    compare(parsed.spaces[0].elements.length, 0)
+  }
+
   function test_grid_spacing_is_configurable_and_bounded() {
     var state = DashboardModel.defaultState()
     state = DashboardModel.apply(state, { type: "setGridSpacing", value: 25 })
@@ -427,6 +504,15 @@ TestCase {
     var empty = GridEngine.centeredBounds(2020, 1065, 80, [])
     compare(empty.width, 2000)
     compare(empty.height, 1040)
+
+    var decorated = GridEngine.centeredBounds(800, 600, 40, [{
+      tiles: [], elements: [
+        { kind: "divider", x1: 0, y1: 560, x2: 760, y2: 560 },
+        { kind: "text", x: 600, y: 400, w: 200, h: 160 }
+      ]
+    }])
+    compare(decorated.width, 800)
+    compare(decorated.height, 600)
   }
 
   function test_first_grid_operation_aligns_existing_geometry() {

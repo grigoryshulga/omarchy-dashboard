@@ -74,6 +74,18 @@ function occupiedBounds(spaces) {
       width = Math.max(width, finiteNumber(tile.x, 0) + finiteNumber(tile.w, 0))
       height = Math.max(height, finiteNumber(tile.y, 0) + finiteNumber(tile.h, 0))
     }
+    var elements = source[spaceIndex] && Array.isArray(source[spaceIndex].elements)
+      ? source[spaceIndex].elements : []
+    for (var elementIndex = 0; elementIndex < elements.length; elementIndex++) {
+      var element = elements[elementIndex] || ({})
+      if (element.kind === "divider") {
+        width = Math.max(width, finiteNumber(element.x1, 0), finiteNumber(element.x2, 0))
+        height = Math.max(height, finiteNumber(element.y1, 0), finiteNumber(element.y2, 0))
+      } else {
+        width = Math.max(width, finiteNumber(element.x, 0) + finiteNumber(element.w, 0))
+        height = Math.max(height, finiteNumber(element.y, 0) + finiteNumber(element.h, 0))
+      }
+    }
   }
   return { width: Math.max(0, width), height: Math.max(0, height) }
 }

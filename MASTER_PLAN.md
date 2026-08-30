@@ -7,7 +7,8 @@
 План ниже сохранён как архитектурная запись. Реализация прошла все этапы;
 после UX-проверки исходная крупная сетка 12×8 была заменена свободной
 пиксельной сеткой с настраиваемым шагом 5–80 px. Legacy migration намеренно удалена; текущая
-схема v3 принимает только pixel-state v2/v3.
+схема v4 принимает pixel-state v2/v3 и добавляет отдельные декоративные
+элементы Space: текст и осевые разделители.
 
 ## 1. Резюме решения
 
@@ -127,6 +128,8 @@ enabled-state может быть нужен другим поверхностя
 - **Space** — именованная страница Dashboard. Не Hyprland workspace.
 - **Grid** — логическая координатная система Space.
 - **Tile** — размещение одного Plugin Page в Grid.
+- **Graphic Element** — неинтерактивная декорация Grid (`text` или `divider`),
+  которая не участвует в collision-модели Tile.
 - **Plugin Page** — встраиваемое QML-содержимое плагина.
 - **Host mode** — один из `browse`, `interact`, `edit`.
 - **Native fallback** — запуск обычной панели плагина вне Grid.
@@ -149,7 +152,8 @@ Omarchy shell
     ├── DashboardSurface × monitor   полноэкранный framed/glass overlay
     │   ├── SpaceViewport
     │   ├── GridCanvas
-    │   └── TileHost × visible tile
+    │   ├── TileHost × visible tile
+    │   └── DashboardGraphicElement × decoration
     ├── PluginCatalog
     └── PluginRuntime
         ├── ExplicitPageAdapter

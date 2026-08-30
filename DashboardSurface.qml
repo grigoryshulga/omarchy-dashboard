@@ -14,6 +14,8 @@ PanelWindow {
   required property var dashboard
   property bool focusPrimed: false
   property string editorText: ""
+  property string textEditorValue: ""
+  property string textEditorElementId: ""
   property string pendingRemovalSpaceId: ""
   readonly property int surfaceInset: Math.max(Style.spacing.panelGap, Style.gapsOut)
   readonly property int cardInset: dashboard.glassBackground ? 0 : Style.gapsOut
@@ -56,6 +58,34 @@ PanelWindow {
     keyCatcher.forceActiveFocus()
   }
 
+  function beginNewText() {
+    textEditorElementId = ""
+    textEditorValue = "Text"
+    dashboard.overlay = "text-editor"
+  }
+
+  function beginTextEdit(elementId, value) {
+    textEditorElementId = String(elementId || "")
+    textEditorValue = String(value || "")
+    dashboard.overlay = "text-editor"
+  }
+
+  function finishTextEditor(value) {
+    if (textEditorElementId) dashboard.updateText(textEditorElementId, value)
+    else dashboard.addText(value)
+    textEditorElementId = ""
+    textEditorValue = ""
+    dashboard.overlay = ""
+    keyCatcher.forceActiveFocus()
+  }
+
+  function cancelTextEditor() {
+    textEditorElementId = ""
+    textEditorValue = ""
+    dashboard.overlay = ""
+    keyCatcher.forceActiveFocus()
+  }
+
   function requestSpaceRemoval(spaceId) {
     if (dashboard.dashboardState.spaces.length <= 1) return
     pendingRemovalSpaceId = String(spaceId || "")
@@ -87,6 +117,7 @@ PanelWindow {
       keyCatcher.forceActiveFocus()
     } else if (dashboard.overlay !== "") {
       if (dashboard.overlay === "plugin") dashboard.closePluginPopout()
+      else if (dashboard.overlay === "text-editor") cancelTextEditor()
       else dashboard.overlay = ""
       keyCatcher.forceActiveFocus()
     } else {
@@ -126,6 +157,9 @@ PanelWindow {
     if (dashboard.overlay === "remove-space") {
       return
     }
+    if (dashboard.overlay === "text-editor") {
+      return
+    }
 
     if (dashboard.placingPlugin) {
       if ([Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down].indexOf(event.key) >= 0) {
@@ -154,17 +188,17 @@ PanelWindow {
     }
 
     if ((event.key === Qt.Key_Left || event.key === Qt.Key_Right) && alt && !ctrl) {
-      if (dashboard.mode === "edit" && dashboard.selectedTileId)
-        dashboard.nudgeSelectedTile(event.key === Qt.Key_Left ? -1 : 1, 0)
+      if (dashboard.mode === "edit" && (dashboard.selectedTileId || dashboard.selectedElementId))
+        dashboard.moveSelectedItemByGrid(event.key === Qt.Key_Left ? -1 : 1, 0)
       else dashboard.moveSpace(event.key === Qt.Key_Left ? -1 : 1)
       event.accepted = true
     } else if ((event.key === Qt.Key_Up || event.key === Qt.Key_Down) && alt && !ctrl
                && dashboard.mode === "edit") {
-      dashboard.nudgeSelectedTile(0, event.key === Qt.Key_Up ? -1 : 1)
+      dashboard.moveSelectedItemByGrid(0, event.key === Qt.Key_Up ? -1 : 1)
       event.accepted = true
     } else if (ctrl && alt && dashboard.mode === "edit"
                && [Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down].indexOf(event.key) >= 0) {
-      dashboard.resizeSelectedTileByGrid(
+      dashboard.resizeSelectedItemByGrid(
         event.key === Qt.Key_Left ? -1 : (event.key === Qt.Key_Right ? 1 : 0),
         event.key === Qt.Key_Up ? -1 : (event.key === Qt.Key_Down ? 1 : 0)
       )
@@ -203,8 +237,11 @@ PanelWindow {
     } else if (event.key === Qt.Key_X && alt && dashboard.mode === "edit") {
       requestSpaceRemoval(dashboard.activeSpace.id); event.accepted = true
     } else if ((event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace)
-               && dashboard.mode === "edit" && dashboard.selectedTileId) {
-      dashboard.removeTile(dashboard.selectedTileId); event.accepted = true
+               && dashboard.mode === "edit"
+               && (dashboard.selectedTileId || dashboard.selectedElementId)) {
+      if (dashboard.selectedElementId) dashboard.removeElement(dashboard.selectedElementId)
+      else dashboard.removeTile(dashboard.selectedTileId)
+      event.accepted = true
     }
   }
 
@@ -528,8 +565,22 @@ PanelWindow {
               visible: toolbar.controlsVisible && dashboard.mode === "edit"
               icon: "\uf12e"
               text: "Add Plugin"
-              enabled: !dashboard.placingPlugin
+              enabled: !dashboard.placingPlugin && !dashboard.placingDivider
               onClicked: dashboard.overlay = "catalog"
+            }
+            DashboardActionButton {
+              visible: toolbar.controlsVisible && dashboard.mode === "edit"
+              icon: "\uf068"
+              text: "Draw Divider"
+              enabled: !dashboard.placingPlugin && !dashboard.placingDivider
+              onClicked: dashboard.beginDividerPlacement()
+            }
+            DashboardActionButton {
+              visible: toolbar.controlsVisible && dashboard.mode === "edit"
+              icon: "T"
+              text: "Add Text"
+              enabled: !dashboard.placingPlugin && !dashboard.placingDivider
+              onClicked: root.beginNewText()
             }
             DashboardActionButton {
               visible: toolbar.controlsVisible
@@ -569,11 +620,11 @@ PanelWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             width: placementControls.implicitWidth + Style.spacing.lg * 2
             height: Style.space(42)
-            visible: dashboard.placingPlugin
+            visible: dashboard.placingPlugin || dashboard.placingDivider
             radius: Style.cornerRadius > 0 ? height / 2 : 0
             color: Color.popups.background
             border.width: 1
-            border.color: dashboard.placementValid
+            border.color: dashboard.placingDivider || dashboard.placementValid
               ? Color.accent : Qt.rgba(0.95, 0.25, 0.30, 1)
             z: 60
 
@@ -584,15 +635,18 @@ PanelWindow {
 
               Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: dashboard.placementValid
-                  ? "Move or resize, then place"
-                  : "No room here — resize it or move another tile"
-                color: dashboard.placementValid
+                text: dashboard.placingDivider
+                  ? "Drag between two grid points; the axis locks automatically"
+                  : (dashboard.placementValid
+                    ? "Move or resize, then place"
+                    : "No room here — resize it or move another tile")
+                color: dashboard.placingDivider || dashboard.placementValid
                   ? Color.popups.text : Qt.rgba(0.95, 0.45, 0.48, 1)
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
               }
               DashboardActionButton {
+                visible: dashboard.placingPlugin
                 text: "Place"
                 accent: true
                 enabled: dashboard.placementValid
@@ -600,7 +654,10 @@ PanelWindow {
               }
               DashboardActionButton {
                 text: "Cancel"
-                onClicked: dashboard.cancelPluginPlacement()
+                onClicked: {
+                  if (dashboard.placingDivider) dashboard.cancelDividerPlacement()
+                  else dashboard.cancelPluginPlacement()
+                }
               }
             }
           }
@@ -672,6 +729,84 @@ PanelWindow {
               }
             }
 
+            Repeater {
+              id: graphicElementRepeater
+              model: dashboard.activeElements
+              delegate: DashboardGraphicElement {
+                required property var modelData
+                dashboard: root.dashboard
+                element: modelData
+                canvas: gridCanvas
+                gridWidth: gridCanvas.width
+                gridHeight: gridCanvas.height
+                onEditTextRequested: function(elementId, text) {
+                  root.beginTextEdit(elementId, text)
+                }
+              }
+            }
+
+            Item {
+              id: dividerDraft
+              anchors.fill: parent
+              visible: dashboard.placingDivider && dashboard.dividerDraft.started
+              z: 54
+              readonly property var draft: dashboard.dividerDraft || ({ x1: 0, y1: 0, x2: 0, y2: 0 })
+              readonly property bool horizontal: draft.y1 === draft.y2
+
+              Rectangle {
+                x: dividerDraft.horizontal
+                  ? Math.min(dividerDraft.draft.x1, dividerDraft.draft.x2)
+                  : dividerDraft.draft.x1 - width / 2
+                y: dividerDraft.horizontal
+                  ? dividerDraft.draft.y1 - height / 2
+                  : Math.min(dividerDraft.draft.y1, dividerDraft.draft.y2)
+                width: dividerDraft.horizontal
+                  ? Math.abs(dividerDraft.draft.x2 - dividerDraft.draft.x1)
+                  : Math.max(2, Style.space(2))
+                height: dividerDraft.horizontal
+                  ? Math.max(2, Style.space(2))
+                  : Math.abs(dividerDraft.draft.y2 - dividerDraft.draft.y1)
+                radius: Math.min(width, height) / 2
+                color: Color.accent
+              }
+            }
+
+            MouseArea {
+              id: dividerDrawArea
+              anchors.fill: parent
+              enabled: dashboard.placingDivider
+              visible: enabled
+              z: 55
+              cursorShape: Qt.CrossCursor
+              preventStealing: true
+
+              function gridPoint(mouse) {
+                var step = dashboard.dashboardState.gridSpacing
+                return {
+                  x: Math.max(0, Math.min(width, GridEngine.snap(mouse.x, step))),
+                  y: Math.max(0, Math.min(height, GridEngine.snap(mouse.y, step)))
+                }
+              }
+
+              onPressed: function(mouse) {
+                var point = gridPoint(mouse)
+                dashboard.updateDividerDraft(point.x, point.y, point.x, point.y, true)
+              }
+              onPositionChanged: function(mouse) {
+                if (!pressed || !dashboard.dividerDraft) return
+                var point = gridPoint(mouse)
+                var draft = dashboard.dividerDraft
+                if (Math.abs(point.x - draft.x1) >= Math.abs(point.y - draft.y1))
+                  dashboard.updateDividerDraft(draft.x1, draft.y1, point.x, draft.y1, true)
+                else dashboard.updateDividerDraft(draft.x1, draft.y1, draft.x1, point.y, true)
+              }
+              onReleased: {
+                if (!dashboard.confirmDividerPlacement()) dashboard.cancelDividerPlacement()
+                keyCatcher.forceActiveFocus()
+              }
+              onCanceled: dashboard.cancelDividerPlacement()
+            }
+
             PlacementGhost {
               dashboard: root.dashboard
               canvas: gridCanvas
@@ -722,7 +857,9 @@ PanelWindow {
 
             Column {
               anchors.centerIn: parent
-              visible: dashboard.activeTiles.length === 0 && !dashboard.placingPlugin
+              visible: dashboard.activeTiles.length === 0
+                && dashboard.activeElements.length === 0
+                && !dashboard.placingPlugin && !dashboard.placingDivider
               spacing: Style.spacing.md
               Text {
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -746,6 +883,19 @@ PanelWindow {
                 text: "Add Plugin"
                 onClicked: dashboard.overlay = "catalog"
               }
+              Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: dashboard.mode === "edit"
+                spacing: Style.spacing.sm
+                DashboardActionButton {
+                  text: "Divider"
+                  onClicked: dashboard.beginDividerPlacement()
+                }
+                DashboardActionButton {
+                  text: "Text"
+                  onClicked: root.beginNewText()
+                }
+              }
             }
           }
         }
@@ -762,6 +912,17 @@ PanelWindow {
       confirmText: "Remove"
       onAccepted: root.confirmSpaceRemoval()
       onRejected: root.cancelSpaceRemoval()
+    }
+
+    DashboardTextEditor {
+      anchors.fill: parent
+      visible: dashboard.overlay === "text-editor"
+      z: 24
+      value: root.textEditorValue
+      title: root.textEditorElementId ? "Edit text" : "Add text"
+      acceptText: root.textEditorElementId ? "Save" : "Add"
+      onAccepted: function(value) { root.finishTextEditor(value) }
+      onRejected: root.cancelTextEditor()
     }
 
     PluginCatalog {

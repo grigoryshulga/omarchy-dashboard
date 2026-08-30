@@ -1,15 +1,20 @@
 .pragma library
 .import "GridEngine.js" as GridEngine
 
-var VERSION = 3
+var VERSION = 4
 var MAX_STATE_BYTES = 256 * 1024
 var MAX_SPACES = 12
 var MAX_TILES_PER_SPACE = 24
 var MAX_TOTAL_TILES = 64
+var MAX_ELEMENTS_PER_SPACE = 48
+var MAX_TOTAL_ELEMENTS = 128
 var MAX_NAME_LENGTH = 80
+var MAX_TEXT_LENGTH = 240
 var MAX_ID_LENGTH = 160
 var MIN_GRID_SPACING = 5
 var MAX_GRID_SPACING = 80
+var MIN_TEXT_WIDTH = 40
+var MIN_TEXT_HEIGHT = 20
 
 function stringBounded(value, maximum) {
   var text = value === undefined || value === null ? "" : String(value)
@@ -42,8 +47,61 @@ function defaultState() {
     revision: 0,
     gridSpacing: 10,
     activeSpaceId: "space-main",
-    spaces: [{ id: "space-main", name: "Main", tiles: [] }]
+    spaces: [{ id: "space-main", name: "Main", tiles: [], elements: [] }]
   }
+}
+
+function normalizeElement(raw, usedElementIds) {
+  var source = raw || ({})
+  var id = stringBounded(source.id, MAX_ID_LENGTH).trim()
+  var kind = String(source.kind || source.type || "")
+  if (!id || usedElementIds[id] || ["divider", "text"].indexOf(kind) < 0) return null
+
+  if (kind === "divider") {
+    var x1 = GridEngine.snap(source.x1)
+    var y1 = GridEngine.snap(source.y1)
+    var x2 = GridEngine.snap(source.x2)
+    var y2 = GridEngine.snap(source.y2)
+    if (![x1, y1, x2, y2].every(function(value) { return isFinite(value) })) return null
+    x1 = Math.max(0, Math.min(GridEngine.MAX_WIDTH, x1))
+    x2 = Math.max(0, Math.min(GridEngine.MAX_WIDTH, x2))
+    y1 = Math.max(0, Math.min(GridEngine.MAX_HEIGHT, y1))
+    y2 = Math.max(0, Math.min(GridEngine.MAX_HEIGHT, y2))
+    if ((x1 !== x2 && y1 !== y2) || (x1 === x2 && y1 === y2)) return null
+    usedElementIds[id] = true
+    return { id: id, kind: kind, x1: x1, y1: y1, x2: x2, y2: y2 }
+  }
+
+  var text = stringBounded(source.text, MAX_TEXT_LENGTH).trim()
+  if (!text) return null
+  var rect = GridEngine.normalizeRect(source, MIN_TEXT_WIDTH, MIN_TEXT_HEIGHT,
+                                      GridEngine.MAX_WIDTH, GridEngine.MAX_HEIGHT)
+  usedElementIds[id] = true
+  return {
+    id: id, kind: kind, text: text,
+    x: rect.x, y: rect.y, w: rect.w, h: rect.h
+  }
+}
+
+function elementIndex(space, id) {
+  var elements = space && Array.isArray(space.elements) ? space.elements : []
+  for (var index = 0; index < elements.length; index++)
+    if (elements[index].id === id) return index
+  return -1
+}
+
+function elementInBounds(element, boundWidth, boundHeight) {
+  var limit = GridEngine.bounds(boundWidth, boundHeight)
+  if (!element) return false
+  if (element.kind === "divider") {
+    return element.x1 >= 0 && element.x1 <= limit.width
+      && element.x2 >= 0 && element.x2 <= limit.width
+      && element.y1 >= 0 && element.y1 <= limit.height
+      && element.y2 >= 0 && element.y2 <= limit.height
+      && ((element.x1 === element.x2 && element.y1 !== element.y2)
+        || (element.y1 === element.y2 && element.x1 !== element.x2))
+  }
+  return GridEngine.inBounds(element, limit.width, limit.height)
 }
 
 function normalizeTile(raw, usedTileIds, usedPluginIds, acceptedTiles) {
@@ -75,7 +133,9 @@ function normalize(raw) {
   var usedSpaceIds = ({})
   var usedTileIds = ({})
   var usedPluginIds = ({})
+  var usedElementIds = ({})
   var totalTiles = 0
+  var totalElements = 0
 
   for (var spaceIndex = 0; spaceIndex < spacesSource.length && spaces.length < MAX_SPACES; spaceIndex++) {
     var inputSpace = spacesSource[spaceIndex] || ({})
@@ -91,8 +151,21 @@ function normalize(raw) {
       tiles.push(tile)
       totalTiles += 1
     }
+    var elements = []
+    var elementSource = Array.isArray(inputSpace.elements) ? inputSpace.elements : []
+    for (var elementSourceIndex = 0; elementSourceIndex < elementSource.length
+         && elements.length < MAX_ELEMENTS_PER_SPACE
+         && totalElements < MAX_TOTAL_ELEMENTS; elementSourceIndex++) {
+      var element = normalizeElement(elementSource[elementSourceIndex], usedElementIds)
+      if (!element) continue
+      elements.push(element)
+      totalElements += 1
+    }
     var name = stringBounded(inputSpace.name, MAX_NAME_LENGTH).trim()
-    spaces.push({ id: spaceId, name: name || "Space " + (spaces.length + 1), tiles: tiles })
+    spaces.push({
+      id: spaceId, name: name || "Space " + (spaces.length + 1),
+      tiles: tiles, elements: elements
+    })
   }
 
   if (spaces.length === 0) return defaultState()
@@ -114,7 +187,7 @@ function parse(raw) {
   if (utf8ByteLength(raw) > MAX_STATE_BYTES) return null
   try {
     var document = JSON.parse(String(raw || ""))
-    if (!document || [2, VERSION].indexOf(document.version) < 0 || !Array.isArray(document.spaces)) return null
+    if (!document || [2, 3, VERSION].indexOf(document.version) < 0 || !Array.isArray(document.spaces)) return null
     return normalize(document)
   } catch (error) {
     return null
@@ -147,6 +220,12 @@ function pluginExists(state, pluginId) {
   return false
 }
 
+function elementExists(state, elementId) {
+  for (var spaceIndexValue = 0; spaceIndexValue < state.spaces.length; spaceIndexValue++)
+    if (elementIndex(state.spaces[spaceIndexValue], elementId) >= 0) return true
+  return false
+}
+
 function apply(state, command, boundWidth, boundHeight) {
   var next = normalize(copy(state || defaultState()))
   var action = command || ({})
@@ -157,7 +236,10 @@ function apply(state, command, boundWidth, boundHeight) {
     var newSpaceId = stringBounded(action.id, MAX_ID_LENGTH).trim()
     if (newSpaceId && spaceIndex(next, newSpaceId) < 0) {
       var name = stringBounded(action.name, MAX_NAME_LENGTH).trim()
-      next.spaces.push({ id: newSpaceId, name: name || "Space " + (next.spaces.length + 1), tiles: [] })
+      next.spaces.push({
+        id: newSpaceId, name: name || "Space " + (next.spaces.length + 1),
+        tiles: [], elements: []
+      })
       next.activeSpaceId = newSpaceId
     }
   } else if (action.type === "renameSpace" && index >= 0) {
@@ -200,6 +282,63 @@ function apply(state, command, boundWidth, boundHeight) {
     var embeddingIndex = tileIndex(next.spaces[index], String(action.tileId || ""))
     if (embeddingIndex >= 0)
       next.spaces[index].tiles[embeddingIndex].embedding = normalizeEmbedding(action.embedding)
+  } else if (action.type === "addDivider" && index >= 0
+             && next.spaces[index].elements.length < MAX_ELEMENTS_PER_SPACE) {
+    var dividerCount = 0
+    for (var dividerSpace = 0; dividerSpace < next.spaces.length; dividerSpace++)
+      dividerCount += next.spaces[dividerSpace].elements.length
+    var divider = normalizeElement({
+      id: action.id, kind: "divider",
+      x1: action.x1, y1: action.y1, x2: action.x2, y2: action.y2
+    }, ({}))
+    if (dividerCount < MAX_TOTAL_ELEMENTS && divider
+        && !elementExists(next, divider.id)
+        && elementInBounds(divider, boundWidth, boundHeight))
+      next.spaces[index].elements.push(divider)
+  } else if (action.type === "addText" && index >= 0
+             && next.spaces[index].elements.length < MAX_ELEMENTS_PER_SPACE) {
+    var textCount = 0
+    for (var textSpace = 0; textSpace < next.spaces.length; textSpace++)
+      textCount += next.spaces[textSpace].elements.length
+    var textElement = normalizeElement({
+      id: action.id, kind: "text", text: action.text,
+      x: action.rect && action.rect.x, y: action.rect && action.rect.y,
+      w: action.rect && action.rect.w, h: action.rect && action.rect.h
+    }, ({}))
+    if (textCount < MAX_TOTAL_ELEMENTS && textElement
+        && !elementExists(next, textElement.id)
+        && elementInBounds(textElement, boundWidth, boundHeight))
+      next.spaces[index].elements.push(textElement)
+  } else if (action.type === "updateText" && index >= 0) {
+    var textElementIndex = elementIndex(next.spaces[index], String(action.elementId || ""))
+    var nextText = stringBounded(action.text, MAX_TEXT_LENGTH).trim()
+    if (textElementIndex >= 0 && next.spaces[index].elements[textElementIndex].kind === "text" && nextText)
+      next.spaces[index].elements[textElementIndex].text = nextText
+  } else if (action.type === "removeElement" && index >= 0) {
+    var removeElementIndex = elementIndex(next.spaces[index], String(action.elementId || ""))
+    if (removeElementIndex >= 0) next.spaces[index].elements.splice(removeElementIndex, 1)
+  } else if (action.type === "placeElement" && index >= 0) {
+    var placeElementIndex = elementIndex(next.spaces[index], String(action.elementId || ""))
+    if (placeElementIndex >= 0) {
+      var currentElement = next.spaces[index].elements[placeElementIndex]
+      var replacement = null
+      if (currentElement.kind === "divider") replacement = normalizeElement({
+        id: currentElement.id, kind: currentElement.kind,
+        x1: action.geometry && action.geometry.x1,
+        y1: action.geometry && action.geometry.y1,
+        x2: action.geometry && action.geometry.x2,
+        y2: action.geometry && action.geometry.y2
+      }, ({}))
+      else replacement = normalizeElement({
+        id: currentElement.id, kind: currentElement.kind, text: currentElement.text,
+        x: action.geometry && action.geometry.x,
+        y: action.geometry && action.geometry.y,
+        w: action.geometry && action.geometry.w,
+        h: action.geometry && action.geometry.h
+      }, ({}))
+      if (replacement && elementInBounds(replacement, boundWidth, boundHeight))
+        next.spaces[index].elements[placeElementIndex] = replacement
+    }
   } else if (action.type === "removeTile" && index >= 0) {
     var removeIndex = tileIndex(next.spaces[index], String(action.tileId || ""))
     if (removeIndex >= 0) next.spaces[index].tiles.splice(removeIndex, 1)

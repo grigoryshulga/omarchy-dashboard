@@ -42,7 +42,7 @@ Item {
   }
 
   function beginPointer(mouseArea, mouse, resizeMode) {
-    dashboard.selectedTileId = tile.id
+    dashboard.selectTileId(tile.id)
     var point = pointInCanvas(mouseArea, mouse)
     pointerStart = Qt.point(point.x, point.y)
     startRect = { x: tile.x, y: tile.y, w: tile.w, h: tile.h }
@@ -421,14 +421,14 @@ Item {
         || (root.presentation.kind === "launcher" && root.presentation.canLaunch)
         ? Qt.PointingHandCursor : Qt.ArrowCursor
       onClicked: {
-        root.dashboard.selectedTileId = root.tile.id
+        root.dashboard.selectTileId(root.tile.id)
         if (root.presentation.kind === "control"
             || (root.presentation.kind === "launcher" && root.presentation.canLaunch))
           root.activateAction()
       }
       onDoubleClicked: {
         if (root.presentation.kind === "control" || root.presentation.kind === "launcher") return
-        root.dashboard.selectedTileId = root.tile.id
+        root.dashboard.selectTileId(root.tile.id)
         root.dashboard.activateTile(root.tile)
       }
     }
