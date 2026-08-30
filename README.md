@@ -177,7 +177,7 @@ bindd = SUPER, D, Dashboard, exec, omarchy-shell shell toggle gshulga.dashboard
 
 | Keys | Action |
 | --- | --- |
-| `← ↑ ↓ →` | Select the nearest tile by geometry |
+| `← ↑ ↓ →` / `H J K L` | Select the nearest tile by geometry |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tile |
 | `Enter` | Give the selected plugin focus (`interact`) |
 | `Esc` | Leave `interact`, then `edit`, then close Dashboard |
@@ -186,9 +186,9 @@ bindd = SUPER, D, Dashboard, exec, omarchy-shell shell toggle gshulga.dashboard
 | `Alt++` | Open the plugin catalog in `edit` |
 | `Alt+E` | Toggle `edit` |
 | `Alt+V` | Toggle `Framed` / `Glass` in `edit` |
-| `Alt+arrow keys` | Move the selected tile or graphic element in `edit` |
-| `Ctrl+Alt+arrow keys` | Resize the selected tile or graphic element in `edit` |
-| `arrow keys` / `Ctrl+arrow keys` | Move / resize a new-tile silhouette |
+| `Alt+arrow keys` / `Alt+H J K L` | Move the selected tile or graphic element in `edit` |
+| `Ctrl+Alt+arrow keys` / `Ctrl+Alt+H J K L` | Resize the selected tile or graphic element in `edit` |
+| `arrow keys` / `H J K L` (with `Ctrl` to resize) | Move / resize a new-tile silhouette |
 | `Enter` / `Esc` | Place / cancel a new tile |
 | `Alt+C` / `Alt+R` | Create / rename a Space |
 | `Alt+X` | Delete the current Space with confirmation (the last one cannot be deleted) |

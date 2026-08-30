@@ -17,9 +17,10 @@ Item {
 
   component DirectionShortcut: Shortcut {
     required property string direction
-    sequence: direction === "left" ? "Left"
+    property string alternateSequence: ""
+    sequence: alternateSequence || (direction === "left" ? "Left"
       : direction === "right" ? "Right"
-      : direction === "up" ? "Up" : "Down"
+      : direction === "up" ? "Up" : "Down")
     context: Qt.WindowShortcut
     enabled: root.navigationEnabled()
     autoRepeat: true
@@ -31,4 +32,8 @@ Item {
   DirectionShortcut { direction: "right" }
   DirectionShortcut { direction: "up" }
   DirectionShortcut { direction: "down" }
+  DirectionShortcut { direction: "left"; alternateSequence: "H" }
+  DirectionShortcut { direction: "down"; alternateSequence: "J" }
+  DirectionShortcut { direction: "up"; alternateSequence: "K" }
+  DirectionShortcut { direction: "right"; alternateSequence: "L" }
 }

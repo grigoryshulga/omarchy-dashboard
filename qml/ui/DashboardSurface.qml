@@ -126,6 +126,14 @@ PanelWindow {
     }
   }
 
+  function directionForKey(key) {
+    if (key === Qt.Key_Left || key === Qt.Key_H) return "left"
+    if (key === Qt.Key_Right || key === Qt.Key_L) return "right"
+    if (key === Qt.Key_Up || key === Qt.Key_K) return "up"
+    if (key === Qt.Key_Down || key === Qt.Key_J) return "down"
+    return ""
+  }
+
   function handleKey(event) {
     var alt = (event.modifiers & Qt.AltModifier) !== 0
     var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
@@ -164,9 +172,10 @@ PanelWindow {
     }
 
     if (dashboard.placingPlugin) {
-      if ([Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down].indexOf(event.key) >= 0) {
-        var horizontal = event.key === Qt.Key_Left ? -1 : (event.key === Qt.Key_Right ? 1 : 0)
-        var vertical = event.key === Qt.Key_Up ? -1 : (event.key === Qt.Key_Down ? 1 : 0)
+      var placementDirection = directionForKey(event.key)
+      if (placementDirection) {
+        var horizontal = placementDirection === "left" ? -1 : (placementDirection === "right" ? 1 : 0)
+        var vertical = placementDirection === "up" ? -1 : (placementDirection === "down" ? 1 : 0)
         if (ctrl) dashboard.resizePlacementByGrid(horizontal, vertical)
         else dashboard.movePlacementByGrid(horizontal, vertical)
         event.accepted = true
@@ -194,20 +203,21 @@ PanelWindow {
       return
     }
 
-    if ((event.key === Qt.Key_Left || event.key === Qt.Key_Right) && alt && !ctrl) {
+    var direction = directionForKey(event.key)
+    if ((direction === "left" || direction === "right") && alt && !ctrl) {
       if (dashboard.mode === "edit" && (dashboard.selectedTileId || dashboard.selectedElementId))
-        dashboard.moveSelectedItemByGrid(event.key === Qt.Key_Left ? -1 : 1, 0)
-      else dashboard.moveSpace(event.key === Qt.Key_Left ? -1 : 1)
+        dashboard.moveSelectedItemByGrid(direction === "left" ? -1 : 1, 0)
+      else dashboard.moveSpace(direction === "left" ? -1 : 1)
       event.accepted = true
-    } else if ((event.key === Qt.Key_Up || event.key === Qt.Key_Down) && alt && !ctrl
+    } else if ((direction === "up" || direction === "down") && alt && !ctrl
                && dashboard.mode === "edit") {
-      dashboard.moveSelectedItemByGrid(0, event.key === Qt.Key_Up ? -1 : 1)
+      dashboard.moveSelectedItemByGrid(0, direction === "up" ? -1 : 1)
       event.accepted = true
     } else if (ctrl && alt && dashboard.mode === "edit"
-               && [Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down].indexOf(event.key) >= 0) {
+               && direction) {
       dashboard.resizeSelectedItemByGrid(
-        event.key === Qt.Key_Left ? -1 : (event.key === Qt.Key_Right ? 1 : 0),
-        event.key === Qt.Key_Up ? -1 : (event.key === Qt.Key_Down ? 1 : 0)
+        direction === "left" ? -1 : (direction === "right" ? 1 : 0),
+        direction === "up" ? -1 : (direction === "down" ? 1 : 0)
       )
       event.accepted = true
     } else if (event.key === Qt.Key_PageUp) {
