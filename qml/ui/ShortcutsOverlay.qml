@@ -22,7 +22,7 @@ Item {
     { key: "Alt+arrows / Alt+H J K L", action: "Move the selected tile, text, or divider" },
     { key: "Shift+arrows / Shift+H J K L", action: "Resize the selected tile, text, or divider" },
     { key: "Edit toolbar", action: "Draw a divider or add scalable text" },
-    { key: "Placement: arrows or H J K L / Shift", action: "Move / resize; Enter places, Esc cancels" },
+    { key: "Placement", action: "Arrows or H J K L move; Shift resizes; Enter places; Esc cancels" },
     { key: "Alt+C / Alt+R", action: "Create or rename a Space" },
     { key: "Alt+X", action: "Remove a Space (confirmation required)" },
     { key: "Delete", action: "Remove the selected tile or graphic element" },
@@ -80,12 +80,13 @@ Item {
         delegate: Item {
           required property var modelData
           width: shortcutsColumn.width
-          height: Style.space(30)
+          height: Math.max(Style.space(30), actionText.implicitHeight + Style.spacing.xs * 2)
           Rectangle {
             anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.top: parent.top
+            anchors.topMargin: Style.spacing.xs
             width: Style.space(180)
-            height: Style.space(25)
+            height: Math.max(Style.space(25), parent.height - Style.spacing.xs * 2)
             radius: Style.cornerRadius
             color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.07)
             Text {
@@ -95,10 +96,12 @@ Item {
               color: Color.accent
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
+              elide: Text.ElideRight
             }
           }
           Text {
             textFormat: Text.PlainText
+            id: actionText
             anchors.left: parent.left
             anchors.leftMargin: Style.space(196)
             anchors.right: parent.right
@@ -107,7 +110,7 @@ Item {
             color: Color.popups.text
             font.family: Style.font.family
             font.pixelSize: Style.font.bodySmall
-            elide: Text.ElideRight
+            wrapMode: Text.WordWrap
           }
         }
       }
