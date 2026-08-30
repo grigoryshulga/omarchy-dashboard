@@ -13,7 +13,6 @@ PanelWindow {
   id: root
 
   required property var dashboard
-  property bool focusPrimed: false
   property string editorText: ""
   property string textEditorValue: ""
   property string textEditorElementId: ""
@@ -25,9 +24,7 @@ PanelWindow {
   exclusionMode: ExclusionMode.Ignore
   WlrLayershell.namespace: "gshulga-dashboard"
   WlrLayershell.layer: WlrLayer.Overlay
-  WlrLayershell.keyboardFocus: visible
-    ? (focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive)
-    : WlrKeyboardFocus.None
+  WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
   anchors { top: true; bottom: true; left: true; right: true }
   mask: Region { width: root.width; height: root.height }
 
@@ -267,19 +264,7 @@ PanelWindow {
   onVisibleChanged: {
     if (visible) {
       dashboard.updateGridBounds(gridCanvas.width, gridCanvas.height)
-      focusPrimed = false
-      focusPrimeTimer.restart()
       Qt.callLater(function() { if (root.visible) keyCatcher.forceActiveFocus() })
-    } else focusPrimed = false
-  }
-
-  Timer {
-    id: focusPrimeTimer
-    interval: 75
-    onTriggered: {
-      if (!root.visible) return
-      root.focusPrimed = true
-      keyCatcher.forceActiveFocus()
     }
   }
 
