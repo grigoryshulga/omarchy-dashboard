@@ -496,7 +496,7 @@ PanelWindow {
           }
 
           DashboardActionButton {
-            x: spaceSwitcher.tabX(0) - width - Style.spacing.sm
+            x: appearanceControls.x - width - Style.spacing.sm
             anchors.verticalCenter: parent.verticalCenter
             visible: dashboard.mode === "edit" && dashboard.dashboardState.spaces.length > 1
             icon: "\uf1f8"
@@ -505,58 +505,69 @@ PanelWindow {
           }
 
           Row {
-            anchors.right: parent.right
+            id: appearanceControls
+            x: Math.max(0, spaceSwitcher.tabX(0) - width - Style.spacing.lg)
             anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.spacing.sm
+            visible: toolbar.controlsVisible && dashboard.mode === "edit"
+            spacing: Style.spacing.xs
 
-            Row {
-              visible: toolbar.controlsVisible && dashboard.mode === "edit"
-              spacing: Style.spacing.xs
-
-              Text {
-                textFormat: Text.PlainText
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Appearance"
-                color: Color.popups.text
-                opacity: 0.62
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
-              }
-              DashboardActionButton {
-                icon: "\uf2d0"
-                text: "Framed"
-                active: dashboard.surfaceMode === "framed"
-                onClicked: dashboard.setSurfaceMode("Framed")
-              }
-              DashboardActionButton {
-                icon: "\uf065"
-                text: "Glass"
-                active: dashboard.surfaceMode === "glass"
-                onClicked: dashboard.setSurfaceMode("Glass")
-              }
+            Text {
+              textFormat: Text.PlainText
+              anchors.verticalCenter: parent.verticalCenter
+              text: "Appearance"
+              color: Color.popups.text
+              opacity: 0.62
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
             }
+            DashboardActionButton {
+              icon: "\uf2d0"
+              text: "Framed"
+              active: dashboard.surfaceMode === "framed"
+              onClicked: dashboard.setSurfaceMode("Framed")
+            }
+            DashboardActionButton {
+              icon: "\uf065"
+              text: "Glass"
+              active: dashboard.surfaceMode === "glass"
+              onClicked: dashboard.setSurfaceMode("Glass")
+            }
+          }
+
+          Row {
+            id: addControls
+            x: (spaceSwitcher.tabX(spaceSwitcher.spaceCount - 1)
+                + spaceSwitcher.tabWidthAt(spaceSwitcher.spaceCount - 1)
+                + sessionControls.x - width) / 2
+            anchors.verticalCenter: parent.verticalCenter
+            visible: toolbar.controlsVisible && dashboard.mode === "edit"
+            spacing: Style.spacing.xs
 
             DashboardActionButton {
-              visible: toolbar.controlsVisible && dashboard.mode === "edit"
               icon: "\uf12e"
               text: "Add Plugin"
               enabled: !dashboard.placingPlugin && !dashboard.placingDivider
               onClicked: dashboard.overlay = "catalog"
             }
             DashboardActionButton {
-              visible: toolbar.controlsVisible && dashboard.mode === "edit"
               icon: "\uf068"
               text: "Draw Divider"
               enabled: !dashboard.placingPlugin && !dashboard.placingDivider
               onClicked: dashboard.beginDividerPlacement()
             }
             DashboardActionButton {
-              visible: toolbar.controlsVisible && dashboard.mode === "edit"
               icon: "T"
               text: "Add Text"
               enabled: !dashboard.placingPlugin && !dashboard.placingDivider
               onClicked: root.beginNewText()
             }
+          }
+
+          Row {
+            id: sessionControls
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.spacing.sm
             DashboardActionButton {
               visible: toolbar.controlsVisible
               icon: dashboard.mode === "edit" ? "\uf00c" : "\uf044"
