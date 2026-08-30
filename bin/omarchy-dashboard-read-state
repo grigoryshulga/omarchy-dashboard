@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""Read bounded Dashboard state without following the final symlink."""
+
+from __future__ import annotations
+
+import errno
+import os
+import stat
+import sys
+
+
+MISSING = 1
+TOO_LARGE = 2
+UNSAFE = 3
+IO_ERROR = 4
+MAX_STATE_BYTES = 256 * 1024
+READ_CHUNK_BYTES = 64 * 1024
+
+
+def read_state(path: str, maximum: int) -> bytes:
+    if not os.path.isabs(path) or os.path.normpath(path) != path:
+        raise ValueError("state path must be absolute and normalized")
+    parent, name = os.path.split(path)
+    if not name:
+        raise ValueError("state path has no filename")
+    resolved_parent = os.path.realpath(parent)
+    parent_flags = os.O_RDONLY | os.O_CLOEXEC
+    if hasattr(os, "O_DIRECTORY"):
+        parent_flags |= os.O_DIRECTORY
+    parent_descriptor = os.open(resolved_parent, parent_flags)
+    try:
+        parent_metadata = os.fstat(parent_descriptor)
+        if not stat.S_ISDIR(parent_metadata.st_mode) or parent_metadata.st_uid != os.getuid():
+            raise ValueError("state directory is not owned by the current user")
+        if stat.S_IMODE(parent_metadata.st_mode) & (stat.S_IWGRP | stat.S_IWOTH):
+            raise ValueError("state directory is writable by another user")
+        if not hasattr(os, "O_NOFOLLOW"):
+            raise ValueError("O_NOFOLLOW is unavailable")
+        descriptor = os.open(
+            name,
+            os.O_RDONLY | os.O_NONBLOCK | os.O_CLOEXEC | os.O_NOFOLLOW,
+            dir_fd=parent_descriptor,
+        )
+    finally:
+        os.close(parent_descriptor)
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != os.getuid():
+            raise ValueError("state is not a user-owned regular file")
+        if stat.S_IMODE(metadata.st_mode) & (stat.S_IWGRP | stat.S_IWOTH):
+            raise ValueError("state is writable by another user")
+        if metadata.st_size > maximum:
+            raise OverflowError("state exceeds maximum size")
+        chunks: list[bytes] = []
+        remaining = maximum + 1
+        while remaining > 0:
+            chunk = os.read(descriptor, min(remaining, READ_CHUNK_BYTES))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        content = b"".join(chunks)
+        if len(content) > maximum:
+            raise OverflowError("state exceeds maximum size")
+        return content
+    finally:
+        os.close(descriptor)
+
+
+def main() -> int:
+    if len(sys.argv) != 3:
+        return MISSING
+    try:
+        maximum = int(sys.argv[2])
+        if maximum < 1 or maximum > MAX_STATE_BYTES:
+            raise ValueError("invalid maximum")
+        sys.stdout.buffer.write(read_state(sys.argv[1], maximum))
+        return 0
+    except OverflowError:
+        return TOO_LARGE
+    except ValueError:
+        return UNSAFE
+    except OSError as error:
+        if error.errno in (errno.ENOENT, errno.ENOTDIR):
+            return MISSING
+        if error.errno in (errno.ELOOP, errno.ENXIO, errno.ENOTSUP):
+            return UNSAFE
+        return IO_ERROR
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
