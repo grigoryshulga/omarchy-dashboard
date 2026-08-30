@@ -117,6 +117,41 @@ TestCase {
     compare(rect.y, 0)
   }
 
+  function test_best_free_keeps_preferred_size_when_it_fits() {
+    var rect = GridEngine.bestFree(360, 260, 160, 120,
+                                   [tile("a", 0, 0, 360, 260)], 800, 600, 20)
+    compare(rect.x, 360)
+    compare(rect.y, 0)
+    compare(rect.w, 360)
+    compare(rect.h, 260)
+  }
+
+  function test_best_free_shrinks_to_use_a_narrow_gap() {
+    var rect = GridEngine.bestFree(360, 260, 160, 120,
+                                   [tile("a", 0, 0, 600, 600)], 800, 600, 20)
+    verify(rect !== null)
+    compare(rect.x, 600)
+    compare(rect.y, 0)
+    compare(rect.w, 200)
+    compare(rect.h, 260)
+    verify(GridEngine.canPlace(rect, [tile("a", 0, 0, 600, 600)], "", 800, 600))
+  }
+
+  function test_best_free_can_use_minimum_size_between_coarse_grid_lines() {
+    var rect = GridEngine.bestFree(360, 260, 160, 120,
+                                   [tile("a", 0, 0, 630, 600)], 800, 600, 30)
+    verify(rect !== null)
+    compare(rect.x, 630)
+    compare(rect.w, 170)
+    compare(rect.h, 260)
+  }
+
+  function test_best_free_returns_null_when_minimum_size_does_not_fit() {
+    var rect = GridEngine.bestFree(360, 260, 160, 120,
+                                   [tile("a", 0, 0, 800, 600)], 800, 600, 20)
+    verify(rect === null)
+  }
+
   function test_model_normalizes_duplicate_plugins_and_overlaps() {
     var state = DashboardModel.normalize({
       version: DashboardModel.VERSION,
@@ -150,6 +185,72 @@ TestCase {
     }, 800, 600)
     compare(state.spaces[1].tiles[0].w, 305)
     compare(state.spaces[1].tiles[0].h, 210)
+  }
+
+  function test_commands_manage_graphic_elements_without_tile_collisions() {
+    var state = DashboardModel.defaultState()
+    state = DashboardModel.apply(state, {
+      type: "addTile", id: "plugin", pluginId: "example.plugin",
+      rect: { x: 0, y: 0, w: 300, h: 200 }
+    }, 800, 600)
+    state = DashboardModel.apply(state, {
+      type: "addDivider", id: "divider", x1: 0, y1: 100, x2: 300, y2: 100
+    }, 800, 600)
+    state = DashboardModel.apply(state, {
+      type: "addText", id: "heading", text: "System status",
+      rect: { x: 20, y: 20, w: 240, h: 60 }
+    }, 800, 600)
+
+    compare(state.spaces[0].elements.length, 2)
+    compare(state.spaces[0].elements[0].kind, "divider")
+    compare(state.spaces[0].elements[1].text, "System status")
+
+    state = DashboardModel.apply(state, {
+      type: "placeElement", elementId: "divider",
+      geometry: { x1: 400, y1: 0, x2: 400, y2: 300 }
+    }, 800, 600)
+    compare(state.spaces[0].elements[0].x1, 400)
+    compare(state.spaces[0].elements[0].x2, 400)
+    compare(state.spaces[0].elements[0].y2, 300)
+
+    state = DashboardModel.apply(state, {
+      type: "updateText", elementId: "heading", text: "Updated"
+    }, 800, 600)
+    compare(state.spaces[0].elements[1].text, "Updated")
+
+    state = DashboardModel.apply(state, {
+      type: "removeElement", elementId: "divider"
+    }, 800, 600)
+    compare(state.spaces[0].elements.length, 1)
+    compare(state.spaces[0].elements[0].id, "heading")
+  }
+
+  function test_graphic_elements_are_axis_aligned_bounded_and_normalized() {
+    var state = DashboardModel.normalize({
+      version: DashboardModel.VERSION,
+      activeSpaceId: "main",
+      spaces: [{ id: "main", name: "Main", tiles: [], elements: [
+        { id: "diagonal", kind: "divider", x1: 0, y1: 0, x2: 100, y2: 50 },
+        { id: "zero", kind: "divider", x1: 20, y1: 20, x2: 20, y2: 20 },
+        { id: "line", kind: "divider", x1: 2, y1: 18, x2: 102, y2: 18 },
+        { id: "empty", kind: "text", text: " ", x: 0, y: 0, w: 100, h: 30 },
+        { id: "label", kind: "text", text: " Label ", x: 12, y: 17, w: 81, h: 29 }
+      ] }]
+    })
+    compare(state.spaces[0].elements.length, 2)
+    compare(state.spaces[0].elements[0].id, "line")
+    compare(state.spaces[0].elements[0].x1, 0)
+    compare(state.spaces[0].elements[0].y1, 20)
+    compare(state.spaces[0].elements[0].x2, 100)
+    compare(state.spaces[0].elements[1].text, "Label")
+    compare(state.spaces[0].elements[1].x, 10)
+    compare(state.spaces[0].elements[1].w, 80)
+
+    var unchanged = DashboardModel.apply(state, {
+      type: "placeElement", elementId: "line",
+      geometry: { x1: 0, y1: 20, x2: 900, y2: 20 }
+    }, 800, 600)
+    compare(unchanged.spaces[0].elements[0].x2, 100)
   }
 
   function test_tile_presentation_preference_is_normalized_and_mutable() {
@@ -342,6 +443,17 @@ TestCase {
     compare(parsed.spaces[0].tiles[0].h, 300)
   }
 
+  function test_v3_state_is_upgraded_with_an_empty_element_collection() {
+    var parsed = DashboardModel.parse(JSON.stringify({
+      version: 3,
+      activeSpaceId: "main",
+      spaces: [{ id: "main", name: "Main", tiles: [tile("a", 10, 20, 400, 300)] }]
+    }))
+    verify(parsed !== null)
+    compare(parsed.version, DashboardModel.VERSION)
+    compare(parsed.spaces[0].elements.length, 0)
+  }
+
   function test_grid_spacing_is_configurable_and_bounded() {
     var state = DashboardModel.defaultState()
     state = DashboardModel.apply(state, { type: "setGridSpacing", value: 25 })
@@ -392,6 +504,69 @@ TestCase {
     var empty = GridEngine.centeredBounds(2020, 1065, 80, [])
     compare(empty.width, 2000)
     compare(empty.height, 1040)
+
+    var decorated = GridEngine.centeredBounds(800, 600, 40, [{
+      tiles: [], elements: [
+        { kind: "divider", x1: 0, y1: 560, x2: 760, y2: 560 },
+        { kind: "text", x: 600, y: 400, w: 200, h: 160 }
+      ]
+    }])
+    compare(decorated.width, 800)
+    compare(decorated.height, 600)
+  }
+
+  function test_rect_snaps_to_canvas_center_axes_within_threshold() {
+    var vertical = GridEngine.snapRectToCenter(
+      { x: 344, y: 40, w: 300, h: 200 }, 1000, 600, 12)
+    compare(vertical.rect.x, 350)
+    compare(vertical.rect.y, 40)
+    verify(vertical.vertical)
+    verify(!vertical.horizontal)
+
+    var both = GridEngine.snapRectToCenter(
+      { x: 345, y: 205, w: 300, h: 200 }, 1000, 600, 12)
+    compare(both.rect.x, 350)
+    compare(both.rect.y, 200)
+    verify(both.vertical)
+    verify(both.horizontal)
+
+    var outside = GridEngine.snapRectToCenter(
+      { x: 330, y: 180, w: 300, h: 200 }, 1000, 600, 12)
+    compare(outside.rect.x, 330)
+    compare(outside.rect.y, 180)
+    verify(!outside.vertical)
+    verify(!outside.horizontal)
+  }
+
+  function test_center_snap_keeps_origin_on_five_pixel_lattice() {
+    var aligned = GridEngine.snapRectToCenter(
+      { x: 300, y: 200, w: 200, h: 100 }, 805, 505, 5)
+    compare(aligned.rect.x, 305)
+    compare(aligned.rect.y, 205)
+    compare(aligned.rect.x % GridEngine.STEP, 0)
+    compare(aligned.rect.y % GridEngine.STEP, 0)
+    verify(aligned.vertical)
+    verify(aligned.horizontal)
+  }
+
+  function test_center_snap_keeps_origin_on_active_grid() {
+    var aligned = GridEngine.snapRectToCenter(
+      { x: 870, y: 390, w: 300, h: 300 }, 2010, 1050, 15, 30)
+    verify(aligned.vertical)
+    verify(aligned.horizontal)
+    compare(aligned.rect.x % 30, 0)
+    compare(aligned.rect.y % 30, 0)
+    compare(aligned.verticalPosition, 1020)
+    compare(aligned.horizontalPosition, 540)
+  }
+
+  function test_center_snap_skips_axis_when_size_cannot_stay_on_grid() {
+    var aligned = GridEngine.snapRectToCenter(
+      { x: 810, y: 0, w: 390, h: 300 }, 2010, 1050, 15, 30)
+    verify(!aligned.vertical)
+    compare(aligned.rect.x, 810)
+    compare(aligned.rect.x % 30, 0)
+    compare(aligned.verticalPosition % 30, 0)
   }
 
   function test_first_grid_operation_aligns_existing_geometry() {

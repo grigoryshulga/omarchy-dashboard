@@ -14,6 +14,8 @@ PanelWindow {
   required property var dashboard
   property bool focusPrimed: false
   property string editorText: ""
+  property string textEditorValue: ""
+  property string textEditorElementId: ""
   property string pendingRemovalSpaceId: ""
   readonly property int surfaceInset: Math.max(Style.spacing.panelGap, Style.gapsOut)
   readonly property int cardInset: dashboard.glassBackground ? 0 : Style.gapsOut
@@ -56,6 +58,34 @@ PanelWindow {
     keyCatcher.forceActiveFocus()
   }
 
+  function beginNewText() {
+    textEditorElementId = ""
+    textEditorValue = "Text"
+    dashboard.overlay = "text-editor"
+  }
+
+  function beginTextEdit(elementId, value) {
+    textEditorElementId = String(elementId || "")
+    textEditorValue = String(value || "")
+    dashboard.overlay = "text-editor"
+  }
+
+  function finishTextEditor(value) {
+    if (textEditorElementId) dashboard.updateText(textEditorElementId, value)
+    else dashboard.addText(value)
+    textEditorElementId = ""
+    textEditorValue = ""
+    dashboard.overlay = ""
+    keyCatcher.forceActiveFocus()
+  }
+
+  function cancelTextEditor() {
+    textEditorElementId = ""
+    textEditorValue = ""
+    dashboard.overlay = ""
+    keyCatcher.forceActiveFocus()
+  }
+
   function requestSpaceRemoval(spaceId) {
     if (dashboard.dashboardState.spaces.length <= 1) return
     pendingRemovalSpaceId = String(spaceId || "")
@@ -82,8 +112,12 @@ PanelWindow {
   }
 
   function handleEscape() {
-    if (dashboard.overlay !== "") {
+    if (dashboard.placingPlugin) {
+      dashboard.cancelPluginPlacement()
+      keyCatcher.forceActiveFocus()
+    } else if (dashboard.overlay !== "") {
       if (dashboard.overlay === "plugin") dashboard.closePluginPopout()
+      else if (dashboard.overlay === "text-editor") cancelTextEditor()
       else dashboard.overlay = ""
       keyCatcher.forceActiveFocus()
     } else {
@@ -123,6 +157,23 @@ PanelWindow {
     if (dashboard.overlay === "remove-space") {
       return
     }
+    if (dashboard.overlay === "text-editor") {
+      return
+    }
+
+    if (dashboard.placingPlugin) {
+      if ([Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down].indexOf(event.key) >= 0) {
+        var horizontal = event.key === Qt.Key_Left ? -1 : (event.key === Qt.Key_Right ? 1 : 0)
+        var vertical = event.key === Qt.Key_Up ? -1 : (event.key === Qt.Key_Down ? 1 : 0)
+        if (ctrl) dashboard.resizePlacementByGrid(horizontal, vertical)
+        else dashboard.movePlacementByGrid(horizontal, vertical)
+        event.accepted = true
+      } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+        dashboard.confirmPluginPlacement()
+        event.accepted = true
+      }
+      return
+    }
 
     if (event.key === Qt.Key_Tab && ctrl) {
       dashboard.cycleTile(shift ? -1 : 1)
@@ -137,17 +188,17 @@ PanelWindow {
     }
 
     if ((event.key === Qt.Key_Left || event.key === Qt.Key_Right) && alt && !ctrl) {
-      if (dashboard.mode === "edit" && dashboard.selectedTileId)
-        dashboard.nudgeSelectedTile(event.key === Qt.Key_Left ? -1 : 1, 0)
+      if (dashboard.mode === "edit" && (dashboard.selectedTileId || dashboard.selectedElementId))
+        dashboard.moveSelectedItemByGrid(event.key === Qt.Key_Left ? -1 : 1, 0)
       else dashboard.moveSpace(event.key === Qt.Key_Left ? -1 : 1)
       event.accepted = true
     } else if ((event.key === Qt.Key_Up || event.key === Qt.Key_Down) && alt && !ctrl
                && dashboard.mode === "edit") {
-      dashboard.nudgeSelectedTile(0, event.key === Qt.Key_Up ? -1 : 1)
+      dashboard.moveSelectedItemByGrid(0, event.key === Qt.Key_Up ? -1 : 1)
       event.accepted = true
     } else if (ctrl && alt && dashboard.mode === "edit"
                && [Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down].indexOf(event.key) >= 0) {
-      dashboard.resizeSelectedTileByGrid(
+      dashboard.resizeSelectedItemByGrid(
         event.key === Qt.Key_Left ? -1 : (event.key === Qt.Key_Right ? 1 : 0),
         event.key === Qt.Key_Up ? -1 : (event.key === Qt.Key_Down ? 1 : 0)
       )
@@ -186,8 +237,11 @@ PanelWindow {
     } else if (event.key === Qt.Key_X && alt && dashboard.mode === "edit") {
       requestSpaceRemoval(dashboard.activeSpace.id); event.accepted = true
     } else if ((event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace)
-               && dashboard.mode === "edit" && dashboard.selectedTileId) {
-      dashboard.removeTile(dashboard.selectedTileId); event.accepted = true
+               && dashboard.mode === "edit"
+               && (dashboard.selectedTileId || dashboard.selectedElementId)) {
+      if (dashboard.selectedElementId) dashboard.removeElement(dashboard.selectedElementId)
+      else dashboard.removeTile(dashboard.selectedTileId)
+      event.accepted = true
     }
   }
 
@@ -310,144 +364,143 @@ PanelWindow {
           }
 
           Item {
-            id: spaceTitle
-            anchors.left: parent.left
-            anchors.verticalCenter: parent.verticalCenter
-            width: dashboard.overlay === "rename"
-              ? Style.space(190)
-              : Math.min(Style.space(280), Math.max(Style.space(72), activeSpaceName.implicitWidth))
-            height: Style.space(30)
-
-            Text {
-              id: activeSpaceName
-              anchors.left: parent.left
-              anchors.verticalCenter: parent.verticalCenter
-              width: parent.width
-              visible: dashboard.overlay !== "rename"
-              text: dashboard.activeSpace.name
-              color: Color.popups.text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.title
-              font.bold: true
-              elide: Text.ElideRight
-            }
-
-            Rectangle {
-              anchors.fill: parent
-              visible: dashboard.overlay === "rename"
-              radius: Style.cornerRadius
-              color: Style.normalFillFor(Color.popups.text, Color.accent)
-              border.width: 1
-              border.color: Color.accent
-
-              TextInput {
-                id: inlineNameInput
-                anchors.fill: parent
-                anchors.leftMargin: Style.spacing.sm
-                anchors.rightMargin: Style.spacing.sm
-                visible: dashboard.overlay === "rename"
-                text: visible ? root.editorText : ""
-                color: Color.popups.text
-                selectionColor: Color.accent
-                verticalAlignment: TextInput.AlignVCenter
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-                onTextChanged: if (visible) root.editorText = text
-                onAccepted: root.finishNameEditor()
-                Keys.onEscapePressed: {
-                  dashboard.overlay = ""
-                  keyCatcher.forceActiveFocus()
-                }
-                onVisibleChanged: if (visible) Qt.callLater(function() {
-                  inlineNameInput.forceActiveFocus()
-                  inlineNameInput.selectAll()
-                })
-              }
-            }
-
-            MouseArea {
-              anchors.fill: parent
-              enabled: dashboard.overlay !== "rename"
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onDoubleClicked: root.beginRename()
-            }
-          }
-
-          Item {
             id: spaceSwitcher
             anchors.centerIn: parent
             readonly property int spaceCount: dashboard.dashboardState.spaces.length
             readonly property real tabStep: Style.space(24)
-            width: spaceCount * tabStep + (dashboard.mode === "edit" ? Style.space(20) : 0)
+            width: spaceTabs.implicitWidth + (dashboard.mode === "edit" ? Style.space(20) : 0)
             height: Style.space(28)
 
             function dropIndexFor(spaceTab) {
               var center = spaceTab.x + spaceTab.width / 2 + spaceTab.dragOffset
-              return Math.max(0, Math.min(spaceCount - 1, Math.floor(center / tabStep)))
+              var targetIndex = 0
+              for (var index = 0; index < spaceTabsRepeater.count; index++) {
+                var candidate = spaceTabsRepeater.itemAt(index)
+                if (candidate && center >= candidate.x + candidate.width / 2)
+                  targetIndex = index
+              }
+              return Math.max(0, Math.min(spaceCount - 1, targetIndex))
             }
 
-            Repeater {
-              model: dashboard.dashboardState.spaces
-              delegate: Item {
-                id: spaceTab
-                required property var modelData
-                required property int index
-                property real dragOffset: 0
-                property bool wasDragged: false
-                readonly property bool active: modelData.id === dashboard.dashboardState.activeSpaceId
-                x: index * spaceSwitcher.tabStep
-                width: spaceSwitcher.tabStep
-                height: parent.height
-                z: spaceDrag.active ? 3 : 0
+            Row {
+              id: spaceTabs
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: Style.spacing.xs
+              height: parent.height
 
-                transform: Translate { x: spaceTab.dragOffset }
+              Repeater {
+                id: spaceTabsRepeater
+                model: dashboard.dashboardState.spaces
+                delegate: Item {
+                  id: spaceTab
+                  required property var modelData
+                  required property int index
+                  property real dragOffset: 0
+                  property bool wasDragged: false
+                  readonly property bool active: modelData.id === dashboard.dashboardState.activeSpaceId
+                  width: active
+                    ? (dashboard.overlay === "rename"
+                      ? Style.space(190)
+                      : Math.min(Style.space(260), Math.max(Style.space(52), activeSpaceName.implicitWidth + Style.spacing.sm * 2)))
+                    : spaceSwitcher.tabStep
+                  height: parent.height
+                  z: spaceDrag.active ? 3 : 0
 
-                HoverHandler {
-                  id: spaceTabHover
-                }
+                  transform: Translate { x: spaceTab.dragOffset }
 
-                Rectangle {
-                  id: spaceIndicator
-                  anchors.centerIn: parent
-                  width: Style.space(9)
-                  height: width
-                  radius: width / 2
-                  scale: spaceTab.active ? 1.28 : 1
-                  color: spaceTab.active
-                    ? Color.accent
-                    : (spaceTabHover.hovered ? Color.accent
-                      : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.32))
+                  HoverHandler {
+                    id: spaceTabHover
+                  }
 
-                  Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-                }
+                  Rectangle {
+                    id: spaceIndicator
+                    anchors.centerIn: parent
+                    visible: !spaceTab.active
+                    width: Style.space(9)
+                    height: width
+                    radius: width / 2
+                    color: spaceTabHover.hovered
+                      ? Color.accent
+                      : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.32)
+                  }
 
-                MouseArea {
-                  id: spaceMouse
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onPressed: spaceTab.wasDragged = false
-                  onClicked: if (!spaceTab.wasDragged && !spaceTab.active)
-                    dashboard.selectSpace(spaceTab.modelData.id)
-                }
+                  Text {
+                    id: activeSpaceName
+                    anchors.centerIn: parent
+                    width: parent.width - Style.spacing.sm * 2
+                    visible: spaceTab.active && dashboard.overlay !== "rename"
+                    text: spaceTab.modelData.name
+                    color: Color.accent
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.subtitle
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
+                  }
 
-                DragHandler {
-                  id: spaceDrag
-                  enabled: dashboard.mode === "edit"
-                  target: null
-                  xAxis.enabled: true
-                  yAxis.enabled: false
-                  onTranslationChanged: spaceTab.dragOffset = translation.x
-                  onActiveChanged: {
-                    if (active) return
-                    if (spaceTab.dragOffset !== 0) {
-                      spaceTab.wasDragged = true
-                      var targetIndex = spaceSwitcher.dropIndexFor(spaceTab)
-                      spaceTab.dragOffset = 0
-                      if (targetIndex !== spaceTab.index)
-                        dashboard.reorderSpace(spaceTab.modelData.id, targetIndex)
-                    } else spaceTab.dragOffset = 0
+                  Rectangle {
+                    anchors.fill: parent
+                    visible: spaceTab.active && dashboard.overlay === "rename"
+                    radius: Style.cornerRadius
+                    color: Style.normalFillFor(Color.popups.text, Color.accent)
+                    border.width: 1
+                    border.color: Color.accent
+
+                    TextInput {
+                      id: inlineNameInput
+                      anchors.fill: parent
+                      anchors.leftMargin: Style.spacing.sm
+                      anchors.rightMargin: Style.spacing.sm
+                      visible: parent.visible
+                      text: visible ? root.editorText : ""
+                      color: Color.popups.text
+                      selectionColor: Color.accent
+                      verticalAlignment: TextInput.AlignVCenter
+                      font.family: Style.font.family
+                      font.pixelSize: Style.font.body
+                      onTextChanged: if (visible) root.editorText = text
+                      onAccepted: root.finishNameEditor()
+                      Keys.onEscapePressed: {
+                        dashboard.overlay = ""
+                        keyCatcher.forceActiveFocus()
+                      }
+                      onVisibleChanged: if (visible) Qt.callLater(function() {
+                        inlineNameInput.forceActiveFocus()
+                        inlineNameInput.selectAll()
+                      })
+                    }
+                  }
+
+                  MouseArea {
+                    id: spaceMouse
+                    anchors.fill: parent
+                    enabled: dashboard.overlay !== "rename"
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onPressed: spaceTab.wasDragged = false
+                    onClicked: if (!spaceTab.wasDragged && !spaceTab.active)
+                      dashboard.selectSpace(spaceTab.modelData.id)
+                    onDoubleClicked: if (spaceTab.active) root.beginRename()
+                  }
+
+                  DragHandler {
+                    id: spaceDrag
+                    enabled: dashboard.mode === "edit"
+                    target: null
+                    xAxis.enabled: true
+                    yAxis.enabled: false
+                    onTranslationChanged: spaceTab.dragOffset = translation.x
+                    onActiveChanged: {
+                      if (active) return
+                      if (spaceTab.dragOffset !== 0) {
+                        spaceTab.wasDragged = true
+                        var targetIndex = spaceSwitcher.dropIndexFor(spaceTab)
+                        spaceTab.dragOffset = 0
+                        if (targetIndex !== spaceTab.index)
+                          dashboard.reorderSpace(spaceTab.modelData.id, targetIndex)
+                      } else spaceTab.dragOffset = 0
+                    }
                   }
                 }
               }
@@ -511,7 +564,22 @@ PanelWindow {
               visible: toolbar.controlsVisible && dashboard.mode === "edit"
               icon: "\uf12e"
               text: "Add Plugin"
+              enabled: !dashboard.placingPlugin && !dashboard.placingDivider
               onClicked: dashboard.overlay = "catalog"
+            }
+            DashboardActionButton {
+              visible: toolbar.controlsVisible && dashboard.mode === "edit"
+              icon: "\uf068"
+              text: "Draw Divider"
+              enabled: !dashboard.placingPlugin && !dashboard.placingDivider
+              onClicked: dashboard.beginDividerPlacement()
+            }
+            DashboardActionButton {
+              visible: toolbar.controlsVisible && dashboard.mode === "edit"
+              icon: "T"
+              text: "Add Text"
+              enabled: !dashboard.placingPlugin && !dashboard.placingDivider
+              onClicked: root.beginNewText()
             }
             DashboardActionButton {
               visible: toolbar.controlsVisible
@@ -544,6 +612,54 @@ PanelWindow {
           width: parent.width
           height: parent.height - toolbar.height - parent.spacing
           clip: true
+
+          Rectangle {
+            anchors.top: parent.top
+            anchors.topMargin: Style.spacing.sm
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: placementControls.implicitWidth + Style.spacing.lg * 2
+            height: Style.space(42)
+            visible: dashboard.placingPlugin || dashboard.placingDivider
+            radius: Style.cornerRadius > 0 ? height / 2 : 0
+            color: Color.popups.background
+            border.width: 1
+            border.color: dashboard.placingDivider || dashboard.placementValid
+              ? Color.accent : Qt.rgba(0.95, 0.25, 0.30, 1)
+            z: 60
+
+            Row {
+              id: placementControls
+              anchors.centerIn: parent
+              spacing: Style.spacing.sm
+
+              Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: dashboard.placingDivider
+                  ? "Drag between two grid points; the axis locks automatically"
+                  : (dashboard.placementValid
+                    ? "Move or resize, then place"
+                    : "No room here — resize it or move another tile")
+                color: dashboard.placingDivider || dashboard.placementValid
+                  ? Color.popups.text : Qt.rgba(0.95, 0.45, 0.48, 1)
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+              }
+              DashboardActionButton {
+                visible: dashboard.placingPlugin
+                text: "Place"
+                accent: true
+                enabled: dashboard.placementValid
+                onClicked: dashboard.confirmPluginPlacement()
+              }
+              DashboardActionButton {
+                text: "Cancel"
+                onClicked: {
+                  if (dashboard.placingDivider) dashboard.cancelDividerPlacement()
+                  else dashboard.cancelPluginPlacement()
+                }
+              }
+            }
+          }
 
           Item {
             id: gridCanvas
@@ -612,6 +728,89 @@ PanelWindow {
               }
             }
 
+            Repeater {
+              id: graphicElementRepeater
+              model: dashboard.activeElements
+              delegate: DashboardGraphicElement {
+                required property var modelData
+                dashboard: root.dashboard
+                element: modelData
+                canvas: gridCanvas
+                gridWidth: gridCanvas.width
+                gridHeight: gridCanvas.height
+                onEditTextRequested: function(elementId, text) {
+                  root.beginTextEdit(elementId, text)
+                }
+              }
+            }
+
+            Item {
+              id: dividerDraft
+              anchors.fill: parent
+              visible: dashboard.placingDivider && dashboard.dividerDraft.started
+              z: 54
+              readonly property var draft: dashboard.dividerDraft || ({ x1: 0, y1: 0, x2: 0, y2: 0 })
+              readonly property bool horizontal: draft.y1 === draft.y2
+
+              Rectangle {
+                x: dividerDraft.horizontal
+                  ? Math.min(dividerDraft.draft.x1, dividerDraft.draft.x2)
+                  : dividerDraft.draft.x1 - width / 2
+                y: dividerDraft.horizontal
+                  ? dividerDraft.draft.y1 - height / 2
+                  : Math.min(dividerDraft.draft.y1, dividerDraft.draft.y2)
+                width: dividerDraft.horizontal
+                  ? Math.abs(dividerDraft.draft.x2 - dividerDraft.draft.x1)
+                  : Math.max(2, Style.space(2))
+                height: dividerDraft.horizontal
+                  ? Math.max(2, Style.space(2))
+                  : Math.abs(dividerDraft.draft.y2 - dividerDraft.draft.y1)
+                radius: Math.min(width, height) / 2
+                color: Color.accent
+              }
+            }
+
+            MouseArea {
+              id: dividerDrawArea
+              anchors.fill: parent
+              enabled: dashboard.placingDivider
+              visible: enabled
+              z: 55
+              cursorShape: Qt.CrossCursor
+              preventStealing: true
+
+              function gridPoint(mouse) {
+                var step = dashboard.dashboardState.gridSpacing
+                return {
+                  x: Math.max(0, Math.min(width, GridEngine.snap(mouse.x, step))),
+                  y: Math.max(0, Math.min(height, GridEngine.snap(mouse.y, step)))
+                }
+              }
+
+              onPressed: function(mouse) {
+                var point = gridPoint(mouse)
+                dashboard.updateDividerDraft(point.x, point.y, point.x, point.y, true)
+              }
+              onPositionChanged: function(mouse) {
+                if (!pressed || !dashboard.dividerDraft) return
+                var point = gridPoint(mouse)
+                var draft = dashboard.dividerDraft
+                if (Math.abs(point.x - draft.x1) >= Math.abs(point.y - draft.y1))
+                  dashboard.updateDividerDraft(draft.x1, draft.y1, point.x, draft.y1, true)
+                else dashboard.updateDividerDraft(draft.x1, draft.y1, draft.x1, point.y, true)
+              }
+              onReleased: {
+                if (!dashboard.confirmDividerPlacement()) dashboard.cancelDividerPlacement()
+                keyCatcher.forceActiveFocus()
+              }
+              onCanceled: dashboard.cancelDividerPlacement()
+            }
+
+            PlacementGhost {
+              dashboard: root.dashboard
+              canvas: gridCanvas
+            }
+
             Row {
               id: gridStepControls
               anchors.right: parent.right
@@ -658,6 +857,8 @@ PanelWindow {
             Column {
               anchors.centerIn: parent
               visible: dashboard.activeTiles.length === 0
+                && dashboard.activeElements.length === 0
+                && !dashboard.placingPlugin && !dashboard.placingDivider
               spacing: Style.spacing.md
               Text {
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -681,6 +882,19 @@ PanelWindow {
                 text: "Add Plugin"
                 onClicked: dashboard.overlay = "catalog"
               }
+              Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: dashboard.mode === "edit"
+                spacing: Style.spacing.sm
+                DashboardActionButton {
+                  text: "Divider"
+                  onClicked: dashboard.beginDividerPlacement()
+                }
+                DashboardActionButton {
+                  text: "Text"
+                  onClicked: root.beginNewText()
+                }
+              }
             }
           }
         }
@@ -699,6 +913,17 @@ PanelWindow {
       onRejected: root.cancelSpaceRemoval()
     }
 
+    DashboardTextEditor {
+      anchors.fill: parent
+      visible: dashboard.overlay === "text-editor"
+      z: 24
+      value: root.textEditorValue
+      title: root.textEditorElementId ? "Edit text" : "Add text"
+      acceptText: root.textEditorElementId ? "Save" : "Add"
+      onAccepted: function(value) { root.finishTextEditor(value) }
+      onRejected: root.cancelTextEditor()
+    }
+
     PluginCatalog {
       anchors.fill: parent
       visible: dashboard.overlay === "catalog"
@@ -709,7 +934,7 @@ PanelWindow {
         keyCatcher.forceActiveFocus()
       }
       onPluginRequested: function(pluginId) {
-        dashboard.addPlugin(pluginId)
+        dashboard.beginPluginPlacement(pluginId)
         keyCatcher.forceActiveFocus()
       }
     }

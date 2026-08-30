@@ -74,6 +74,18 @@ function occupiedBounds(spaces) {
       width = Math.max(width, finiteNumber(tile.x, 0) + finiteNumber(tile.w, 0))
       height = Math.max(height, finiteNumber(tile.y, 0) + finiteNumber(tile.h, 0))
     }
+    var elements = source[spaceIndex] && Array.isArray(source[spaceIndex].elements)
+      ? source[spaceIndex].elements : []
+    for (var elementIndex = 0; elementIndex < elements.length; elementIndex++) {
+      var element = elements[elementIndex] || ({})
+      if (element.kind === "divider") {
+        width = Math.max(width, finiteNumber(element.x1, 0), finiteNumber(element.x2, 0))
+        height = Math.max(height, finiteNumber(element.y1, 0), finiteNumber(element.y2, 0))
+      } else {
+        width = Math.max(width, finiteNumber(element.x, 0) + finiteNumber(element.w, 0))
+        height = Math.max(height, finiteNumber(element.y, 0) + finiteNumber(element.h, 0))
+      }
+    }
   }
   return { width: Math.max(0, width), height: Math.max(0, height) }
 }
@@ -91,6 +103,43 @@ function centeredBounds(width, height, step, spaces) {
   return {
     width: centeredExtent(limit.width, occupied.width, step),
     height: centeredExtent(limit.height, occupied.height, step)
+  }
+}
+
+// Magnetically aligns a rectangular item's center with the nearest central
+// lines of the active grid. An axis is unavailable when the item's dimensions
+// make it impossible for both its origin and center to stay on that grid.
+function snapRectToCenter(rect, boundWidth, boundHeight, threshold, step) {
+  var source = rect || ({})
+  var width = finiteNumber(source.w, 0)
+  var height = finiteNumber(source.h, 0)
+  var limitWidth = Math.max(0, finiteNumber(boundWidth, 0))
+  var limitHeight = Math.max(0, finiteNumber(boundHeight, 0))
+  var radius = Math.max(0, finiteNumber(threshold, 0))
+  var increment = gridStep(step)
+  var verticalPosition = snap(limitWidth / 2, increment)
+  var horizontalPosition = snap(limitHeight / 2, increment)
+  var targetX = verticalPosition - width / 2
+  var targetY = horizontalPosition - height / 2
+  var currentX = finiteNumber(source.x, 0)
+  var currentY = finiteNumber(source.y, 0)
+  var verticalCompatible = targetX >= 0 && targetX + width <= limitWidth
+    && Math.abs(targetX - snap(targetX, increment)) < 0.001
+  var horizontalCompatible = targetY >= 0 && targetY + height <= limitHeight
+    && Math.abs(targetY - snap(targetY, increment)) < 0.001
+  var vertical = verticalCompatible && Math.abs(currentX - targetX) <= radius
+  var horizontal = horizontalCompatible && Math.abs(currentY - targetY) <= radius
+  return {
+    rect: {
+      x: vertical ? targetX : currentX,
+      y: horizontal ? targetY : currentY,
+      w: width,
+      h: height
+    },
+    vertical: vertical,
+    horizontal: horizontal,
+    verticalPosition: verticalPosition,
+    horizontalPosition: horizontalPosition
   }
 }
 
@@ -160,6 +209,83 @@ function firstFree(width, height, tiles, boundWidth, boundHeight, step) {
     }
   }
   return null
+}
+
+function appendUnique(values, value) {
+  for (var index = 0; index < values.length; index++)
+    if (values[index] === value) return
+  values.push(value)
+}
+
+function alignedUp(value, step) {
+  var increment = gridStep(step)
+  return Math.ceil(finiteNumber(value, 0) / increment) * increment
+}
+
+// Finds the least-shrunk free rectangle between preferred and minimum size.
+// Candidate edges come from the canvas and occupied tile edges, which keeps
+// the search bounded by the number of tiles instead of the pixel dimensions.
+function bestFree(preferredWidth, preferredHeight, minimumWidth, minimumHeight,
+                  tiles, boundWidth, boundHeight, step) {
+  var limit = bounds(boundWidth, boundHeight)
+  var increment = gridStep(step)
+  var preferredW = clamp(floorStep(preferredWidth), MIN_WIDTH, limit.width)
+  var preferredH = clamp(floorStep(preferredHeight), MIN_HEIGHT, limit.height)
+  var minW = clamp(floorStep(minimumWidth), MIN_WIDTH, preferredW)
+  var minH = clamp(floorStep(minimumHeight), MIN_HEIGHT, preferredH)
+  var source = Array.isArray(tiles) ? tiles : []
+  var startsX = [0]
+  var startsY = [0]
+  var endsX = [limit.width]
+  var endsY = [limit.height]
+
+  for (var tileIndex = 0; tileIndex < source.length; tileIndex++) {
+    var tile = tileRect(source[tileIndex])
+    if (!tile) continue
+    appendUnique(startsX, alignedUp(tile.x + tile.w, increment))
+    appendUnique(startsY, alignedUp(tile.y + tile.h, increment))
+    appendUnique(endsX, floorStep(tile.x))
+    appendUnique(endsY, floorStep(tile.y))
+  }
+  startsX.sort(function(left, right) { return left - right })
+  startsY.sort(function(left, right) { return left - right })
+  endsX.sort(function(left, right) { return left - right })
+  endsY.sort(function(left, right) { return left - right })
+
+  var best = null
+  var bestBalance = -1
+  var bestArea = -1
+  for (var yIndex = 0; yIndex < startsY.length; yIndex++) {
+    var y = startsY[yIndex]
+    if (y < 0 || y + minH > limit.height) continue
+    for (var xIndex = 0; xIndex < startsX.length; xIndex++) {
+      var x = startsX[xIndex]
+      if (x < 0 || x + minW > limit.width) continue
+      for (var bottomIndex = 0; bottomIndex < endsY.length; bottomIndex++) {
+        var height = Math.min(preferredH, endsY[bottomIndex] - y)
+        height = floorStep(height)
+        if (height < minH) continue
+        for (var rightIndex = 0; rightIndex < endsX.length; rightIndex++) {
+          var width = Math.min(preferredW, endsX[rightIndex] - x)
+          width = floorStep(width)
+          if (width < minW) continue
+          var candidate = { x: x, y: y, w: width, h: height }
+          if (!canPlace(candidate, source, "", limit.width, limit.height)) continue
+          var balance = Math.min(width / preferredW, height / preferredH)
+          var area = width * height
+          if (!best || balance > bestBalance
+              || (balance === bestBalance && area > bestArea)
+              || (balance === bestBalance && area === bestArea && y < best.y)
+              || (balance === bestBalance && area === bestArea && y === best.y && x < best.x)) {
+            best = candidate
+            bestBalance = balance
+            bestArea = area
+          }
+        }
+      }
+    }
+  }
+  return best
 }
 
 function move(tile, deltaX, deltaY, tiles, boundWidth, boundHeight) {
