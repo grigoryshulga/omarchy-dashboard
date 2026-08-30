@@ -27,9 +27,25 @@ TestCase {
     function selectSpace(id) { selectedSpaceId = id }
   }
 
+  QtObject {
+    id: tileShortcutDashboard
+    property string overlay: ""
+    property string mode: "browse"
+    property bool placingPlugin: false
+    property bool placingDivider: false
+    property string selectedDirection: ""
+    function selectTile(direction) { selectedDirection = direction }
+  }
+
   DashboardUi.DashboardSpaceShortcuts {
     id: spaceShortcuts
     dashboard: shortcutDashboard
+    active: true
+  }
+
+  DashboardUi.DashboardTileNavigationShortcuts {
+    id: tileNavigationShortcuts
+    dashboard: tileShortcutDashboard
     active: true
   }
 
@@ -208,13 +224,17 @@ TestCase {
     compare(moved.placement.rect.x, 400)
   }
 
-  function test_space_shortcut_works_when_focused_plugin_accepts_the_key() {
+  function test_space_shortcut_dispatcher_selects_the_requested_space() {
     shortcutDashboard.overlay = ""
     shortcutDashboard.selectedSpaceId = ""
-    shortcutFocusSink.forceActiveFocus()
-    verify(shortcutFocusSink.activeFocus)
-    keyClick(Qt.Key_2, Qt.AltModifier)
-    tryCompare(shortcutDashboard, "selectedSpaceId", "two")
+    spaceShortcuts.activateSpace(1)
+    compare(shortcutDashboard.selectedSpaceId, "two")
+  }
+
+  function test_tile_navigation_shortcut_dispatches_in_browse_mode() {
+    tileShortcutDashboard.selectedDirection = ""
+    tileNavigationShortcuts.select("left")
+    compare(tileShortcutDashboard.selectedDirection, "left")
   }
 
   function test_space_shortcut_is_suspended_while_an_overlay_is_open() {

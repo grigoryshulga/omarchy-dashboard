@@ -210,14 +210,6 @@ PanelWindow {
         event.key === Qt.Key_Up ? -1 : (event.key === Qt.Key_Down ? 1 : 0)
       )
       event.accepted = true
-    } else if (event.key === Qt.Key_Left) {
-      dashboard.selectTile("left"); event.accepted = true
-    } else if (event.key === Qt.Key_Right) {
-      dashboard.selectTile("right"); event.accepted = true
-    } else if (event.key === Qt.Key_Up) {
-      dashboard.selectTile("up"); event.accepted = true
-    } else if (event.key === Qt.Key_Down) {
-      dashboard.selectTile("down"); event.accepted = true
     } else if (event.key === Qt.Key_PageUp) {
       dashboard.moveSpace(-1); event.accepted = true
     } else if (event.key === Qt.Key_PageDown) {
@@ -280,6 +272,11 @@ PanelWindow {
   }
 
   DashboardSpaceShortcuts {
+    dashboard: root.dashboard
+    active: root.visible
+  }
+
+  DashboardTileNavigationShortcuts {
     dashboard: root.dashboard
     active: root.visible
   }
