@@ -18,6 +18,8 @@ Item {
   property var startRect: null
   property bool dragging: false
   property bool resizing: false
+  property bool verticalGuideVisible: false
+  property bool horizontalGuideVisible: false
   property bool hadInteraction: false
   property string pageError: ""
   property string launchError: ""
@@ -49,6 +51,8 @@ Item {
     previewRect = { x: tile.x, y: tile.y, w: tile.w, h: tile.h }
     dragging = !resizeMode
     resizing = resizeMode
+    verticalGuideVisible = false
+    horizontalGuideVisible = false
   }
 
   function updatePointer(mouseArea, mouse) {
@@ -77,6 +81,11 @@ Item {
         w: startRect.w,
         h: startRect.h
       }
+      var alignment = GridEngine.snapRectToCenter(
+        candidate, gridWidth, gridHeight, Math.max(12, gridStep / 2))
+      candidate = alignment.rect
+      verticalGuideVisible = alignment.vertical
+      horizontalGuideVisible = alignment.horizontal
     }
     previewRect = candidate
   }
@@ -89,6 +98,8 @@ Item {
   function clearPointer() {
     dragging = false
     resizing = false
+    verticalGuideVisible = false
+    horizontalGuideVisible = false
     previewRect = null
     startRect = null
   }
@@ -195,6 +206,12 @@ Item {
   Component.onCompleted: if (surfaceActive && !sourceUrl && presentation.state === "preparing")
     dashboard.plugins.requestAdaptation(tile.pluginId)
   Component.onDestruction: unloadPage("tile-destroyed")
+
+  CanvasAlignmentGuides {
+    parent: root.canvas
+    verticalGuideVisible: root.verticalGuideVisible
+    horizontalGuideVisible: root.horizontalGuideVisible
+  }
 
   Rectangle {
     id: frame

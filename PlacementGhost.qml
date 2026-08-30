@@ -12,6 +12,8 @@ Item {
   property point pointerStart: Qt.point(0, 0)
   property var startRect: null
   property bool resizing: false
+  property bool verticalGuideVisible: false
+  property bool horizontalGuideVisible: false
 
   readonly property var draft: dashboard.placementDraft
   readonly property var rect: draft ? draft.rect : ({ x: 0, y: 0, w: 0, h: 0 })
@@ -33,6 +35,8 @@ Item {
     pointerStart = Qt.point(point.x, point.y)
     startRect = { x: rect.x, y: rect.y, w: rect.w, h: rect.h }
     resizing = resizeMode
+    verticalGuideVisible = false
+    horizontalGuideVisible = false
   }
 
   function updatePointer(mouseArea, mouse) {
@@ -53,18 +57,31 @@ Item {
     } else {
       var x = GridEngine.snapFrom(startRect.x, deltaX, step)
       var y = GridEngine.snapFrom(startRect.y, deltaY, step)
-      dashboard.updatePlacementRect({
+      var candidate = {
         x: Math.max(0, Math.min(canvas.width - startRect.w, x)),
         y: Math.max(0, Math.min(canvas.height - startRect.h, y)),
         w: startRect.w,
         h: startRect.h
-      })
+      }
+      var alignment = GridEngine.snapRectToCenter(
+        candidate, canvas.width, canvas.height, Math.max(12, step / 2))
+      verticalGuideVisible = alignment.vertical
+      horizontalGuideVisible = alignment.horizontal
+      dashboard.updatePlacementRect(alignment.rect)
     }
   }
 
   function finishPointer() {
     startRect = null
     resizing = false
+    verticalGuideVisible = false
+    horizontalGuideVisible = false
+  }
+
+  CanvasAlignmentGuides {
+    parent: root.canvas
+    verticalGuideVisible: root.verticalGuideVisible
+    horizontalGuideVisible: root.horizontalGuideVisible
   }
 
   TileSilhouette {

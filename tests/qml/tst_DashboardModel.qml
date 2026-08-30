@@ -515,6 +515,40 @@ TestCase {
     compare(decorated.height, 600)
   }
 
+  function test_rect_snaps_to_canvas_center_axes_within_threshold() {
+    var vertical = GridEngine.snapRectToCenter(
+      { x: 344, y: 40, w: 300, h: 200 }, 1000, 600, 12)
+    compare(vertical.rect.x, 350)
+    compare(vertical.rect.y, 40)
+    verify(vertical.vertical)
+    verify(!vertical.horizontal)
+
+    var both = GridEngine.snapRectToCenter(
+      { x: 345, y: 205, w: 300, h: 200 }, 1000, 600, 12)
+    compare(both.rect.x, 350)
+    compare(both.rect.y, 200)
+    verify(both.vertical)
+    verify(both.horizontal)
+
+    var outside = GridEngine.snapRectToCenter(
+      { x: 330, y: 180, w: 300, h: 200 }, 1000, 600, 12)
+    compare(outside.rect.x, 330)
+    compare(outside.rect.y, 180)
+    verify(!outside.vertical)
+    verify(!outside.horizontal)
+  }
+
+  function test_center_snap_keeps_origin_on_five_pixel_lattice() {
+    var aligned = GridEngine.snapRectToCenter(
+      { x: 300, y: 200, w: 200, h: 100 }, 805, 505, 5)
+    compare(aligned.rect.x, 305)
+    compare(aligned.rect.y, 205)
+    compare(aligned.rect.x % GridEngine.STEP, 0)
+    compare(aligned.rect.y % GridEngine.STEP, 0)
+    verify(aligned.vertical)
+    verify(aligned.horizontal)
+  }
+
   function test_first_grid_operation_aligns_existing_geometry() {
     compare(GridEngine.snapFrom(395, 1, 50), 400)
     compare(GridEngine.snapFrom(395, -1, 50), 395)

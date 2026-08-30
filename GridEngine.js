@@ -106,6 +106,34 @@ function centeredBounds(width, height, step, spaces) {
   }
 }
 
+// Magnetically aligns a rectangular item's center with either canvas axis.
+// The stored origin stays on the five-pixel lattice even when an exact center
+// would land between lattice points; the guide still marks the true canvas axis.
+function snapRectToCenter(rect, boundWidth, boundHeight, threshold) {
+  var source = rect || ({})
+  var width = finiteNumber(source.w, 0)
+  var height = finiteNumber(source.h, 0)
+  var limitWidth = Math.max(0, finiteNumber(boundWidth, 0))
+  var limitHeight = Math.max(0, finiteNumber(boundHeight, 0))
+  var radius = Math.max(0, finiteNumber(threshold, 0))
+  var targetX = clamp(snap((limitWidth - width) / 2), 0, Math.max(0, limitWidth - width))
+  var targetY = clamp(snap((limitHeight - height) / 2), 0, Math.max(0, limitHeight - height))
+  var currentX = finiteNumber(source.x, 0)
+  var currentY = finiteNumber(source.y, 0)
+  var vertical = Math.abs(currentX - targetX) <= radius
+  var horizontal = Math.abs(currentY - targetY) <= radius
+  return {
+    rect: {
+      x: vertical ? targetX : currentX,
+      y: horizontal ? targetY : currentY,
+      w: width,
+      h: height
+    },
+    vertical: vertical,
+    horizontal: horizontal
+  }
+}
+
 function normalizeRect(rect, minimumWidth, minimumHeight, boundWidth, boundHeight) {
   var source = rect || ({})
   var limit = bounds(boundWidth, boundHeight)

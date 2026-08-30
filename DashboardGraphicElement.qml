@@ -16,6 +16,8 @@ Item {
   property var startGeometry: null
   property point pointerStart: Qt.point(0, 0)
   property string pointerMode: ""
+  property bool verticalGuideVisible: false
+  property bool horizontalGuideVisible: false
 
   readonly property bool editing: dashboard.mode === "edit"
   readonly property bool selected: dashboard.selectedElementId === element.id
@@ -45,6 +47,8 @@ Item {
     startGeometry = copyGeometry()
     previewGeometry = copyGeometry()
     pointerMode = mode
+    verticalGuideVisible = false
+    horizontalGuideVisible = false
   }
 
   function updatePointer(mouseArea, mouse) {
@@ -65,7 +69,7 @@ Item {
             GridEngine.snapFrom(startGeometry.h, dy, step)))
         }
       } else {
-        previewGeometry = {
+        var candidate = {
           x: Math.max(0, Math.min(gridWidth - startGeometry.w,
             GridEngine.snapFrom(startGeometry.x, dx, step))),
           y: Math.max(0, Math.min(gridHeight - startGeometry.h,
@@ -73,6 +77,11 @@ Item {
           w: startGeometry.w,
           h: startGeometry.h
         }
+        var alignment = GridEngine.snapRectToCenter(
+          candidate, gridWidth, gridHeight, Math.max(12, step / 2))
+        previewGeometry = alignment.rect
+        verticalGuideVisible = alignment.vertical
+        horizontalGuideVisible = alignment.horizontal
       }
       return
     }
@@ -119,6 +128,14 @@ Item {
     previewGeometry = null
     startGeometry = null
     pointerMode = ""
+    verticalGuideVisible = false
+    horizontalGuideVisible = false
+  }
+
+  CanvasAlignmentGuides {
+    parent: root.canvas
+    verticalGuideVisible: root.verticalGuideVisible
+    horizontalGuideVisible: root.horizontalGuideVisible
   }
 
   Item {
