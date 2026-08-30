@@ -90,6 +90,100 @@ TestCase {
     verify(config.hosts === undefined)
   }
 
+  function test_pending_placement_is_hosted_without_tile_geometry() {
+    var state = DashboardModel.defaultState()
+    var result = DashboardModel.managePlacement(state, {
+      operation: "pending", pluginId: "example.weather",
+      instanceId: "placement-weather", label: "Weather", embedding: "widget"
+    }, 800, 600)
+    verify(result.ok)
+    verify(result.changed)
+    compare(result.placement.state, "pending")
+    compare(result.state.pendingPlacements.length, 1)
+    compare(result.state.spaces[0].tiles.length, 0)
+
+    var references = HostPlacements.references(result.state)
+    compare(references.length, 1)
+    compare(references[0].id, "example.weather")
+    compare(references[0].slot, "pending")
+  }
+
+  function test_pending_placement_can_be_placed_exactly_and_returned_to_pending() {
+    var pending = DashboardModel.managePlacement(DashboardModel.defaultState(), {
+      operation: "pending", pluginId: "example.weather",
+      instanceId: "placement-weather", label: "Weather", embedding: "widget"
+    }, 800, 600)
+    var placed = DashboardModel.managePlacement(pending.state, {
+      operation: "place", pluginId: "example.weather", spaceId: "space-main",
+      strategy: "exact", rect: { x: 40, y: 20, w: 360, h: 260 },
+      hints: { minW: 160, minH: 120 }
+    }, 800, 600)
+    verify(placed.ok)
+    compare(placed.placement.id, "placement-weather")
+    compare(placed.placement.state, "placed")
+    compare(placed.placement.rect.x, 40)
+    compare(placed.state.pendingPlacements.length, 0)
+
+    var returned = DashboardModel.managePlacement(placed.state, {
+      operation: "pending", pluginId: "example.weather"
+    }, 800, 600)
+    verify(returned.ok)
+    compare(returned.placement.id, "placement-weather")
+    compare(returned.placement.embedding, "widget")
+    compare(returned.state.spaces[0].tiles.length, 0)
+  }
+
+  function test_ui_add_tile_consumes_pending_without_changing_identity() {
+    var pending = DashboardModel.managePlacement(DashboardModel.defaultState(), {
+      operation: "pending", pluginId: "example.weather",
+      instanceId: "placement-weather", label: "Weather"
+    }, 800, 600)
+    var placed = DashboardModel.apply(pending.state, {
+      type: "addTile", id: "placement-weather", pluginId: "example.weather",
+      label: "Weather", rect: { x: 0, y: 0, w: 360, h: 260 }
+    }, 800, 600)
+    compare(placed.pendingPlacements.length, 0)
+    compare(placed.spaces[0].tiles.length, 1)
+    compare(placed.spaces[0].tiles[0].id, "placement-weather")
+  }
+
+  function test_exact_placement_rejects_collision_atomically() {
+    var state = DashboardModel.apply(DashboardModel.defaultState(), {
+      type: "addTile", id: "occupied", pluginId: "example.occupied",
+      rect: { x: 0, y: 0, w: 300, h: 200 }
+    }, 800, 600)
+    var before = DashboardModel.serialize(state)
+    var result = DashboardModel.managePlacement(state, {
+      operation: "place", pluginId: "example.weather", instanceId: "weather",
+      spaceId: "space-main", strategy: "exact",
+      rect: { x: 100, y: 100, w: 300, h: 200 }, hints: { minW: 160, minH: 120 }
+    }, 800, 600)
+    verify(!result.ok)
+    compare(result.code, "invalid-or-colliding-rect")
+    compare(DashboardModel.serialize(result.state), before)
+  }
+
+  function test_placed_plugin_moves_between_spaces_atomically() {
+    var state = DashboardModel.apply(DashboardModel.defaultState(), {
+      type: "addSpace", id: "work", name: "Work"
+    }, 800, 600)
+    var placed = DashboardModel.managePlacement(state, {
+      operation: "place", pluginId: "example.weather", instanceId: "weather",
+      spaceId: "space-main", strategy: "exact",
+      rect: { x: 0, y: 0, w: 300, h: 200 }, hints: { minW: 160, minH: 120 }
+    }, 800, 600)
+    var moved = DashboardModel.managePlacement(placed.state, {
+      operation: "move", pluginId: "example.weather", spaceId: "work",
+      strategy: "exact", rect: { x: 400, y: 100, w: 300, h: 200 },
+      hints: { minW: 160, minH: 120 }
+    }, 800, 600)
+    verify(moved.ok)
+    compare(moved.state.spaces[0].tiles.length, 0)
+    compare(moved.state.spaces[1].tiles.length, 1)
+    compare(moved.placement.spaceId, "work")
+    compare(moved.placement.rect.x, 400)
+  }
+
   function test_space_shortcut_works_when_focused_plugin_accepts_the_key() {
     shortcutDashboard.overlay = ""
     shortcutDashboard.selectedSpaceId = ""
@@ -500,6 +594,29 @@ TestCase {
     compare(state.gridSpacing, DashboardModel.MIN_GRID_SPACING)
     state = DashboardModel.apply(state, { type: "setGridSpacing", value: 999 })
     compare(state.gridSpacing, DashboardModel.MAX_GRID_SPACING)
+  }
+
+  function test_canvas_bounds_persist_and_never_clip_existing_content() {
+    var state = DashboardModel.defaultState()
+    state = DashboardModel.apply(state, {
+      type: "setCanvasBounds", width: 2010, height: 1050
+    }, 2010, 1050)
+    compare(state.canvasWidth, 2010)
+    compare(state.canvasHeight, 1050)
+
+    state = DashboardModel.apply(state, {
+      type: "addTile", id: "wide", pluginId: "example.wide",
+      rect: { x: 1800, y: 900, w: 200, h: 100 }
+    }, 2010, 1050)
+    state = DashboardModel.apply(state, {
+      type: "setCanvasBounds", width: 1600, height: 800
+    }, 1600, 800)
+    compare(state.canvasWidth, 2000)
+    compare(state.canvasHeight, 1000)
+
+    var roundTrip = DashboardModel.parse(DashboardModel.serialize(state))
+    compare(roundTrip.canvasWidth, 2000)
+    compare(roundTrip.canvasHeight, 1000)
   }
 
   function test_grid_spacing_controls_geometry() {

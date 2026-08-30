@@ -1,11 +1,12 @@
 .pragma library
 .import "GridEngine.js" as GridEngine
 
-var VERSION = 4
+var VERSION = 5
 var MAX_STATE_BYTES = 256 * 1024
 var MAX_SPACES = 12
 var MAX_TILES_PER_SPACE = 24
 var MAX_TOTAL_TILES = 64
+var MAX_PENDING_PLACEMENTS = 64
 var MAX_ELEMENTS_PER_SPACE = 48
 var MAX_TOTAL_ELEMENTS = 128
 var MAX_NAME_LENGTH = 80
@@ -46,7 +47,10 @@ function defaultState() {
     version: VERSION,
     revision: 0,
     gridSpacing: 10,
+    canvasWidth: GridEngine.DEFAULT_WIDTH,
+    canvasHeight: GridEngine.DEFAULT_HEIGHT,
     activeSpaceId: "space-main",
+    pendingPlacements: [],
     spaces: [{ id: "space-main", name: "Main", tiles: [], elements: [] }]
   }
 }
@@ -169,16 +173,40 @@ function normalize(raw) {
   }
 
   if (spaces.length === 0) return defaultState()
+  var pendingPlacements = []
+  var pendingSource = Array.isArray(source.pendingPlacements) ? source.pendingPlacements : []
+  for (var pendingSourceIndex = 0; pendingSourceIndex < pendingSource.length
+       && pendingPlacements.length < MAX_PENDING_PLACEMENTS; pendingSourceIndex++) {
+    var pendingSourceEntry = pendingSource[pendingSourceIndex] || ({})
+    var pendingId = stringBounded(pendingSourceEntry.id, MAX_ID_LENGTH).trim()
+    var pendingPluginId = stringBounded(pendingSourceEntry.pluginId, MAX_ID_LENGTH).trim()
+    if (!pendingId || !pendingPluginId || usedTileIds[pendingId] || usedPluginIds[pendingPluginId]) continue
+    usedTileIds[pendingId] = true
+    usedPluginIds[pendingPluginId] = true
+    pendingPlacements.push({
+      id: pendingId,
+      pluginId: pendingPluginId,
+      label: stringBounded(pendingSourceEntry.label, MAX_NAME_LENGTH),
+      embedding: normalizeEmbedding(pendingSourceEntry.embedding)
+    })
+  }
   var activeSpaceId = stringBounded(source.activeSpaceId, MAX_ID_LENGTH)
   if (!usedSpaceIds[activeSpaceId]) activeSpaceId = spaces[0].id
   var revision = Math.max(0, Math.floor(isFinite(Number(source.revision)) ? Number(source.revision) : 0))
   var requestedSpacing = GridEngine.snap(source.gridSpacing === undefined ? 10 : source.gridSpacing)
   var gridSpacing = Math.max(MIN_GRID_SPACING, Math.min(MAX_GRID_SPACING, requestedSpacing))
+  var occupied = GridEngine.occupiedBounds(spaces)
+  var canvas = GridEngine.bounds(
+    Math.max(Number(source.canvasWidth) || GridEngine.DEFAULT_WIDTH, occupied.width),
+    Math.max(Number(source.canvasHeight) || GridEngine.DEFAULT_HEIGHT, occupied.height))
   return {
     version: VERSION,
     revision: revision,
     gridSpacing: gridSpacing,
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
     activeSpaceId: activeSpaceId,
+    pendingPlacements: pendingPlacements,
     spaces: spaces
   }
 }
@@ -187,7 +215,7 @@ function parse(raw) {
   if (utf8ByteLength(raw) > MAX_STATE_BYTES) return null
   try {
     var document = JSON.parse(String(raw || ""))
-    if (!document || [2, 3, VERSION].indexOf(document.version) < 0 || !Array.isArray(document.spaces)) return null
+    if (!document || [2, 3, 4, VERSION].indexOf(document.version) < 0 || !Array.isArray(document.spaces)) return null
     return normalize(document)
   } catch (error) {
     return null
@@ -211,13 +239,168 @@ function tileIndex(space, id) {
   return -1
 }
 
+function pendingIndex(state, pluginId) {
+  var pending = state && Array.isArray(state.pendingPlacements) ? state.pendingPlacements : []
+  for (var index = 0; index < pending.length; index++)
+    if (pending[index].pluginId === pluginId || pending[index].id === pluginId) return index
+  return -1
+}
+
+function placedLocation(state, pluginId) {
+  for (var spaceIndexValue = 0; spaceIndexValue < state.spaces.length; spaceIndexValue++) {
+    var tiles = state.spaces[spaceIndexValue].tiles
+    for (var tileIndexValue = 0; tileIndexValue < tiles.length; tileIndexValue++)
+      if (tiles[tileIndexValue].pluginId === pluginId || tiles[tileIndexValue].id === pluginId)
+        return { spaceIndex: spaceIndexValue, tileIndex: tileIndexValue }
+  }
+  return null
+}
+
+function placement(state, selector) {
+  var normalized = normalize(state)
+  var wanted = String(selector || "")
+  var location = placedLocation(normalized, wanted)
+  if (location) {
+    var space = normalized.spaces[location.spaceIndex]
+    var tile = space.tiles[location.tileIndex]
+    return {
+      id: tile.id, pluginId: tile.pluginId, state: "placed",
+      spaceId: space.id, spaceName: space.name,
+      rect: { x: tile.x, y: tile.y, w: tile.w, h: tile.h },
+      label: tile.label, embedding: tile.embedding
+    }
+  }
+  var index = pendingIndex(normalized, wanted)
+  if (index < 0) return null
+  var pending = normalized.pendingPlacements[index]
+  return {
+    id: pending.id, pluginId: pending.pluginId, state: "pending",
+    spaceId: "", spaceName: "", rect: null,
+    label: pending.label, embedding: pending.embedding
+  }
+}
+
+function placements(state) {
+  var normalized = normalize(state)
+  var result = []
+  for (var pendingIndexValue = 0; pendingIndexValue < normalized.pendingPlacements.length; pendingIndexValue++)
+    result.push(placement(normalized, normalized.pendingPlacements[pendingIndexValue].id))
+  for (var spaceIndexValue = 0; spaceIndexValue < normalized.spaces.length; spaceIndexValue++) {
+    var tiles = normalized.spaces[spaceIndexValue].tiles
+    for (var tileIndexValue = 0; tileIndexValue < tiles.length; tileIndexValue++)
+      result.push(placement(normalized, tiles[tileIndexValue].id))
+  }
+  return result
+}
+
 function pluginExists(state, pluginId) {
+  if (pendingIndex(state, pluginId) >= 0) return true
   for (var spaceIndexValue = 0; spaceIndexValue < state.spaces.length; spaceIndexValue++) {
     var tiles = state.spaces[spaceIndexValue].tiles
     for (var tileIndexValue = 0; tileIndexValue < tiles.length; tileIndexValue++)
       if (tiles[tileIndexValue].pluginId === pluginId) return true
   }
   return false
+}
+
+function managePlacement(state, command, boundWidth, boundHeight) {
+  var currentState = normalize(copy(state || defaultState()))
+  var action = command || ({})
+  var operation = String(action.operation || "")
+  var pluginId = stringBounded(action.pluginId, MAX_ID_LENGTH).trim()
+  var current = placement(currentState, pluginId || action.selector)
+  if (!pluginId && current) pluginId = current.pluginId
+  if (!pluginId) return { ok: false, code: "invalid-plugin-id", state: currentState }
+
+  if (operation === "remove") {
+    if (!current) return { ok: true, changed: false, state: currentState, placement: null }
+    var removePendingIndex = pendingIndex(currentState, current.id)
+    if (removePendingIndex >= 0) currentState.pendingPlacements.splice(removePendingIndex, 1)
+    var removeLocation = placedLocation(currentState, current.id)
+    if (removeLocation) currentState.spaces[removeLocation.spaceIndex].tiles.splice(removeLocation.tileIndex, 1)
+    currentState.revision += 1
+    return { ok: true, changed: true, state: normalize(currentState), placement: null }
+  }
+
+  if (operation === "ensure" && current)
+    return { ok: true, changed: false, state: currentState, placement: current }
+
+  if (operation === "pending" || (operation === "ensure" && String(action.target || "pending") === "pending")) {
+    if (current && current.state === "pending")
+      return { ok: true, changed: false, state: currentState, placement: current }
+    if (!current && currentState.pendingPlacements.length >= MAX_PENDING_PLACEMENTS)
+      return { ok: false, code: "capacity-exceeded", state: currentState }
+    var pendingEntry = current ? {
+      id: current.id, pluginId: current.pluginId,
+      label: current.label, embedding: current.embedding
+    } : {
+      id: stringBounded(action.instanceId, MAX_ID_LENGTH).trim(), pluginId: pluginId,
+      label: stringBounded(action.label, MAX_NAME_LENGTH), embedding: normalizeEmbedding(action.embedding)
+    }
+    if (!pendingEntry.id) return { ok: false, code: "invalid-instance-id", state: currentState }
+    var oldLocation = placedLocation(currentState, pluginId)
+    if (oldLocation) currentState.spaces[oldLocation.spaceIndex].tiles.splice(oldLocation.tileIndex, 1)
+    currentState.pendingPlacements.push(pendingEntry)
+    currentState.revision += 1
+    var pendingState = normalize(currentState)
+    return { ok: true, changed: true, state: pendingState, placement: placement(pendingState, pluginId) }
+  }
+
+  if (["ensure", "place", "move"].indexOf(operation) < 0)
+    return { ok: false, code: "invalid-operation", state: currentState }
+  if (operation === "move" && (!current || current.state !== "placed"))
+    return { ok: false, code: "placement-not-placed", state: currentState }
+  if (operation === "place" && current && current.state === "placed")
+    return { ok: false, code: "already-placed", state: currentState, placement: current }
+
+  var targetSpaceIndex = spaceIndex(currentState, String(action.spaceId || ""))
+  if (targetSpaceIndex < 0) return { ok: false, code: "space-not-found", state: currentState }
+  var targetSpace = currentState.spaces[targetSpaceIndex]
+  var oldPlacedLocation = current ? placedLocation(currentState, current.id) : null
+  var targetTiles = targetSpace.tiles.filter(function(tile) { return !current || tile.id !== current.id })
+  var hints = action.hints || ({})
+  var requestedRect = action.rect
+  if (String(action.strategy || "exact") === "auto") {
+    requestedRect = GridEngine.bestFree(
+      Number(hints.preferredW) || 360, Number(hints.preferredH) || 260,
+      Number(hints.minW) || GridEngine.MIN_WIDTH, Number(hints.minH) || GridEngine.MIN_HEIGHT,
+      targetTiles, boundWidth, boundHeight, currentState.gridSpacing)
+    if (!requestedRect) return { ok: false, code: "no-free-rect", state: currentState }
+  }
+  if (!requestedRect || !GridEngine.canPlace(requestedRect, targetTiles, "", boundWidth, boundHeight))
+    return { ok: false, code: "invalid-or-colliding-rect", state: currentState }
+  if (requestedRect.w < (Number(hints.minW) || GridEngine.MIN_WIDTH)
+      || requestedRect.h < (Number(hints.minH) || GridEngine.MIN_HEIGHT))
+    return { ok: false, code: "rect-too-small", state: currentState }
+
+  var placedEntry = current ? {
+    id: current.id, pluginId: current.pluginId,
+    label: current.label, embedding: current.embedding,
+    x: requestedRect.x, y: requestedRect.y, w: requestedRect.w, h: requestedRect.h
+  } : {
+    id: stringBounded(action.instanceId, MAX_ID_LENGTH).trim(), pluginId: pluginId,
+    label: stringBounded(action.label, MAX_NAME_LENGTH), embedding: normalizeEmbedding(action.embedding),
+    x: requestedRect.x, y: requestedRect.y, w: requestedRect.w, h: requestedRect.h
+  }
+  if (!placedEntry.id) return { ok: false, code: "invalid-instance-id", state: currentState }
+  if (!current) {
+    var tileCountValue = 0
+    for (var countSpaceIndex = 0; countSpaceIndex < currentState.spaces.length; countSpaceIndex++)
+      tileCountValue += currentState.spaces[countSpaceIndex].tiles.length
+    if (tileCountValue >= MAX_TOTAL_TILES || targetSpace.tiles.length >= MAX_TILES_PER_SPACE)
+      return { ok: false, code: "capacity-exceeded", state: currentState }
+  }
+  var oldPendingIndex = pendingIndex(currentState, pluginId)
+  if (oldPendingIndex >= 0) currentState.pendingPlacements.splice(oldPendingIndex, 1)
+  if (oldPlacedLocation) {
+    currentState.spaces[oldPlacedLocation.spaceIndex].tiles.splice(oldPlacedLocation.tileIndex, 1)
+    if (oldPlacedLocation.spaceIndex === targetSpaceIndex)
+      targetSpace = currentState.spaces[targetSpaceIndex]
+  }
+  targetSpace.tiles.push(placedEntry)
+  currentState.revision += 1
+  var placedState = normalize(currentState)
+  return { ok: true, changed: true, state: placedState, placement: placement(placedState, pluginId) }
 }
 
 function elementExists(state, elementId) {
@@ -259,9 +442,14 @@ function apply(state, command, boundWidth, boundHeight) {
   } else if (action.type === "setGridSpacing") {
     next.gridSpacing = Math.max(MIN_GRID_SPACING, Math.min(MAX_GRID_SPACING,
       GridEngine.snap(action.value)))
+  } else if (action.type === "setCanvasBounds") {
+    var nextCanvas = GridEngine.bounds(action.width, action.height)
+    var occupiedCanvas = GridEngine.occupiedBounds(next.spaces)
+    next.canvasWidth = Math.max(nextCanvas.width, occupiedCanvas.width)
+    next.canvasHeight = Math.max(nextCanvas.height, occupiedCanvas.height)
   } else if (action.type === "addTile" && index >= 0
              && next.spaces[index].tiles.length < MAX_TILES_PER_SPACE
-             && !pluginExists(next, String(action.pluginId || ""))) {
+             && !placedLocation(next, String(action.pluginId || ""))) {
     var allCount = 0
     for (var countIndex = 0; countIndex < next.spaces.length; countIndex++) allCount += next.spaces[countIndex].tiles.length
     var tileId = stringBounded(action.id, MAX_ID_LENGTH).trim()
@@ -277,6 +465,8 @@ function apply(state, command, boundWidth, boundHeight) {
         x: rectangle.x, y: rectangle.y, w: rectangle.w, h: rectangle.h,
         embedding: normalizeEmbedding(action.embedding)
       })
+      var consumedPendingIndex = pendingIndex(next, pluginId)
+      if (consumedPendingIndex >= 0) next.pendingPlacements.splice(consumedPendingIndex, 1)
     }
   } else if (action.type === "setTileEmbedding" && index >= 0) {
     var embeddingIndex = tileIndex(next.spaces[index], String(action.tileId || ""))

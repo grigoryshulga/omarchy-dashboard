@@ -18,6 +18,7 @@ Item {
   property bool active: false
   property var tiles: []
   property var spaces: []
+  property var pendingPlacements: []
 
   property var adaptations: ({})
   property var adaptationErrors: ({})
@@ -46,10 +47,18 @@ Item {
       availablePresentations: capabilities.available,
       preferredPresentation: capabilities.preferred,
       canLaunchNative: capabilities.hasNativeSurface,
+      pending: isPending(resolved),
       icon: icon.value,
       iconKind: icon.kind,
       manifest: pluginManifest
     }
+  }
+
+  function isPending(id) {
+    var pending = Array.isArray(pendingPlacements) ? pendingPlacements : []
+    for (var index = 0; index < pending.length; index++)
+      if (pending[index] && String(pending[index].pluginId) === String(id)) return true
+    return false
   }
 
   function discoverAvailablePlugins() {
@@ -68,7 +77,10 @@ Item {
       if (!entry || entry.id === dashboardPluginId || used[entry.id]) continue
       entries.push(entry)
     }
-    entries.sort(function(left, right) { return left.name.localeCompare(right.name) })
+    entries.sort(function(left, right) {
+      if (left.pending !== right.pending) return left.pending ? -1 : 1
+      return left.name.localeCompare(right.name)
+    })
     return entries
   }
 

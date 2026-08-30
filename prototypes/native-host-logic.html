@@ -36,7 +36,7 @@
   <div class="actions">
     <button id="next">Run next step</button>
     <button id="reset">Reset scenario</button>
-    <button id="freeAdd">Free play: add weather</button>
+    <button id="freeAdd">Free play: pend weather</button>
     <button id="freeRemove">Free play: remove weather</button>
   </div>
   <p id="step"></p>
@@ -54,30 +54,33 @@
 
   const scenarios = {
     native: [
-      ["Add a native dashboardPage tile", () => add("acme.weather", "weather-tile", "main")],
+      ["Create a Pending Placement", () => pend("acme.weather", "weather-placement")],
+      ["Place it exactly without changing identity", () => place("acme.weather", "main", { x: 0, y: 0, w: 420, h: 300 })],
       ["Observe separate host placement and compatibility load reference", () => note("No bar placement was created")]
     ],
     reload: [
-      ["Add tile and instance settings", () => { add("acme.weather", "weather-tile", "work"); placement().settings.units = "metric"; sync(); }],
+      ["Add pending placement and instance settings", () => { pend("acme.weather", "weather-placement"); placement().settings.units = "metric"; sync(); }],
       ["Simulate Dashboard layout reload", () => { state = structuredClone(state); sync(); note("Settings survived synchronization") }]
     ],
     remove: [
-      ["Add tile", () => add("acme.weather", "weather-tile", "main")],
-      ["Remove tile from Dashboard", () => remove("acme.weather")],
+      ["Create Pending Placement", () => pend("acme.weather", "weather-placement")],
+      ["Remove Host Placement from Dashboard", () => remove("acme.weather")],
       ["Observe compatibility limitation", () => note("plugins[] remains until Omarchy natively counts hosts")]
     ]
   };
 
   function initial() {
     return {
-      state: { spaces: [{ id: "main", tiles: [] }, { id: "work", tiles: [] }] },
+      state: { pendingPlacements: [], spaces: [{ id: "main", tiles: [] }, { id: "work", tiles: [] }] },
       shell: { bar: { layout: { left: [], center: [], right: [] } }, plugins: [] }
     };
   }
   function refs() {
-    return state.spaces.flatMap(space => space.tiles.map(tile => ({
+    return state.pendingPlacements.map(entry => ({
+      id: entry.pluginId, instanceId: entry.id, slot: "pending"
+    })).concat(state.spaces.flatMap(space => space.tiles.map(tile => ({
       id: tile.pluginId, instanceId: tile.id, slot: space.id
-    })));
+    }))));
   }
   function placement() {
     return shell.hosts?.[hostId]?.placements?.[0];
@@ -92,13 +95,22 @@
       shell.plugins.push({ id: ref.id });
     render();
   }
-  function add(pluginId, tileId, slot) {
+  function pend(pluginId, placementId) {
     if (refs().some(ref => ref.id === pluginId)) return note("Duplicate plugin rejected");
-    state.spaces.find(space => space.id === slot).tiles.push({ id: tileId, pluginId });
-    events.push(`host put ${hostId} ${pluginId} (${tileId})`);
+    state.pendingPlacements.push({ id: placementId, pluginId });
+    events.push(`host pending ${hostId} ${pluginId} (${placementId})`);
+    sync();
+  }
+  function place(pluginId, slot, rect) {
+    const index = state.pendingPlacements.findIndex(entry => entry.pluginId === pluginId);
+    if (index < 0) return note("Pending Placement not found");
+    const pending = state.pendingPlacements.splice(index, 1)[0];
+    state.spaces.find(space => space.id === slot).tiles.push({ id: pending.id, pluginId, ...rect });
+    events.push(`host place ${hostId} ${pluginId} at ${slot}`);
     sync();
   }
   function remove(pluginId) {
+    state.pendingPlacements = state.pendingPlacements.filter(entry => entry.pluginId !== pluginId);
     for (const space of state.spaces) space.tiles = space.tiles.filter(tile => tile.pluginId !== pluginId);
     events.push(`host remove ${hostId} ${pluginId}`);
     sync();
@@ -126,7 +138,7 @@
     render();
   };
   document.querySelector("#reset").onclick = () => reset();
-  document.querySelector("#freeAdd").onclick = () => add("acme.weather", "weather-tile", "main");
+  document.querySelector("#freeAdd").onclick = () => pend("acme.weather", "weather-placement");
   document.querySelector("#freeRemove").onclick = () => remove("acme.weather");
   reset("native");
 </script>

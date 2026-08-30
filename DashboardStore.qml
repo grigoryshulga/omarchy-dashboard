@@ -15,12 +15,22 @@ Item {
   property bool writeInProgress: false
   property int saveRetryCount: 0
   property bool readTimedOut: false
+  property bool ready: false
 
   signal loaded()
 
   function commit(command, boundWidth, boundHeight) {
+    if (!ready) return false
     document = DashboardModel.apply(document, command, boundWidth, boundHeight)
     scheduleSave()
+    return true
+  }
+
+  function replaceDocument(nextDocument) {
+    if (!ready) return false
+    document = DashboardModel.normalize(nextDocument)
+    scheduleSave()
+    return true
   }
 
   function flush() {
@@ -46,9 +56,11 @@ Item {
     var parsed = DashboardModel.parse(raw)
     if (!parsed) {
       console.warn("Dashboard: saved state is invalid; keeping the in-memory layout")
+      ready = true
       return
     }
     document = parsed
+    ready = true
     loaded()
   }
 
@@ -111,7 +123,10 @@ Item {
         root.readTimedOut = false
         console.warn("Dashboard: state reader timed out")
       } else if (exitCode === 0) root.load(String(stateReaderOutput.text || ""))
-      else if (exitCode === 1) root.scheduleSave()
+      else if (exitCode === 1) {
+        root.ready = true
+        root.scheduleSave()
+      }
       else if (exitCode === 2) console.warn("Dashboard: saved state exceeds the size limit")
       else if (exitCode === 3) console.warn("Dashboard: refusing an unsafe state file")
       else console.warn("Dashboard: state could not be read")

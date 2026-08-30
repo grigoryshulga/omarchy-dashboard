@@ -61,6 +61,15 @@ function entries(config, hostId) {
 function references(document) {
   var result = []
   var usedPlugins = ({})
+  var pending = plainObject(document) && Array.isArray(document.pendingPlacements)
+    ? document.pendingPlacements : []
+  for (var pendingIndex = 0; pendingIndex < pending.length; pendingIndex++) {
+    var pendingPluginId = safeId(pending[pendingIndex] && pending[pendingIndex].pluginId)
+    var pendingInstanceId = safeId(pending[pendingIndex] && pending[pendingIndex].id)
+    if (!pendingPluginId || !pendingInstanceId || usedPlugins[pendingPluginId]) continue
+    usedPlugins[pendingPluginId] = true
+    result.push({ id: pendingPluginId, instanceId: pendingInstanceId, slot: "pending" })
+  }
   var spaces = plainObject(document) && Array.isArray(document.spaces) ? document.spaces : []
   for (var spaceIndex = 0; spaceIndex < spaces.length; spaceIndex++) {
     var space = spaces[spaceIndex]
