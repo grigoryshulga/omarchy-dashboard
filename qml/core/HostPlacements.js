@@ -4,17 +4,16 @@
 // compatibility adapter. Dashboard owns visual geometry in its state file;
 // this module only records which plugin instance belongs to which host.
 
+var MAX_HOST_PLACEMENTS = 128
+
 function plainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value)
 }
 
 function safeId(value) {
   var id = String(value || "").trim()
-  if (!id || id.length > 160 || id === "." || id === "..") return ""
-  if (id.indexOf("/") >= 0 || id.indexOf("..") >= 0) return ""
-  for (var index = 0; index < id.length; index++)
-    if (id.charCodeAt(index) < 32) return ""
-  return id
+  if (!id || id.length > 160 || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id)) return ""
+  return ["__proto__", "prototype", "constructor"].indexOf(id) >= 0 ? "" : id
 }
 
 function host(config, hostId, create) {
@@ -41,7 +40,7 @@ function entries(config, hostId) {
   if (!record) return []
   var result = []
   var usedInstances = ({})
-  for (var index = 0; index < record.placements.length; index++) {
+  for (var index = 0; index < record.placements.length && result.length < MAX_HOST_PLACEMENTS; index++) {
     var source = record.placements[index]
     if (!plainObject(source)) continue
     var pluginId = safeId(source.id)
@@ -63,7 +62,8 @@ function references(document) {
   var usedPlugins = ({})
   var pending = plainObject(document) && Array.isArray(document.pendingPlacements)
     ? document.pendingPlacements : []
-  for (var pendingIndex = 0; pendingIndex < pending.length; pendingIndex++) {
+  for (var pendingIndex = 0; pendingIndex < pending.length
+       && result.length < MAX_HOST_PLACEMENTS; pendingIndex++) {
     var pendingPluginId = safeId(pending[pendingIndex] && pending[pendingIndex].pluginId)
     var pendingInstanceId = safeId(pending[pendingIndex] && pending[pendingIndex].id)
     if (!pendingPluginId || !pendingInstanceId || usedPlugins[pendingPluginId]) continue
@@ -71,11 +71,13 @@ function references(document) {
     result.push({ id: pendingPluginId, instanceId: pendingInstanceId, slot: "pending" })
   }
   var spaces = plainObject(document) && Array.isArray(document.spaces) ? document.spaces : []
-  for (var spaceIndex = 0; spaceIndex < spaces.length; spaceIndex++) {
+  for (var spaceIndex = 0; spaceIndex < spaces.length
+       && result.length < MAX_HOST_PLACEMENTS; spaceIndex++) {
     var space = spaces[spaceIndex]
     var spaceId = safeId(space && space.id)
     var tiles = space && Array.isArray(space.tiles) ? space.tiles : []
-    for (var tileIndex = 0; tileIndex < tiles.length; tileIndex++) {
+    for (var tileIndex = 0; tileIndex < tiles.length
+         && result.length < MAX_HOST_PLACEMENTS; tileIndex++) {
       var tile = tiles[tileIndex]
       var pluginId = safeId(tile && tile.pluginId)
       var instanceId = safeId(tile && tile.id)
@@ -101,7 +103,7 @@ function synchronize(config, hostId, desiredReferences) {
   var next = []
   var usedPlugins = ({})
   var usedInstances = ({})
-  for (var index = 0; index < desired.length; index++) {
+  for (var index = 0; index < desired.length && next.length < MAX_HOST_PLACEMENTS; index++) {
     var source = desired[index]
     var pluginId = safeId(source && source.id)
     var instanceId = safeId(source && source.instanceId)

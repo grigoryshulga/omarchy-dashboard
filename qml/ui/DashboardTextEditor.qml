@@ -45,6 +45,7 @@ Item {
       spacing: Style.spacing.md
 
       Text {
+        textFormat: Text.PlainText
         text: root.title
         color: Color.popups.text
         font.family: Style.font.family

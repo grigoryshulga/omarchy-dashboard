@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
+import selectors
 import subprocess
 import sys
 import time
@@ -14,6 +17,16 @@ from typing import Any, Sequence, TextIO
 TARGET = "gshulga.dashboard"
 SCHEMA_VERSION = 1
 CLI_VERSION = "1.7.0"
+MAX_IPC_OUTPUT_BYTES = 1024 * 1024
+MAX_PLUGIN_ID_LENGTH = 160
+MAX_NAME_LENGTH = 80
+MAX_TEXT_LENGTH = 240
+MAX_SOURCE_LENGTH = 4096
+SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
+RESERVED_IDS = {"__proto__", "prototype", "constructor"}
+BIDI_CONTROLS = {chr(value) for value in range(0x202A, 0x202F)} | {
+    chr(value) for value in range(0x2066, 0x206A)
+}
 
 ROOT_EPILOG = """agent workflow:
   1. Inspect:  space list --json; grid show --json; plugin list --json; element list --json
@@ -53,35 +66,83 @@ class CliFailure(Exception):
     details: dict[str, Any] | None = None
 
 
+def run_captured(
+    command: Sequence[str], *, timeout: float, failure_code: str, failure_exit_code: int
+) -> subprocess.CompletedProcess[str]:
+    """Capture subprocess output with hard per-stream memory limits and a timeout."""
+    try:
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    except OSError as error:
+        raise CliFailure(failure_code, str(error), failure_exit_code) from error
+    streams = {process.stdout: bytearray(), process.stderr: bytearray()}
+    poller = selectors.DefaultSelector()
+    for stream in streams:
+        if stream is not None:
+            os.set_blocking(stream.fileno(), False)
+            poller.register(stream, selectors.EVENT_READ)
+    deadline = time.monotonic() + timeout
+    try:
+        while poller.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(command, timeout)
+            for key, _ in poller.select(remaining):
+                chunk = os.read(key.fileobj.fileno(), 64 * 1024)
+                if not chunk:
+                    poller.unregister(key.fileobj)
+                    continue
+                target = streams[key.fileobj]
+                if len(target) + len(chunk) > MAX_IPC_OUTPUT_BYTES:
+                    raise CliFailure(
+                        failure_code, "subprocess output exceeded the 1 MiB limit", failure_exit_code
+                    )
+                target.extend(chunk)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(command, timeout)
+        return_code = process.wait(timeout=remaining)
+    except (CliFailure, OSError, subprocess.TimeoutExpired) as error:
+        process.kill()
+        process.wait()
+        if isinstance(error, CliFailure):
+            raise
+        raise CliFailure(failure_code, str(error), failure_exit_code) from error
+    finally:
+        poller.close()
+        for stream in streams:
+            if stream is not None:
+                stream.close()
+    stdout = bytes(streams[process.stdout]).decode("utf-8", errors="replace")
+    stderr = bytes(streams[process.stderr]).decode("utf-8", errors="replace")
+    return subprocess.CompletedProcess(command, return_code, stdout, stderr)
+
+
 class DashboardIpcAdapter:
     """Production adapter for the Dashboard command seam."""
 
     def execute(self, request: dict[str, Any]) -> dict[str, Any]:
         envelope = json.dumps({"type": "managePlugins", "request": request}, separators=(",", ":"))
-        try:
-            result = subprocess.run(
-                ["omarchy-shell", "shell", "call", TARGET, "execute", envelope],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=8,
-            )
-        except (OSError, subprocess.TimeoutExpired) as error:
-            raise CliFailure("dashboard-unavailable", str(error), 3) from error
+        result = run_captured(
+            ["omarchy-shell", "shell", "call", TARGET, "execute", envelope],
+            timeout=8,
+            failure_code="dashboard-unavailable",
+            failure_exit_code=3,
+        )
         if result.returncode != 0:
             message = result.stderr.strip() or result.stdout.strip() or "Dashboard IPC failed"
             raise CliFailure("dashboard-unavailable", message, 3)
         try:
             response = json.loads(result.stdout)
-        except json.JSONDecodeError as error:
+        except (json.JSONDecodeError, RecursionError) as error:
             raise CliFailure("invalid-dashboard-response", result.stdout.strip(), 3) from error
         if not isinstance(response, dict):
             raise CliFailure("invalid-dashboard-response", "Dashboard returned a non-object", 3)
         return response
 
     def open(self) -> None:
-        result = subprocess.run(
-            ["omarchy-shell", "shell", "summon", TARGET], check=False, capture_output=True, text=True
+        result = run_captured(
+            ["omarchy-shell", "shell", "summon", TARGET], timeout=8,
+            failure_code="dashboard-unavailable", failure_exit_code=3,
         )
         if result.returncode != 0:
             raise CliFailure("dashboard-unavailable", result.stderr.strip() or "Could not open Dashboard", 3)
@@ -91,14 +152,15 @@ class OmarchyPluginAdapter:
     """Production adapter for Plugin Installation operations."""
 
     def _installed_ids(self) -> set[str]:
-        result = subprocess.run(
-            ["omarchy", "plugin", "list", "--json"], check=False, capture_output=True, text=True
+        result = run_captured(
+            ["omarchy", "plugin", "list", "--json"], timeout=15,
+            failure_code="plugin-catalog-unavailable", failure_exit_code=5,
         )
         if result.returncode != 0:
             raise CliFailure("plugin-catalog-unavailable", result.stderr.strip(), 5)
         try:
             entries = json.loads(result.stdout)
-        except json.JSONDecodeError as error:
+        except (json.JSONDecodeError, RecursionError) as error:
             raise CliFailure("plugin-catalog-unavailable", "Plugin list returned invalid JSON", 5) from error
         return {str(entry.get("id", "")) for entry in entries if isinstance(entry, dict) and entry.get("id")}
 
@@ -107,16 +169,20 @@ class OmarchyPluginAdapter:
         command = ["omarchy", "plugin", "add", source]
         if assume_yes:
             command.append("--yes")
-        result = subprocess.run(
-            command,
-            check=False,
-            text=True,
-            capture_output=assume_yes,
-        )
+        if assume_yes:
+            result = run_captured(
+                command, timeout=120,
+                failure_code="installation-failed", failure_exit_code=5,
+            )
+        else:
+            try:
+                result = subprocess.run(command, check=False, timeout=120)
+            except (OSError, subprocess.TimeoutExpired) as error:
+                raise CliFailure("installation-failed", str(error), 5) from error
         if assume_yes and result.stdout:
-            print(result.stdout, end="", file=sys.stderr)
+            print(terminal_text(result.stdout, multiline=True), end="", file=sys.stderr)
         if assume_yes and result.stderr:
-            print(result.stderr, end="", file=sys.stderr)
+            print(terminal_text(result.stderr, multiline=True), end="", file=sys.stderr)
         if result.returncode != 0:
             raise CliFailure("installation-failed", "omarchy plugin add failed", 5)
         for _ in range(40):
@@ -133,7 +199,10 @@ class OmarchyPluginAdapter:
         command = ["omarchy", "plugin", "remove", plugin_id]
         if assume_yes:
             command.append("--yes")
-        result = subprocess.run(command, check=False)
+        try:
+            result = subprocess.run(command, check=False, timeout=120)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise CliFailure("uninstall-failed", str(error), 5) from error
         if result.returncode != 0:
             raise CliFailure("uninstall-failed", f"Could not uninstall {plugin_id}", 5)
 
@@ -161,6 +230,46 @@ def parse_line(value: str) -> dict[str, int]:
     return dict(zip(("x1", "y1", "x2", "y2"), parts, strict=True))
 
 
+def bounded_text(maximum: int, label: str):
+    def parse(value: str) -> str:
+        if not value or len(value) > maximum or any(ord(character) < 32 for character in value):
+            raise argparse.ArgumentTypeError(f"{label} must be 1-{maximum} printable characters")
+        return value
+    return parse
+
+
+def safe_id(value: str) -> str:
+    if (len(value) > MAX_PLUGIN_ID_LENGTH or not SAFE_ID.fullmatch(value)
+            or value in RESERVED_IDS):
+        raise argparse.ArgumentTypeError(
+            "id must start with an ASCII letter or digit and contain only letters, digits, '.', '_' or '-'"
+        )
+    return value
+
+
+def parse_spacing(value: str) -> int:
+    try:
+        spacing = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("spacing must be an integer from 5 to 80") from error
+    if not 5 <= spacing <= 80:
+        raise argparse.ArgumentTypeError("spacing must be an integer from 5 to 80")
+    return spacing
+
+
+def terminal_text(value: object, *, multiline: bool = False) -> str:
+    """Prevent untrusted labels from emitting controls or spoofing terminal direction."""
+    output = []
+    for character in str(value):
+        point = ord(character)
+        allowed_layout = multiline and character in "\n\t"
+        if (point < 32 or 0x7F <= point <= 0x9F or character in BIDI_CONTROLS) and not allowed_layout:
+            output.append("�")
+        else:
+            output.append(character)
+    return "".join(output)
+
+
 def add_output_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--json", action="store_true",
@@ -171,7 +280,10 @@ def add_output_flags(parser: argparse.ArgumentParser) -> None:
 def add_target_flags(
     parser: argparse.ArgumentParser, *, required: bool = False, include_pending: bool = True
 ) -> None:
-    parser.add_argument("--space", help="stable Space id (preferred) or a unique Space name")
+    parser.add_argument(
+        "--space", type=bounded_text(MAX_PLUGIN_ID_LENGTH, "Space selector"),
+        help="stable Space id (preferred) or a unique Space name",
+    )
     target = parser.add_mutually_exclusive_group(required=required)
     if include_pending:
         target.add_argument("--pending", action="store_true", help="create a Pending Placement")
@@ -227,7 +339,7 @@ examples:
 Default target is pending. --json requires --yes.
 """,
     )
-    install.add_argument("source")
+    install.add_argument("source", type=bounded_text(MAX_SOURCE_LENGTH, "plugin source"))
     install.add_argument("--yes", "-y", action="store_true")
     add_target_flags(install)
     add_output_flags(install)
@@ -243,7 +355,7 @@ This is an idempotent ensure operation: an existing placement is left unchanged.
 Use `place` for pending placement or `move` for an existing tile.
 """,
     )
-    add.add_argument("plugin_id")
+    add.add_argument("plugin_id", type=safe_id)
     add_target_flags(add)
     add_output_flags(add)
 
@@ -256,7 +368,7 @@ Use `place` for pending placement or `move` for an existing tile.
 """,
     )
     listing.add_argument("--state", choices=("pending", "placed"))
-    listing.add_argument("--space")
+    listing.add_argument("--space", type=bounded_text(MAX_PLUGIN_ID_LENGTH, "Space selector"))
     add_output_flags(listing)
 
     for name in ("place", "move"):
@@ -270,7 +382,7 @@ Use `place` for pending placement or `move` for an existing tile.
 Both operations reject invalid geometry without changing the previous state.
 """,
         )
-        mutation.add_argument("plugin_id")
+        mutation.add_argument("plugin_id", type=safe_id)
         add_target_flags(mutation, required=True, include_pending=False)
         add_output_flags(mutation)
 
@@ -283,7 +395,7 @@ The plugin remains hosted and keeps its placement id, settings and embedding,
 but has no Space or Rect until `plugin place` is called.
 """,
     )
-    pending.add_argument("plugin_id")
+    pending.add_argument("plugin_id", type=safe_id)
     add_output_flags(pending)
 
     remove = commands.add_parser(
@@ -294,7 +406,7 @@ but has no Space or Rect until `plugin place` is called.
 This does not uninstall plugin code. The operation is idempotent.
 """,
     )
-    remove.add_argument("plugin_id")
+    remove.add_argument("plugin_id", type=safe_id)
     add_output_flags(remove)
 
     uninstall = commands.add_parser(
@@ -306,7 +418,7 @@ This does not uninstall plugin code. The operation is idempotent.
 Without --remove-placement this refuses to uninstall a hosted plugin.
 """,
     )
-    uninstall.add_argument("plugin_id")
+    uninstall.add_argument("plugin_id", type=safe_id)
     uninstall.add_argument("--remove-placement", action="store_true")
     uninstall.add_argument("--yes", "-y", action="store_true")
     add_output_flags(uninstall)
@@ -345,8 +457,8 @@ Use the returned ids as --space selectors in automation.
 Use --id for deterministic agent provisioning. Names and ids must be unique.
 """,
     )
-    space_create.add_argument("name")
-    space_create.add_argument("--id", help="use a stable id for declarative provisioning")
+    space_create.add_argument("name", type=bounded_text(MAX_NAME_LENGTH, "Space name"))
+    space_create.add_argument("--id", type=safe_id, help="use a stable id for declarative provisioning")
     add_output_flags(space_create)
     space_rename = space_commands.add_parser(
         "rename", help="rename a Dashboard Space",
@@ -356,8 +468,8 @@ Use --id for deterministic agent provisioning. Names and ids must be unique.
 Renaming does not change the stable Space id or its contents.
 """,
     )
-    space_rename.add_argument("space")
-    space_rename.add_argument("name")
+    space_rename.add_argument("space", type=bounded_text(MAX_PLUGIN_ID_LENGTH, "Space selector"))
+    space_rename.add_argument("name", type=bounded_text(MAX_NAME_LENGTH, "Space name"))
     add_output_flags(space_rename)
     space_remove = space_commands.add_parser(
         "remove", help="remove a Dashboard Space and its placements",
@@ -368,7 +480,7 @@ This deletes every placed tile and graphic element in the Space. Plugin code is 
 The last Space cannot be removed.
 """,
     )
-    space_remove.add_argument("space")
+    space_remove.add_argument("space", type=bounded_text(MAX_PLUGIN_ID_LENGTH, "Space selector"))
     space_remove.add_argument("--yes", "-y", action="store_true", help="confirm destructive removal")
     add_output_flags(space_remove)
     space_select = space_commands.add_parser(
@@ -379,7 +491,7 @@ The last Space cannot be removed.
 The selected Space is persisted and becomes visible when Dashboard opens.
 """,
     )
-    space_select.add_argument("space")
+    space_select.add_argument("space", type=bounded_text(MAX_PLUGIN_ID_LENGTH, "Space selector"))
     add_output_flags(space_select)
 
     grid = groups.add_parser(
@@ -411,7 +523,7 @@ Read width and height before generating Rect or Line coordinates.
 Spacing controls UI snap and automatic placement; existing exact geometry is preserved.
 """,
     )
-    grid_set.add_argument("spacing", type=int)
+    grid_set.add_argument("spacing", type=parse_spacing)
     add_output_flags(grid_set)
 
     element = groups.add_parser(
@@ -439,7 +551,7 @@ example:
   omarchy-dashboard element list --space space-home --json
 """,
     )
-    element_list.add_argument("--space")
+    element_list.add_argument("--space", type=bounded_text(MAX_PLUGIN_ID_LENGTH, "Space selector"))
     add_output_flags(element_list)
     element_text = element_commands.add_parser(
         "add-text", help="add a text heading",
@@ -450,10 +562,12 @@ example:
 Rect is X,Y,W,H. Text is clipped to the Rect and scales to fit.
 """,
     )
-    element_text.add_argument("text")
-    element_text.add_argument("--space", required=True)
+    element_text.add_argument("text", type=bounded_text(MAX_TEXT_LENGTH, "text"))
+    element_text.add_argument(
+        "--space", type=bounded_text(MAX_PLUGIN_ID_LENGTH, "Space selector"), required=True
+    )
     element_text.add_argument("--rect", type=parse_rect, required=True, metavar="X,Y,W,H")
-    element_text.add_argument("--id", help="use a stable element id")
+    element_text.add_argument("--id", type=safe_id, help="use a stable element id")
     add_output_flags(element_text)
     element_divider = element_commands.add_parser(
         "add-divider", help="add an axis-aligned divider",
@@ -466,9 +580,11 @@ Rect is X,Y,W,H. Text is clipped to the Rect and scales to fit.
 Line is X1,Y1,X2,Y2 and must be horizontal or vertical with non-zero length.
 """,
     )
-    element_divider.add_argument("--space", required=True)
+    element_divider.add_argument(
+        "--space", type=bounded_text(MAX_PLUGIN_ID_LENGTH, "Space selector"), required=True
+    )
     element_divider.add_argument("--line", type=parse_line, required=True, metavar="X1,Y1,X2,Y2")
-    element_divider.add_argument("--id", help="use a stable element id")
+    element_divider.add_argument("--id", type=safe_id, help="use a stable element id")
     add_output_flags(element_divider)
     element_remove = element_commands.add_parser(
         "remove", help="remove a graphic element",
@@ -478,7 +594,7 @@ Line is X1,Y1,X2,Y2 and must be horizontal or vertical with non-zero length.
 This removes only Dashboard-owned text/divider geometry, never a plugin placement.
 """,
     )
-    element_remove.add_argument("element_id")
+    element_remove.add_argument("element_id", type=safe_id)
     add_output_flags(element_remove)
 
     groups.add_parser("open", help="open Dashboard on the focused monitor")
@@ -525,11 +641,11 @@ def placement_line(placement: dict[str, Any]) -> str:
     rect_text = "-" if not rect else f'{rect["x"]},{rect["y"]},{rect["w"]},{rect["h"]}'
     return "\t".join(
         (
-            str(placement.get("pluginId", "")),
-            str(placement.get("state", "")),
-            str(placement.get("spaceId") or "-"),
+            terminal_text(placement.get("pluginId", "")),
+            terminal_text(placement.get("state", "")),
+            terminal_text(placement.get("spaceId") or "-"),
             rect_text,
-            str(placement.get("embedding", "auto")),
+            terminal_text(placement.get("embedding", "auto")),
         )
     )
 
@@ -542,11 +658,11 @@ def element_line(element: dict[str, Any]) -> str:
         geometry_text = ",".join(str(geometry.get(key, "")) for key in ("x1", "y1", "x2", "y2"))
     return "\t".join(
         (
-            str(element.get("id", "")),
-            str(element.get("kind", "")),
-            str(element.get("spaceId", "")),
+            terminal_text(element.get("id", "")),
+            terminal_text(element.get("kind", "")),
+            terminal_text(element.get("spaceId", "")),
             geometry_text,
-            str(element.get("text", "")),
+            terminal_text(element.get("text", "")),
         )
     )
 
@@ -567,17 +683,23 @@ def emit(response: dict[str, Any], json_mode: bool, output: TextIO) -> None:
         print("SPACE\tNAME\tACTIVE", file=output)
         for space in response["spaces"]:
             print(
-                f'{space.get("id", "")}\t{space.get("name", "")}\t'
+                f'{terminal_text(space.get("id", ""))}\t{terminal_text(space.get("name", ""))}\t'
                 f'{"yes" if space.get("active") else "no"}',
                 file=output,
             )
     elif response.get("uninstalled"):
-        print(f'Uninstalled {response["uninstalled"]}', file=output)
+        print(f'Uninstalled {terminal_text(response["uninstalled"])}', file=output)
     elif response.get("space"):
         change = "Updated" if response.get("changed") else "Unchanged"
-        print(f'{change} Space: {response["space"]["id"]}\t{response["space"]["name"]}', file=output)
+        print(
+            f'{change} Space: {terminal_text(response["space"]["id"])}\t'
+            f'{terminal_text(response["space"]["name"])}', file=output
+        )
     elif response.get("removedSpace"):
-        print(f'Removed Space: {response["removedSpace"]["id"]}\t{response["removedSpace"]["name"]}', file=output)
+        print(
+            f'Removed Space: {terminal_text(response["removedSpace"]["id"])}\t'
+            f'{terminal_text(response["removedSpace"]["name"])}', file=output
+        )
     elif response.get("grid"):
         grid = response["grid"]
         print(f'Grid: spacing={grid["spacing"]} size={grid["width"]}x{grid["height"]}', file=output)
@@ -585,7 +707,10 @@ def emit(response: dict[str, Any], json_mode: bool, output: TextIO) -> None:
         print(f'Updated Element: {element_line(response["element"])}', file=output)
     elif "removedElement" in response:
         removed = response.get("removedElement")
-        print(f'Removed Element: {removed["id"]}' if removed else "No Graphic Element", file=output)
+        print(
+            f'Removed Element: {terminal_text(removed["id"])}' if removed else "No Graphic Element",
+            file=output,
+        )
     elif response.get("opened"):
         print("Dashboard opened", file=output)
     else:
@@ -764,5 +889,8 @@ def main(
         if bool(getattr(arguments, "json", False)):
             print(json.dumps(payload, ensure_ascii=False, sort_keys=True), file=output)
         else:
-            print(f"omarchy-dashboard: {failure.code}: {failure.message}", file=error)
+            print(
+                f"omarchy-dashboard: {terminal_text(failure.code)}: {terminal_text(failure.message)}",
+                file=error,
+            )
         return failure.exit_code

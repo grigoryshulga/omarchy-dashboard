@@ -7,14 +7,20 @@ import ast
 import json
 import os
 import re
+import stat
 from pathlib import Path
 
 
 MAX_MANIFEST_BYTES = 256 * 1024
 MAX_ENTRY_BYTES = 1024 * 1024
+MAX_ICON_BYTES = 8 * 1024 * 1024
 MAX_MANIFESTS = 512
 MAX_DISCOVERY_DEPTH = 4
+MAX_DISCOVERY_ENTRIES = 4096
+MAX_PLUGIN_ID_LENGTH = 160
 IMAGE_EXTENSIONS = {".svg", ".png", ".webp"}
+SAFE_PLUGIN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
+RESERVED_MAP_KEYS = {"__proto__", "prototype", "constructor"}
 PROPERTY_ICON = re.compile(
     r"\b(?:readonly\s+)?property\s+string\s+(?:icon|heroGlyph|glyph|iconText)\s*:\s*"
     r"(?P<literal>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')"
@@ -22,12 +28,34 @@ PROPERTY_ICON = re.compile(
 
 
 def bounded_text(path: Path, maximum: int) -> str:
-    if path.is_symlink() or not path.is_file() or path.stat().st_size > maximum:
+    flags = os.O_RDONLY | os.O_NONBLOCK | os.O_CLOEXEC
+    if not hasattr(os, "O_NOFOLLOW"):
         return ""
+    flags |= os.O_NOFOLLOW
     try:
-        return path.read_text(encoding="utf-8")
+        descriptor = os.open(path, flags)
     except (OSError, UnicodeError):
         return ""
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > maximum:
+            return ""
+        chunks: list[bytes] = []
+        remaining = maximum + 1
+        while remaining > 0:
+            chunk = os.read(descriptor, min(64 * 1024, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        content = b"".join(chunks)
+        if len(content) > maximum:
+            return ""
+        return content.decode("utf-8")
+    except (OSError, UnicodeError):
+        return ""
+    finally:
+        os.close(descriptor)
 
 
 def strip_comments(source: str) -> str:
@@ -89,12 +117,13 @@ def image_candidate(plugin_dir: Path, value: object) -> dict[str, str] | None:
     if relative.is_absolute() or ".." in relative.parts:
         return None
     unresolved = plugin_dir / relative
-    if unresolved.is_symlink():
-        return None
-    candidate = unresolved.resolve()
     try:
+        metadata = unresolved.lstat()
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > MAX_ICON_BYTES:
+            return None
+        candidate = unresolved.resolve()
         candidate.relative_to(plugin_dir.resolve())
-    except ValueError:
+    except (OSError, ValueError):
         return None
     if not candidate.is_file():
         return None
@@ -137,23 +166,44 @@ def qml_icon(plugin_dir: Path, manifest: dict[str, object]) -> dict[str, str] | 
     return None
 
 
+def manifest_paths(root: Path):
+    """Yield manifests from a bounded, symlink-free directory walk."""
+    pending = [(root, 0)]
+    visited = 0
+    while pending and visited < MAX_DISCOVERY_ENTRIES:
+        directory, depth = pending.pop()
+        try:
+            with os.scandir(directory) as iterator:
+                for entry in iterator:
+                    visited += 1
+                    if visited > MAX_DISCOVERY_ENTRIES:
+                        return
+                    if entry.name.startswith("."):
+                        continue
+                    try:
+                        if entry.name == "manifest.json" and entry.is_file(follow_symlinks=False):
+                            yield Path(entry.path)
+                        elif depth < MAX_DISCOVERY_DEPTH and entry.is_dir(follow_symlinks=False):
+                            pending.append((Path(entry.path), depth + 1))
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+
+
+def safe_plugin_id(value: object) -> str:
+    if not isinstance(value, str) or len(value) > MAX_PLUGIN_ID_LENGTH:
+        return ""
+    return value if SAFE_PLUGIN_ID.fullmatch(value) and value not in RESERVED_MAP_KEYS else ""
+
+
 def discover(roots: list[Path]) -> dict[str, dict[str, str]]:
     icons: dict[str, dict[str, str]] = {}
     manifest_count = 0
     for root in roots:
         if not root.is_dir():
             continue
-        manifests: list[Path] = []
-        for current, directories, files in os.walk(root, followlinks=False):
-            current_path = Path(current)
-            depth = len(current_path.relative_to(root).parts)
-            directories[:] = sorted(
-                name for name in directories
-                if not name.startswith(".") and not (current_path / name).is_symlink()
-            ) if depth < MAX_DISCOVERY_DEPTH else []
-            if "manifest.json" in files:
-                manifests.append(current_path / "manifest.json")
-        for manifest_path in sorted(manifests):
+        for manifest_path in manifest_paths(root):
             manifest_count += 1
             if manifest_count > MAX_MANIFESTS:
                 return icons
@@ -162,13 +212,14 @@ def discover(roots: list[Path]) -> dict[str, dict[str, str]]:
                 continue
             try:
                 manifest = json.loads(source)
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, RecursionError):
                 continue
-            if not isinstance(manifest, dict) or not isinstance(manifest.get("id"), str):
+            plugin_id = safe_plugin_id(manifest.get("id") if isinstance(manifest, dict) else None)
+            if not plugin_id:
                 continue
             icon = explicit_icon(manifest_path.parent, manifest) or qml_icon(manifest_path.parent, manifest)
             if icon:
-                icons[manifest["id"]] = icon
+                icons[plugin_id] = icon
     return icons
 
 

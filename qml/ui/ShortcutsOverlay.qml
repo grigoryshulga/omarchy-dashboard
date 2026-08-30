@@ -55,6 +55,7 @@ Item {
         width: parent.width
         height: Style.space(34)
         Text {
+          textFormat: Text.PlainText
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
           text: "Keyboard shortcuts"
@@ -86,6 +87,7 @@ Item {
             radius: Style.cornerRadius
             color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.07)
             Text {
+              textFormat: Text.PlainText
               anchors.centerIn: parent
               text: modelData.key
               color: Color.accent
@@ -94,6 +96,7 @@ Item {
             }
           }
           Text {
+            textFormat: Text.PlainText
             anchors.left: parent.left
             anchors.leftMargin: Style.space(196)
             anchors.right: parent.right

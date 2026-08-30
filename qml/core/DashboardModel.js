@@ -16,10 +16,17 @@ var MIN_GRID_SPACING = 5
 var MAX_GRID_SPACING = 80
 var MIN_TEXT_WIDTH = 40
 var MIN_TEXT_HEIGHT = 20
+var RESERVED_MAP_KEYS = ["__proto__", "prototype", "constructor"]
 
 function stringBounded(value, maximum) {
   var text = value === undefined || value === null ? "" : String(value)
   return text.length > maximum ? text.slice(0, maximum) : text
+}
+
+function safeId(value) {
+  var id = stringBounded(value, MAX_ID_LENGTH).trim()
+  if (!id || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id)) return ""
+  return RESERVED_MAP_KEYS.indexOf(id) >= 0 ? "" : id
 }
 
 function utf8ByteLength(value) {
@@ -57,7 +64,7 @@ function defaultState() {
 
 function normalizeElement(raw, usedElementIds) {
   var source = raw || ({})
-  var id = stringBounded(source.id, MAX_ID_LENGTH).trim()
+  var id = safeId(source.id)
   var kind = String(source.kind || source.type || "")
   if (!id || usedElementIds[id] || ["divider", "text"].indexOf(kind) < 0) return null
 
@@ -110,8 +117,8 @@ function elementInBounds(element, boundWidth, boundHeight) {
 
 function normalizeTile(raw, usedTileIds, usedPluginIds, acceptedTiles) {
   var source = raw || ({})
-  var id = stringBounded(source.id, MAX_ID_LENGTH).trim()
-  var pluginId = stringBounded(source.pluginId || source.id, MAX_ID_LENGTH).trim()
+  var id = safeId(source.id)
+  var pluginId = safeId(source.pluginId || source.id)
   if (!id || !pluginId || usedTileIds[id] || usedPluginIds[pluginId]) return null
   var rect = GridEngine.normalizeRect(source, GridEngine.MIN_WIDTH, GridEngine.MIN_HEIGHT,
                                       GridEngine.MAX_WIDTH, GridEngine.MAX_HEIGHT)
@@ -143,7 +150,7 @@ function normalize(raw) {
 
   for (var spaceIndex = 0; spaceIndex < spacesSource.length && spaces.length < MAX_SPACES; spaceIndex++) {
     var inputSpace = spacesSource[spaceIndex] || ({})
-    var spaceId = stringBounded(inputSpace.id, MAX_ID_LENGTH).trim()
+    var spaceId = safeId(inputSpace.id)
     if (!spaceId || usedSpaceIds[spaceId]) continue
     usedSpaceIds[spaceId] = true
     var tiles = []
@@ -178,8 +185,8 @@ function normalize(raw) {
   for (var pendingSourceIndex = 0; pendingSourceIndex < pendingSource.length
        && pendingPlacements.length < MAX_PENDING_PLACEMENTS; pendingSourceIndex++) {
     var pendingSourceEntry = pendingSource[pendingSourceIndex] || ({})
-    var pendingId = stringBounded(pendingSourceEntry.id, MAX_ID_LENGTH).trim()
-    var pendingPluginId = stringBounded(pendingSourceEntry.pluginId, MAX_ID_LENGTH).trim()
+    var pendingId = safeId(pendingSourceEntry.id)
+    var pendingPluginId = safeId(pendingSourceEntry.pluginId)
     if (!pendingId || !pendingPluginId || usedTileIds[pendingId] || usedPluginIds[pendingPluginId]) continue
     usedTileIds[pendingId] = true
     usedPluginIds[pendingPluginId] = true
@@ -307,7 +314,7 @@ function managePlacement(state, command, boundWidth, boundHeight) {
   var currentState = normalize(copy(state || defaultState()))
   var action = command || ({})
   var operation = String(action.operation || "")
-  var pluginId = stringBounded(action.pluginId, MAX_ID_LENGTH).trim()
+  var pluginId = safeId(action.pluginId)
   var current = placement(currentState, pluginId || action.selector)
   if (!pluginId && current) pluginId = current.pluginId
   if (!pluginId) return { ok: false, code: "invalid-plugin-id", state: currentState }
@@ -334,7 +341,7 @@ function managePlacement(state, command, boundWidth, boundHeight) {
       id: current.id, pluginId: current.pluginId,
       label: current.label, embedding: current.embedding
     } : {
-      id: stringBounded(action.instanceId, MAX_ID_LENGTH).trim(), pluginId: pluginId,
+      id: safeId(action.instanceId), pluginId: pluginId,
       label: stringBounded(action.label, MAX_NAME_LENGTH), embedding: normalizeEmbedding(action.embedding)
     }
     if (!pendingEntry.id) return { ok: false, code: "invalid-instance-id", state: currentState }
@@ -378,7 +385,7 @@ function managePlacement(state, command, boundWidth, boundHeight) {
     label: current.label, embedding: current.embedding,
     x: requestedRect.x, y: requestedRect.y, w: requestedRect.w, h: requestedRect.h
   } : {
-    id: stringBounded(action.instanceId, MAX_ID_LENGTH).trim(), pluginId: pluginId,
+    id: safeId(action.instanceId), pluginId: pluginId,
     label: stringBounded(action.label, MAX_NAME_LENGTH), embedding: normalizeEmbedding(action.embedding),
     x: requestedRect.x, y: requestedRect.y, w: requestedRect.w, h: requestedRect.h
   }
@@ -416,7 +423,7 @@ function apply(state, command, boundWidth, boundHeight) {
   if (action.type === "selectSpace") {
     if (spaceIndex(next, String(action.spaceId || "")) >= 0) next.activeSpaceId = String(action.spaceId)
   } else if (action.type === "addSpace" && next.spaces.length < MAX_SPACES) {
-    var newSpaceId = stringBounded(action.id, MAX_ID_LENGTH).trim()
+    var newSpaceId = safeId(action.id)
     if (newSpaceId && spaceIndex(next, newSpaceId) < 0) {
       var name = stringBounded(action.name, MAX_NAME_LENGTH).trim()
       next.spaces.push({
@@ -452,8 +459,8 @@ function apply(state, command, boundWidth, boundHeight) {
              && !placedLocation(next, String(action.pluginId || ""))) {
     var allCount = 0
     for (var countIndex = 0; countIndex < next.spaces.length; countIndex++) allCount += next.spaces[countIndex].tiles.length
-    var tileId = stringBounded(action.id, MAX_ID_LENGTH).trim()
-    var pluginId = stringBounded(action.pluginId, MAX_ID_LENGTH).trim()
+    var tileId = safeId(action.id)
+    var pluginId = safeId(action.pluginId)
     var rectangle = action.rect || GridEngine.firstFree(action.w || 320, action.h || 240,
       next.spaces[index].tiles, boundWidth, boundHeight, next.gridSpacing)
     if (allCount < MAX_TOTAL_TILES && tileId && pluginId && tileIndex(next.spaces[index], tileId) < 0

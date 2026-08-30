@@ -59,6 +59,7 @@ Item {
         width: parent.width
         height: Style.space(34)
         Text {
+          textFormat: Text.PlainText
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
           text: "Add Plugin"
@@ -91,6 +92,7 @@ Item {
           selectionColor: Color.accent
           font.family: Style.font.family
           font.pixelSize: Style.font.body
+          maximumLength: 160
           focus: root.visible
           onTextChanged: root.filterText = text
           Keys.onEscapePressed: root.closeRequested()
@@ -100,6 +102,7 @@ Item {
           Keys.onEnterPressed: root.activateCurrent()
         }
         Text {
+          textFormat: Text.PlainText
           anchors.left: parent.left
           anchors.leftMargin: Style.spacing.sm
           anchors.verticalCenter: parent.verticalCenter
@@ -148,6 +151,7 @@ Item {
             anchors.rightMargin: Style.spacing.md
             spacing: Style.spacing.xs
             Text {
+              textFormat: Text.PlainText
               width: parent.width
               text: pluginRow.modelData.name
               color: Color.popups.text
@@ -157,6 +161,7 @@ Item {
               elide: Text.ElideRight
             }
             Text {
+              textFormat: Text.PlainText
               width: parent.width
               text: pluginRow.modelData.description || pluginRow.modelData.id
               color: Color.popups.text
@@ -166,6 +171,7 @@ Item {
               elide: Text.ElideRight
             }
             Text {
+              textFormat: Text.PlainText
               width: parent.width
               text: pluginRow.modelData.pending
                 ? "Pending placement · " + pluginRow.modelData.compatibility
@@ -199,6 +205,7 @@ Item {
         }
 
         Text {
+          textFormat: Text.PlainText
           anchors.centerIn: parent
           visible: parent.count === 0
           text: root.plugins.length === 0 ? "No plugins are installed" : "No matching plugins"

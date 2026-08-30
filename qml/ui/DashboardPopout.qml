@@ -98,6 +98,7 @@ Item {
         visible: root.sourceUrl === "" || pageLoader.status === Loader.Error
 
         Text {
+          textFormat: Text.PlainText
           anchors.horizontalCenter: parent.horizontalCenter
           text: root.pageError ? "⚠" : "…"
           color: root.pageError ? Color.accent : Color.popups.text
@@ -105,6 +106,7 @@ Item {
           font.pixelSize: Style.space(32)
         }
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: root.pageError || root.presentation.reason || "Preparing plugin…"
           color: Color.popups.text

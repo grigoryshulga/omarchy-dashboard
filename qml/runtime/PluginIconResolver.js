@@ -27,7 +27,9 @@ var FALLBACKS = {
 }
 
 function glyph(value) {
-  var text = String(value || "").trim()
+  var source = String(value || "")
+  if (source.length > 16) return ""
+  var text = source.trim()
   if (!text || Array.from(text).length > 4) return ""
   for (var character of Array.from(text)) {
     var point = character.codePointAt(0)
@@ -67,9 +69,9 @@ function liveCandidate(widget) {
 
 function keywordFallback(manifest) {
   var source = manifest || ({})
-  var id = String(source.id || "")
+  var id = String(source.id || "").slice(0, 160)
   if (FALLBACKS[id]) return FALLBACKS[id]
-  var haystack = (id + " " + String(source.name || "")).toLowerCase()
+  var haystack = (id + " " + String(source.name || "").slice(0, 160)).toLowerCase()
   var keywords = [
     ["bluetooth", "󰂯"], ["audio", "󰕾"], ["volume", "󰕾"],
     ["network", "󰤨"], ["wifi", "󰤨"], ["vpn", "󰖂"],

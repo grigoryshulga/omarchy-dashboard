@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import sys
 import unittest
 
 from lib import omarchy_dashboard_cli as cli
@@ -195,6 +196,35 @@ class DashboardCliTests(unittest.TestCase):
     def test_divider_parser_rejects_diagonal_line(self):
         with self.assertRaises(cli.argparse.ArgumentTypeError):
             cli.parse_line("0,0,10,10")
+
+    def test_parser_rejects_oversized_text_and_unsafe_ids(self):
+        with self.assertRaises(SystemExit):
+            cli.parser().parse_args([
+                "element", "add-text", "x" * (cli.MAX_TEXT_LENGTH + 1),
+                "--space", "space-main", "--rect", "0,0,100,100",
+            ])
+        with self.assertRaises(SystemExit):
+            cli.parser().parse_args(["plugin", "add", "__proto__"])
+
+    def test_captured_subprocess_output_is_bounded(self):
+        with self.assertRaises(cli.CliFailure) as raised:
+            cli.run_captured(
+                [sys.executable, "-c", f"print('x' * {cli.MAX_IPC_OUTPUT_BYTES + 1})"],
+                timeout=5,
+                failure_code="too-large",
+                failure_exit_code=3,
+            )
+        self.assertEqual(raised.exception.code, "too-large")
+
+    def test_human_output_neutralizes_terminal_controls(self):
+        dashboard = FakeDashboard([{
+            "ok": True,
+            "spaces": [{"id": "space-main", "name": "safe\x1b[31m\u202e", "active": True}],
+        }])
+        exit_code, output, _ = self.invoke(["space", "list"], dashboard=dashboard)
+        self.assertEqual(exit_code, 0)
+        self.assertNotIn("\x1b", output)
+        self.assertNotIn("\u202e", output)
 
     def test_root_help_teaches_agent_workflow_and_coordinate_contract(self):
         help_text = cli.parser().format_help()

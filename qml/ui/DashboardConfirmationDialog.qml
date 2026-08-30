@@ -37,6 +37,7 @@ Item {
       spacing: Style.spacing.md
 
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: root.title
         color: Color.popups.text
@@ -45,6 +46,7 @@ Item {
         font.bold: true
       }
       Text {
+        textFormat: Text.PlainText
         width: parent.width
         text: root.message
         wrapMode: Text.Wrap

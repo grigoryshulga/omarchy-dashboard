@@ -37,6 +37,7 @@ Rectangle {
     spacing: Style.space(5)
     visible: root.hasIcon
     Text {
+      textFormat: Text.PlainText
       text: root.icon
       color: root.accent ? Color.background : root.foreground
       font.family: Style.font.family
@@ -44,6 +45,7 @@ Rectangle {
       font.bold: true
     }
     Text {
+      textFormat: Text.PlainText
       visible: root.expanded
       text: root.text
       color: root.accent ? Color.background : root.foreground
@@ -53,6 +55,7 @@ Rectangle {
   }
 
   Text {
+    textFormat: Text.PlainText
     id: labelOnly
     anchors.centerIn: parent
     visible: !root.hasIcon

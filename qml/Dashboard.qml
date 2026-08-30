@@ -201,9 +201,12 @@ Item {
   // persistence or plugin-registry internals. Every mutation still passes
   // through DashboardModel's validation and collision checks.
   function execute(commandJson) {
+    var rawCommand = String(commandJson || "{}")
+    if (DashboardModel.utf8ByteLength(rawCommand) > 64 * 1024)
+      return JSON.stringify({ ok: false, error: "command-too-large" })
     var command
     try {
-      command = JSON.parse(String(commandJson || "{}"))
+      command = JSON.parse(rawCommand)
     } catch (error) {
       return JSON.stringify({ ok: false, error: "invalid-json" })
     }

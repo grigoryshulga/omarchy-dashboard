@@ -23,6 +23,7 @@ Rectangle {
     spacing: Style.spacing.xs
 
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       visible: root.width >= Style.space(90) && root.height >= Style.space(54)
       text: root.title
@@ -34,6 +35,7 @@ Rectangle {
       elide: Text.ElideRight
     }
     Text {
+      textFormat: Text.PlainText
       width: parent.width
       visible: root.width >= Style.space(90) && root.height >= Style.space(78)
       text: root.detail

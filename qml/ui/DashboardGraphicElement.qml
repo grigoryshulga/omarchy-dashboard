@@ -153,6 +153,7 @@ Item {
     height: visible ? root.shown.h : 0
 
     Text {
+      textFormat: Text.PlainText
       anchors.fill: parent
       text: String(root.element.text || "")
       color: Color.popups.text
@@ -201,6 +202,7 @@ Item {
       border.color: Color.accent
       z: 5
       Text {
+        textFormat: Text.PlainText
         anchors.centerIn: parent
         text: "\uf065"
         color: Color.popups.text
@@ -232,6 +234,7 @@ Item {
       border.color: Color.accent
       z: 5
       Text {
+        textFormat: Text.PlainText
         anchors.centerIn: parent
         text: "\uf1f8"
         color: Color.popups.text
@@ -326,6 +329,7 @@ Item {
     border.color: Color.accent
     z: 7
     Text {
+      textFormat: Text.PlainText
       anchors.centerIn: parent
       text: "\uf1f8"
       color: Color.popups.text

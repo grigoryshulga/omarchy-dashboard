@@ -58,3 +58,31 @@ Item {
             manifest["icon"] = "../outside.png"
             (plugin / "manifest.json").write_text(json.dumps(manifest))
             self.assertNotIn("dynamic.plugin", icons.discover([root]))
+
+    def test_rejects_reserved_plugin_ids_and_oversized_icons(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            reserved = self.plugin(root, "reserved", 'Item { property string icon: "\\ue75c" }')
+            manifest = json.loads((reserved / "manifest.json").read_text())
+            manifest["id"] = "constructor"
+            (reserved / "manifest.json").write_text(json.dumps(manifest))
+
+            oversized = self.plugin(root, "oversized.plugin", "Item {}")
+            with (oversized / "icon.png").open("wb") as output:
+                output.truncate(icons.MAX_ICON_BYTES + 1)
+
+            result = icons.discover([root])
+            self.assertNotIn("constructor", result)
+            self.assertNotIn("oversized.plugin", result)
+
+    def test_discovery_stops_at_the_entry_budget(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for index in range(20):
+                self.plugin(root, f"plugin-{index}", 'Item { property string icon: "\\ue75c" }')
+            previous = icons.MAX_DISCOVERY_ENTRIES
+            icons.MAX_DISCOVERY_ENTRIES = 10
+            try:
+                self.assertLessEqual(len(icons.discover([root])), 10)
+            finally:
+                icons.MAX_DISCOVERY_ENTRIES = previous

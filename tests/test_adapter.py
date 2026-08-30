@@ -289,6 +289,21 @@ Panel {
             self.assertEqual(repaired, output)
             self.assertIn("DashboardHost {", repaired.read_text())
 
+    def test_repairs_an_artifact_with_excessively_nested_marker_json(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.write_source(root)
+            cache = root / "cache"
+            output = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
+            marker = output.parent / adapter.MARKER_NAME
+            marker.chmod(0o600)
+            marker.write_text("[" * 1100 + "0" + "]" * 1100)
+
+            repaired = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
+
+            self.assertEqual(repaired, output)
+            self.assertIn("DashboardHost {", repaired.read_text())
+
     def test_entry_point_is_part_of_the_artifact_identity(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

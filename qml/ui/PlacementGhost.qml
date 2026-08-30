@@ -124,6 +124,7 @@ Item {
     z: 2
 
     Text {
+      textFormat: Text.PlainText
       anchors.centerIn: parent
       text: "\uf065"
       color: Color.popups.text

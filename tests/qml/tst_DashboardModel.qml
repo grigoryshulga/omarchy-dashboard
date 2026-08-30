@@ -90,6 +90,30 @@ TestCase {
     verify(config.hosts === undefined)
   }
 
+  function test_reserved_and_structurally_unsafe_ids_are_rejected() {
+    var state = DashboardModel.normalize({
+      version: DashboardModel.VERSION,
+      activeSpaceId: "space-main",
+      spaces: [
+        { id: "constructor", name: "Unsafe", tiles: [], elements: [] },
+        { id: "space-main", name: "Main", tiles: [
+          { id: "valid-tile", pluginId: "../escape", x: 0, y: 0, w: 100, h: 100 },
+          { id: "__proto__", pluginId: "valid.plugin", x: 0, y: 0, w: 100, h: 100 }
+        ], elements: [] }
+      ]
+    })
+    compare(state.spaces.length, 1)
+    compare(state.spaces[0].id, "space-main")
+    compare(state.spaces[0].tiles.length, 0)
+
+    var config = ({})
+    verify(HostPlacements.synchronize(config, "gshulga.dashboard", [
+      { id: "constructor", instanceId: "valid-instance", slot: "space-main" },
+      { id: "valid.plugin", instanceId: "__proto__", slot: "space-main" }
+    ]))
+    verify(config.hosts === undefined)
+  }
+
   function test_pending_placement_is_hosted_without_tile_geometry() {
     var state = DashboardModel.defaultState()
     var result = DashboardModel.managePlacement(state, {

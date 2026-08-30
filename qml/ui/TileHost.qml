@@ -269,6 +269,7 @@ Item {
           )
 
         Text {
+          textFormat: Text.PlainText
           anchors.horizontalCenter: parent.horizontalCenter
           text: root.pageError ? "⚠" : "…"
           color: root.pageError ? Color.accent : Color.popups.text
@@ -277,6 +278,7 @@ Item {
           font.pixelSize: Style.space(30)
         }
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: root.presentation.name || root.tile.label || root.tile.pluginId
           color: Color.popups.text
@@ -287,6 +289,7 @@ Item {
           elide: Text.ElideRight
         }
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           visible: text.length > 0
           text: root.pageError || root.presentation.reason || ""
@@ -318,13 +321,17 @@ Item {
             anchors.fill: parent
             visible: root.presentation.iconKind === "image"
             source: visible ? root.presentation.icon : ""
+            sourceSize.width: 256
+            sourceSize.height: 256
             fillMode: Image.PreserveAspectFit
             asynchronous: true
+            cache: false
             smooth: true
             mipmap: true
           }
 
           Text {
+            textFormat: Text.PlainText
             anchors.centerIn: parent
             visible: root.presentation.iconKind !== "image"
             text: root.presentation.icon
@@ -335,6 +342,7 @@ Item {
         }
 
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: root.presentation.name || root.tile.label || root.tile.pluginId
           color: Color.popups.text
@@ -348,6 +356,7 @@ Item {
         }
 
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           visible: root.launchError.length > 0
           text: root.launchError
@@ -373,6 +382,7 @@ Item {
         visible: root.presentation.kind === "control"
 
         Text {
+          textFormat: Text.PlainText
           anchors.horizontalCenter: parent.horizontalCenter
           text: root.presentation.icon
           color: root.presentation.active ? Color.accent : Color.popups.text
@@ -381,6 +391,7 @@ Item {
           font.pixelSize: Style.space(28)
         }
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           text: root.presentation.name || root.tile.label
           color: Color.popups.text
@@ -399,6 +410,7 @@ Item {
             ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.20)
             : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.07)
           Text {
+            textFormat: Text.PlainText
             id: controlStatus
             anchors.centerIn: parent
             text: root.presentation.statusText || ""
@@ -410,6 +422,7 @@ Item {
           }
         }
         Text {
+          textFormat: Text.PlainText
           width: parent.width
           visible: root.launchError.length > 0
           text: root.launchError
@@ -483,6 +496,7 @@ Item {
         ? Color.accent
         : Qt.rgba(Color.popups.background.r, Color.popups.background.g, Color.popups.background.b, 0.88)
       Text {
+        textFormat: Text.PlainText
         anchors.centerIn: parent
         text: root.presentationIcon()
         color: Color.popups.text
@@ -510,6 +524,7 @@ Item {
       color: removeMouse.containsMouse ? Color.accent
         : Qt.rgba(Color.popups.background.r, Color.popups.background.g, Color.popups.background.b, 0.88)
       Text {
+        textFormat: Text.PlainText
         anchors.centerIn: parent
         text: "\uf1f8"
         color: Color.popups.text
@@ -537,6 +552,7 @@ Item {
       color: resizeArea.containsMouse || root.resizing ? Color.accent
         : Qt.rgba(Color.popups.background.r, Color.popups.background.g, Color.popups.background.b, 0.88)
       Text {
+        textFormat: Text.PlainText
         anchors.centerIn: parent
         text: "\uf065"
         color: Color.popups.text

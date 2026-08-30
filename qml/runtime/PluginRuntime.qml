@@ -9,6 +9,12 @@ import "PluginPresentation.js" as PluginPresentation
 Item {
   id: root
 
+  readonly property int maxPluginIdLength: 160
+  readonly property int maxPluginNameLength: 160
+  readonly property int maxPluginDescriptionLength: 1024
+  readonly property int maxDiscoveredPlugins: 512
+  readonly property int maxHelperOutputLength: 1024 * 1024
+
   required property var dashboardHost
   required property var shell
   required property var registry
@@ -31,18 +37,34 @@ Item {
   readonly property var hostEntries: HostPlacements.entries(
     shell ? shell.shellConfig : null, dashboardPluginId)
 
+  function boundedText(value, maximum) {
+    var text = value === undefined || value === null ? "" : String(value)
+    return text.length > maximum ? text.slice(0, maximum) : text
+  }
+
+  function safePluginId(value) {
+    var id = boundedText(value, maxPluginIdLength).trim()
+    if (!id || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id)) return ""
+    return ["__proto__", "prototype", "constructor"].indexOf(id) >= 0 ? "" : id
+  }
+
   function descriptor(id) {
     if (!registry || !registry.installedPlugins) return null
     var resolved = typeof registry.resolveEnabledId === "function" ? registry.resolveEnabledId(id) : id
+    resolved = safePluginId(resolved)
+    if (!resolved) return null
     var pluginManifest = registry.installedPlugins[resolved]
     if (!pluginManifest) return null
     var controlProfile = PluginControls.profile(resolved)
     var capabilities = PluginPresentation.capabilities(pluginManifest, { hasControl: !!controlProfile })
     var icon = pluginIcon(pluginManifest)
     return {
-      id: String(resolved),
-      name: String(controlProfile ? controlProfile.name : (pluginManifest.name || resolved)),
-      description: String(controlProfile ? controlProfile.description : (pluginManifest.description || "")),
+      id: resolved,
+      name: boundedText(controlProfile ? controlProfile.name : (pluginManifest.name || resolved),
+                        maxPluginNameLength),
+      description: boundedText(
+        controlProfile ? controlProfile.description : (pluginManifest.description || ""),
+        maxPluginDescriptionLength),
       compatibility: PluginPresentation.capabilityLabel(pluginManifest, { hasControl: !!controlProfile }),
       availablePresentations: capabilities.available,
       preferredPresentation: capabilities.preferred,
@@ -72,7 +94,10 @@ Item {
     }
     var entries = []
     var manifests = registry.installedPlugins
+    var inspected = 0
     for (var id in manifests) {
+      inspected += 1
+      if (entries.length >= maxDiscoveredPlugins || inspected > maxDiscoveredPlugins * 2) break
       var entry = descriptor(id)
       if (!entry || entry.id === dashboardPluginId || used[entry.id]) continue
       entries.push(entry)
@@ -447,9 +472,11 @@ Item {
   }
 
   function setAdaptationError(id, message) {
+    id = safePluginId(id)
+    if (!id) return
     var next = ({})
     for (var key in adaptationErrors) next[key] = adaptationErrors[key]
-    next[id] = String(message || "Standard panel embedding is unavailable.")
+    next[id] = boundedText(message || "Standard panel embedding is unavailable.", 1024)
     adaptationErrors = next
   }
 
@@ -487,6 +514,10 @@ Item {
         root.setAdaptationError(id, String(adapterErrors.text || "Standard panel embedding is unavailable.").trim())
         return
       }
+      if (String(adapterOutput.text || "").length > root.maxHelperOutputLength) {
+        root.setAdaptationError(id, "The adapter returned too much metadata.")
+        return
+      }
       var result
       try {
         result = JSON.parse(String(adapterOutput.text || ""))
@@ -519,6 +550,10 @@ Item {
     onExited: function(exitCode) {
       if (exitCode !== 0) return
       try {
+        if (String(iconOutput.text || "").length > root.maxHelperOutputLength) {
+          console.warn("Dashboard: icon discovery returned too much metadata")
+          return
+        }
         var parsed = JSON.parse(String(iconOutput.text || "{}"))
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return
         root.scannedIcons = parsed

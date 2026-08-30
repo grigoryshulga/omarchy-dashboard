@@ -383,6 +383,7 @@ PanelWindow {
             height: Style.space(28)
 
             Text {
+              textFormat: Text.PlainText
               id: activeSpaceMeasure
               visible: false
               text: dashboard.activeSpace.name
@@ -449,6 +450,7 @@ PanelWindow {
                   }
 
                   Text {
+                    textFormat: Text.PlainText
                     id: activeSpaceName
                     anchors.centerIn: parent
                     width: parent.width - Style.spacing.sm * 2
@@ -482,6 +484,7 @@ PanelWindow {
                       verticalAlignment: TextInput.AlignVCenter
                       font.family: Style.font.family
                       font.pixelSize: Style.font.body
+                      maximumLength: 80
                       onTextChanged: if (visible) root.editorText = text
                       onAccepted: root.finishNameEditor()
                       Keys.onEscapePressed: {
@@ -562,6 +565,7 @@ PanelWindow {
               spacing: Style.spacing.xs
 
               Text {
+                textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Appearance"
                 color: Color.popups.text
@@ -656,6 +660,7 @@ PanelWindow {
               spacing: Style.spacing.sm
 
               Text {
+                textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 text: dashboard.placingDivider
                   ? "Drag between two grid points; the axis locks automatically"
@@ -843,6 +848,7 @@ PanelWindow {
               z: 10
 
               Text {
+                textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Grid step"
                 color: Color.popups.text
@@ -862,6 +868,7 @@ PanelWindow {
                 radius: Style.cornerRadius > 0 ? height / 2 : 0
                 color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.06)
                 Text {
+                  textFormat: Text.PlainText
                   anchors.centerIn: parent
                   text: dashboard.dashboardState.gridSpacing + " px"
                   color: Color.popups.text
@@ -884,6 +891,7 @@ PanelWindow {
                 && !dashboard.placingPlugin && !dashboard.placingDivider
               spacing: Style.spacing.md
               Text {
+                textFormat: Text.PlainText
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "󰕮"
                 color: Color.popups.text
@@ -892,6 +900,7 @@ PanelWindow {
                 font.pixelSize: Style.space(64)
               }
               Text {
+                textFormat: Text.PlainText
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "This Space is empty"
                 color: Color.popups.text

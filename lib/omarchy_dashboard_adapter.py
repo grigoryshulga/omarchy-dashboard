@@ -888,7 +888,10 @@ def completed_artifact(destination: Path, generated_source: Path, fingerprint: s
         if not re.fullmatch(r"[0-9a-f]{64}", str(document["artifactDigest"])):
             return False
         return tree_digest(destination, skip_marker=True) == document["artifactDigest"]
-    except (AdaptationError, KeyError, OSError, UnicodeError, ValueError, json.JSONDecodeError):
+    except (
+        AdaptationError, KeyError, OSError, UnicodeError, ValueError,
+        json.JSONDecodeError, RecursionError,
+    ):
         return False
 
 
@@ -984,9 +987,12 @@ def artifact_layout(generated_source: Path, cache_root: Path) -> str:
     while current != cache_root and is_within(current, cache_root):
         marker = current / MARKER_NAME
         if marker.is_file():
-            document = json.loads(
-                read_regular_file(marker, MAX_MARKER_BYTES, "artifact marker").decode("utf-8")
-            )
+            try:
+                document = json.loads(
+                    read_regular_file(marker, MAX_MARKER_BYTES, "artifact marker").decode("utf-8")
+                )
+            except (UnicodeError, json.JSONDecodeError, RecursionError) as error:
+                raise AdaptationError("generated artifact has invalid layout metadata") from error
             layout = document.get("layout") if isinstance(document, dict) else None
             if layout in CONTENT_LAYOUTS:
                 return layout
