@@ -22,6 +22,7 @@ Item {
   property string mode: "browse"
   property string selectedTileId: ""
   property string selectedElementId: ""
+  property bool shortcutHintsVisible: false
   property string overlay: ""
   property var popoutTile: null
   property var placementDraft: null
@@ -136,6 +137,7 @@ Item {
     selectedElementId = ""
     overlay = ""
     popoutTile = null
+    shortcutHintsVisible = false
     ensureSelection()
   }
 
@@ -147,6 +149,7 @@ Item {
     mode = "browse"
     selectedTileId = ""
     selectedElementId = ""
+    shortcutHintsVisible = false
     opened = false
     stateStore.flush()
   }
@@ -564,6 +567,30 @@ Item {
     mode = "browse"
   }
 
+  function keyboardTiles() {
+    return SpatialNavigation.readingOrder(activeTiles)
+  }
+
+  function keyboardShortcutForTile(tileId) {
+    var tiles = keyboardTiles()
+    for (var index = 0; index < tiles.length; index++)
+      if (String(tiles[index].id || "") === String(tileId || ""))
+        return SpatialNavigation.shortcutLabel(index)
+    return ""
+  }
+
+  function activateKeyboardShortcut(key) {
+    var index = SpatialNavigation.shortcutIndexForKey(key)
+    var tiles = keyboardTiles()
+    if (index < 0 || index >= tiles.length) return false
+    selectedElementId = ""
+    selectedTileId = String(tiles[index].id || "")
+    mode = "browse"
+    shortcutHintsVisible = false
+    activateSelectedTile()
+    return true
+  }
+
   function selectTile(direction) {
     selectedElementId = ""
     selectedTileId = SpatialNavigation.next(activeTiles, selectedTileId, direction)
@@ -588,7 +615,8 @@ Item {
     if (!tiles || typeof tiles.length !== "number") tiles = []
     for (var index = 0; index < tiles.length; index++)
       if (tiles[index].id === selectedTileId) return
-    selectedTileId = tiles.length > 0 ? String(tiles[0].id) : ""
+    var orderedTiles = SpatialNavigation.readingOrder(tiles)
+    selectedTileId = orderedTiles.length > 0 ? String(orderedTiles[0].id) : ""
   }
 
   function selectTileId(tileId) {

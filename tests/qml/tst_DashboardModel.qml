@@ -816,8 +816,37 @@ TestCase {
     compare(SpatialNavigation.next(tiles, "center", "right"), "right")
     compare(SpatialNavigation.next(tiles, "center", "up"), "up")
     compare(SpatialNavigation.next(tiles, "center", "down"), "down")
-    compare(SpatialNavigation.sequential(tiles, "down", 1), "center")
+    compare(SpatialNavigation.sequential(tiles, "down", 1), "up")
     compare(SpatialNavigation.next(tiles, "left", "left"), "left")
     compare(SpatialNavigation.sequential([], "", 1), "")
+  }
+
+  function test_spatial_navigation_prefers_an_actual_neighbour_in_the_direction() {
+    var tiles = [
+      tile("current", 400, 300, 100, 100),
+      tile("direct-left", 0, 300, 100, 100),
+      tile("nearby-diagonal", 350, 0, 100, 100),
+      tile("direct-right", 800, 300, 100, 100),
+      tile("nearby-right-diagonal", 450, 650, 100, 100)
+    ]
+    compare(SpatialNavigation.next(tiles, "current", "left"), "direct-left")
+    compare(SpatialNavigation.next(tiles, "current", "right"), "direct-right")
+  }
+
+  function test_keyboard_shortcuts_follow_reading_order() {
+    var tiles = [
+      tile("second", 400, 0, 100, 100),
+      tile("fourth", 400, 200, 100, 100),
+      tile("first", 0, 0, 100, 100),
+      tile("third", 0, 200, 100, 100)
+    ]
+    var ordered = SpatialNavigation.readingOrder(tiles)
+    compare(ordered.map(function(entry) { return entry.id }).join(","), "first,second,third,fourth")
+    compare(SpatialNavigation.shortcutLabel(0), "1")
+    compare(SpatialNavigation.shortcutLabel(8), "9")
+    compare(SpatialNavigation.shortcutLabel(9), "A")
+    compare(SpatialNavigation.shortcutLabel(34), "Z")
+    compare(SpatialNavigation.shortcutIndexForKey("3".charCodeAt(0)), 2)
+    compare(SpatialNavigation.shortcutIndexForKey("C".charCodeAt(0)), 11)
   }
 }

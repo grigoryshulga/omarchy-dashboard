@@ -131,6 +131,8 @@ PanelWindow {
     var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
     var shift = (event.modifiers & Qt.ShiftModifier) !== 0
 
+    dashboard.shortcutHintsVisible = ctrl || event.key === Qt.Key_Control
+
     if (event.key === Qt.Key_Escape) {
       handleEscape()
       event.accepted = true
@@ -172,6 +174,11 @@ PanelWindow {
         dashboard.confirmPluginPlacement()
         event.accepted = true
       }
+      return
+    }
+
+    if (ctrl && !alt && dashboard.activateKeyboardShortcut(event.key)) {
+      event.accepted = true
       return
     }
 
@@ -337,6 +344,11 @@ PanelWindow {
     focus: true
     Keys.priority: Keys.BeforeItem
     Keys.onPressed: function(event) { root.handleKey(event) }
+    Keys.onReleased: function(event) {
+      if (event.key === Qt.Key_Control
+          || (event.modifiers & Qt.ControlModifier) === 0)
+        dashboard.shortcutHintsVisible = false
+    }
 
     Rectangle {
       id: dashboardCard

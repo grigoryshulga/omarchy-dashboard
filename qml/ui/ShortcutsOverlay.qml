@@ -9,8 +9,10 @@ Item {
   signal closeRequested()
 
   readonly property var shortcuts: [
-    { key: "← ↑ ↓ →", action: "Select a plugin by position" },
-    { key: "Ctrl+Tab", action: "Select the next plugin" },
+    { key: "Ctrl (hold)", action: "Show plugin shortcuts in visual order" },
+    { key: "Ctrl+1 … 9, A … Z", action: "Interact with the labelled plugin" },
+    { key: "← ↑ ↓ →", action: "Select the nearest plugin in that direction" },
+    { key: "Ctrl+Tab", action: "Select the next plugin in visual order" },
     { key: "Enter", action: "Interact with the selected plugin" },
     { key: "Esc", action: "Leave interaction, edit mode, or Dashboard" },
     { key: "Page Up / Down", action: "Switch Space" },

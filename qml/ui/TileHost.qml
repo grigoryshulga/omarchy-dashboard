@@ -30,6 +30,9 @@ Item {
   readonly property bool selected: dashboard.selectedTileId === tile.id
   readonly property bool editing: dashboard.mode === "edit"
   readonly property bool interacting: dashboard.mode === "interact" && selected
+  readonly property string keyboardShortcut: dashboard.keyboardShortcutForTile(tile.id)
+  readonly property bool keyboardShortcutVisible: dashboard.shortcutHintsVisible
+    && keyboardShortcut !== "" && !interacting
   readonly property bool previewValid: previewRect !== null
     && GridEngine.canPlace(previewRect, dashboard.activeTiles, tile.id, gridWidth, gridHeight)
   readonly property var presentation: dashboard.plugins.presentation(tile)
@@ -445,6 +448,34 @@ Item {
         ? Color.accent
         : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.09)
       z: 10
+    }
+
+    Rectangle {
+      anchors.left: parent.left
+      anchors.top: parent.top
+      anchors.margins: Style.spacing.sm
+      visible: root.keyboardShortcutVisible
+      width: shortcutText.implicitWidth + Style.spacing.md * 2
+      height: Math.max(Style.space(26), shortcutText.implicitHeight + Style.spacing.xs * 2)
+      radius: Style.cornerRadius > 0 ? height / 2 : 0
+      z: 25
+      color: Qt.rgba(Color.popups.background.r, Color.popups.background.g,
+        Color.popups.background.b, 0.90)
+      border.width: 1
+      border.color: root.selected
+        ? Color.accent
+        : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.18)
+
+      Text {
+        textFormat: Text.PlainText
+        id: shortcutText
+        anchors.centerIn: parent
+        text: root.keyboardShortcut
+        color: root.selected ? Color.accent : Color.popups.text
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.bold: true
+      }
     }
 
     MouseArea {
