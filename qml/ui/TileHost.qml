@@ -8,7 +8,8 @@ Item {
   id: root
 
   required property var dashboard
-  required property var tile
+  required property string tileRecordJson
+  readonly property var tile: JSON.parse(tileRecordJson)
   required property Item canvas
   property real gridWidth: 0
   property real gridHeight: 0

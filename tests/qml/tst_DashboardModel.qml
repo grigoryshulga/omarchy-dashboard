@@ -80,6 +80,19 @@ TestCase {
     active: true
   }
 
+  DashboardUi.DashboardTileCollection {
+    id: tileCollection
+  }
+
+  Repeater {
+    id: tileCollectionRepeater
+    model: tileCollection.model
+    delegate: Item {
+      required property string tileRecordJson
+      readonly property var tile: JSON.parse(tileRecordJson)
+    }
+  }
+
   Item {
     id: shortcutFocusSink
     focus: true
@@ -279,6 +292,23 @@ TestCase {
     compare(globalShortcutDashboard.moveCalls, 2)
     compare(globalShortcutDashboard.resizeCalls, 2)
     compare(globalShortcutSurface.focusRequests, 4)
+  }
+
+  function test_tile_collection_keeps_unchanged_delegate_instances() {
+    tileCollection.synchronize([
+      tile("one", 0, 0, 100, 100), tile("two", 100, 0, 100, 100)
+    ])
+    var first = tileCollectionRepeater.itemAt(0)
+    var second = tileCollectionRepeater.itemAt(1)
+    compare(first.tile.id, "one")
+    compare(second.tile.id, "two")
+
+    tileCollection.synchronize([
+      tile("one", 0, 0, 100, 100), tile("two", 100, 0, 130, 100)
+    ])
+    compare(tileCollectionRepeater.itemAt(0), first)
+    compare(tileCollectionRepeater.itemAt(1), second)
+    compare(tileCollectionRepeater.itemAt(1).tile.w, 130)
   }
 
   function test_space_shortcut_is_suspended_while_an_overlay_is_open() {

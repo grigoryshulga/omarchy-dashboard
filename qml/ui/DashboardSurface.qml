@@ -212,6 +212,11 @@ PanelWindow {
     active: root.visible
   }
 
+  DashboardTileCollection {
+    id: tileCollection
+    tiles: dashboard.activeTiles
+  }
+
   Connections {
     target: dashboard
     function onActiveSpaceChanged() {
@@ -688,11 +693,9 @@ PanelWindow {
 
             Repeater {
               id: tileRepeater
-              model: dashboard.activeTiles
+              model: tileCollection.model
               delegate: TileHost {
-                required property var modelData
                 dashboard: root.dashboard
-                tile: modelData
                 canvas: gridCanvas
                 gridWidth: gridCanvas.width
                 gridHeight: gridCanvas.height
