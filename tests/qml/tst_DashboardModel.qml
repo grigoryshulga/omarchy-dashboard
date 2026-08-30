@@ -10,6 +10,7 @@ import "../../qml/runtime/PluginControls.js" as PluginControls
 import "../../qml/runtime/PluginIconResolver.js" as PluginIconResolver
 import "../../qml/runtime/PluginPresentation.js" as PluginPresentation
 import "../../qml/core/SpatialNavigation.js" as SpatialNavigation
+import "../../qml/core/TileIdentity.js" as TileIdentity
 
 TestCase {
   name: "DashboardModel"
@@ -279,6 +280,13 @@ TestCase {
     compare(globalShortcutDashboard.moveCalls, 2)
     compare(globalShortcutDashboard.resizeCalls, 2)
     compare(globalShortcutSurface.focusRequests, 4)
+  }
+
+  function test_tile_identity_changes_only_for_the_resized_tile() {
+    var unchanged = tile("one", 0, 0, 100, 100)
+    var resized = tile("two", 100, 0, 100, 100)
+    verify(TileIdentity.sameTile(unchanged, tile("one", 0, 0, 100, 100)))
+    verify(!TileIdentity.sameTile(resized, tile("two", 100, 0, 130, 100)))
   }
 
   function test_space_shortcut_is_suspended_while_an_overlay_is_open() {
