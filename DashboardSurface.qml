@@ -366,6 +366,7 @@ PanelWindow {
           Item {
             id: spaceTitle
             anchors.left: parent.left
+            anchors.leftMargin: Style.spacing.sm
             anchors.verticalCenter: parent.verticalCenter
             width: dashboard.overlay === "rename"
               ? Style.space(190)
