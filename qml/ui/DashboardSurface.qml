@@ -7,7 +7,6 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import "../core/GridEngine.js" as GridEngine
-import "../core/TileIdentity.js" as TileIdentity
 
 PanelWindow {
   id: root
@@ -648,35 +647,6 @@ PanelWindow {
             onWidthChanged: if (root.visible) dashboard.updateGridBounds(width, height)
             onHeightChanged: if (root.visible) dashboard.updateGridBounds(width, height)
 
-            ListModel { id: tileModel }
-
-            function synchronizeTiles() {
-              var next = dashboard.activeTiles || []
-              for (var modelIndex = tileModel.count - 1; modelIndex >= 0; modelIndex--) {
-                var retained = false
-                var existing = tileModel.get(modelIndex).tile
-                for (var nextIndex = 0; nextIndex < next.length; nextIndex++)
-                  if (String(next[nextIndex].id || "") === String(existing.id || "")) retained = true
-                if (!retained) tileModel.remove(modelIndex)
-              }
-              for (var tileIndex = 0; tileIndex < next.length; tileIndex++) {
-                var nextTile = next[tileIndex]
-                var found = -1
-                for (var currentIndex = 0; currentIndex < tileModel.count; currentIndex++)
-                  if (String(tileModel.get(currentIndex).tile.id || "") === String(nextTile.id || "")) found = currentIndex
-                if (found < 0) tileModel.append({ tile: nextTile })
-                else if (!TileIdentity.sameTile(tileModel.get(found).tile, nextTile))
-                  tileModel.setProperty(found, "tile", nextTile)
-              }
-            }
-
-            Component.onCompleted: synchronizeTiles()
-
-            Connections {
-              target: dashboard
-              function onDashboardStateChanged() { gridCanvas.synchronizeTiles() }
-            }
-
             Canvas {
               id: dotGrid
               anchors.fill: parent
@@ -718,10 +688,11 @@ PanelWindow {
 
             Repeater {
               id: tileRepeater
-              model: tileModel
+              model: dashboard.activeTiles
               delegate: TileHost {
+                required property var modelData
                 dashboard: root.dashboard
-                tile: model.tile
+                tile: modelData
                 canvas: gridCanvas
                 gridWidth: gridCanvas.width
                 gridHeight: gridCanvas.height
