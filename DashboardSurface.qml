@@ -365,11 +365,44 @@ PanelWindow {
 
           Item {
             id: spaceSwitcher
-            anchors.centerIn: parent
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
             readonly property int spaceCount: dashboard.dashboardState.spaces.length
             readonly property real tabStep: Style.space(24)
-            width: spaceTabs.implicitWidth + (dashboard.mode === "edit" ? Style.space(20) : 0)
+            readonly property real tabGap: Style.spacing.xs
+            readonly property int activeIndex: {
+              var spaces = dashboard.dashboardState.spaces
+              for (var index = 0; index < spaces.length; index++)
+                if (spaces[index].id === dashboard.dashboardState.activeSpaceId) return index
+              return 0
+            }
+            readonly property real activeTabWidth: dashboard.overlay === "rename"
+              ? Style.space(190)
+              : Math.min(Style.space(260), Math.max(Style.space(52), activeSpaceMeasure.implicitWidth + Style.spacing.sm * 2))
             height: Style.space(28)
+
+            Text {
+              id: activeSpaceMeasure
+              visible: false
+              text: dashboard.activeSpace.name
+              font.family: Style.font.family
+              font.pixelSize: Style.font.subtitle
+              font.bold: true
+            }
+
+            function tabWidthAt(index) {
+              return index === activeIndex ? activeTabWidth : tabStep
+            }
+
+            function tabX(index) {
+              var activeLeft = (width - activeTabWidth) / 2
+              if (index < activeIndex)
+                return activeLeft - (activeIndex - index) * (tabStep + tabGap)
+              if (index > activeIndex)
+                return activeLeft + activeTabWidth + tabGap + (index - activeIndex - 1) * (tabStep + tabGap)
+              return activeLeft
+            }
 
             function dropIndexFor(spaceTab) {
               var center = spaceTab.x + spaceTab.width / 2 + spaceTab.dragOffset
@@ -382,28 +415,18 @@ PanelWindow {
               return Math.max(0, Math.min(spaceCount - 1, targetIndex))
             }
 
-            Row {
-              id: spaceTabs
-              anchors.left: parent.left
-              anchors.verticalCenter: parent.verticalCenter
-              spacing: Style.spacing.xs
-              height: parent.height
-
-              Repeater {
-                id: spaceTabsRepeater
-                model: dashboard.dashboardState.spaces
-                delegate: Item {
+            Repeater {
+              id: spaceTabsRepeater
+              model: dashboard.dashboardState.spaces
+              delegate: Item {
                   id: spaceTab
                   required property var modelData
                   required property int index
                   property real dragOffset: 0
                   property bool wasDragged: false
                   readonly property bool active: modelData.id === dashboard.dashboardState.activeSpaceId
-                  width: active
-                    ? (dashboard.overlay === "rename"
-                      ? Style.space(190)
-                      : Math.min(Style.space(260), Math.max(Style.space(52), activeSpaceName.implicitWidth + Style.spacing.sm * 2)))
-                    : spaceSwitcher.tabStep
+                  x: spaceSwitcher.tabX(index)
+                  width: spaceSwitcher.tabWidthAt(index)
                   height: parent.height
                   z: spaceDrag.active ? 3 : 0
 
@@ -502,13 +525,14 @@ PanelWindow {
                       } else spaceTab.dragOffset = 0
                     }
                   }
-                }
               }
             }
 
             DashboardActionButton {
-              anchors.right: parent.right
-              anchors.verticalCenter: parent.verticalCenter
+              x: spaceSwitcher.tabX(spaceSwitcher.spaceCount - 1)
+                + spaceSwitcher.tabWidthAt(spaceSwitcher.spaceCount - 1)
+                + spaceSwitcher.tabGap
+              y: (parent.height - height) / 2
               visible: dashboard.mode === "edit"
               icon: "\uf067"
               text: "Add Space"
@@ -520,8 +544,7 @@ PanelWindow {
           }
 
           DashboardActionButton {
-            anchors.right: spaceSwitcher.left
-            anchors.rightMargin: Style.spacing.sm
+            x: spaceSwitcher.tabX(0) - width - Style.spacing.sm
             anchors.verticalCenter: parent.verticalCenter
             visible: dashboard.mode === "edit" && dashboard.dashboardState.spaces.length > 1
             icon: "\uf1f8"
