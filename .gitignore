@@ -17,6 +17,7 @@ Thumbs.db
 *.swo
 
 # Local AI coding-agent state and workspace metadata
+AGENTS.md
 .aider/
 .agents/
 .agent/
