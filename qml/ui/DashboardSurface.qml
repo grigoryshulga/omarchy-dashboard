@@ -176,7 +176,7 @@ PanelWindow {
       if (placementDirection) {
         var horizontal = placementDirection === "left" ? -1 : (placementDirection === "right" ? 1 : 0)
         var vertical = placementDirection === "up" ? -1 : (placementDirection === "down" ? 1 : 0)
-        if (ctrl) dashboard.resizePlacementByGrid(horizontal, vertical)
+        if (shift) dashboard.resizePlacementByGrid(horizontal, vertical)
         else dashboard.movePlacementByGrid(horizontal, vertical)
         event.accepted = true
       } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
@@ -213,7 +213,7 @@ PanelWindow {
                && dashboard.mode === "edit") {
       dashboard.moveSelectedItemByGrid(0, direction === "up" ? -1 : 1)
       event.accepted = true
-    } else if (ctrl && alt && dashboard.mode === "edit"
+    } else if (shift && alt && dashboard.mode === "edit"
                && direction) {
       dashboard.resizeSelectedItemByGrid(
         direction === "left" ? -1 : (direction === "right" ? 1 : 0),

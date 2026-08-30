@@ -187,8 +187,8 @@ bindd = SUPER, D, Dashboard, exec, omarchy-shell shell toggle gshulga.dashboard
 | `Alt+E` | Toggle `edit` |
 | `Alt+V` | Toggle `Framed` / `Glass` in `edit` |
 | `Alt+arrow keys` / `Alt+H J K L` | Move the selected tile or graphic element in `edit` |
-| `Ctrl+Alt+arrow keys` / `Ctrl+Alt+H J K L` | Resize the selected tile or graphic element in `edit` |
-| `arrow keys` / `H J K L` (with `Ctrl` to resize) | Move / resize a new-tile silhouette |
+| `Shift+Alt+arrow keys` / `Shift+Alt+H J K L` | Resize the selected tile or graphic element in `edit` |
+| `arrow keys` / `H J K L` (with `Shift` to resize) | Move / resize a new-tile silhouette |
 | `Enter` / `Esc` | Place / cancel a new tile |
 | `Alt+C` / `Alt+R` | Create / rename a Space |
 | `Alt+X` | Delete the current Space with confirmation (the last one cannot be deleted) |
