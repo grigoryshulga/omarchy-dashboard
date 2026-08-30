@@ -364,180 +364,143 @@ PanelWindow {
           }
 
           Item {
-            id: spaceTitle
-            anchors.right: spaceSwitcher.left
-            anchors.rightMargin: Style.spacing.lg
-            anchors.verticalCenter: parent.verticalCenter
-            width: dashboard.overlay === "rename"
-              ? Style.space(220)
-              : Math.min(Style.space(300), Math.max(Style.space(128), activeSpaceName.implicitWidth + Style.space(88)))
-            height: Style.space(28)
-
-            Rectangle {
-              anchors.fill: parent
-              visible: dashboard.overlay !== "rename"
-              radius: height / 2
-              color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.07)
-              border.width: 1
-              border.color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.14)
-            }
-
-            Text {
-              id: spaceLabel
-              anchors.left: parent.left
-              anchors.leftMargin: Style.spacing.sm
-              anchors.verticalCenter: parent.verticalCenter
-              visible: dashboard.overlay !== "rename"
-              text: "SPACE"
-              color: Color.popups.text
-              opacity: 0.48
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
-              font.bold: true
-            }
-
-            Rectangle {
-              anchors.left: spaceLabel.right
-              anchors.leftMargin: Style.spacing.sm
-              anchors.verticalCenter: parent.verticalCenter
-              visible: dashboard.overlay !== "rename"
-              width: 1
-              height: Style.space(12)
-              color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.22)
-            }
-
-            Text {
-              id: activeSpaceName
-              anchors.left: spaceLabel.right
-              anchors.leftMargin: Style.spacing.md + 1
-              anchors.right: parent.right
-              anchors.rightMargin: Style.spacing.md
-              anchors.verticalCenter: parent.verticalCenter
-              visible: dashboard.overlay !== "rename"
-              text: dashboard.activeSpace.name
-              color: Color.popups.text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.subtitle
-              font.bold: true
-              elide: Text.ElideRight
-            }
-
-            Rectangle {
-              anchors.fill: parent
-              visible: dashboard.overlay === "rename"
-              radius: Style.cornerRadius
-              color: Style.normalFillFor(Color.popups.text, Color.accent)
-              border.width: 1
-              border.color: Color.accent
-
-              TextInput {
-                id: inlineNameInput
-                anchors.fill: parent
-                anchors.leftMargin: Style.spacing.sm
-                anchors.rightMargin: Style.spacing.sm
-                visible: dashboard.overlay === "rename"
-                text: visible ? root.editorText : ""
-                color: Color.popups.text
-                selectionColor: Color.accent
-                verticalAlignment: TextInput.AlignVCenter
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-                onTextChanged: if (visible) root.editorText = text
-                onAccepted: root.finishNameEditor()
-                Keys.onEscapePressed: {
-                  dashboard.overlay = ""
-                  keyCatcher.forceActiveFocus()
-                }
-                onVisibleChanged: if (visible) Qt.callLater(function() {
-                  inlineNameInput.forceActiveFocus()
-                  inlineNameInput.selectAll()
-                })
-              }
-            }
-
-            MouseArea {
-              anchors.fill: parent
-              enabled: dashboard.overlay !== "rename"
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onDoubleClicked: root.beginRename()
-            }
-          }
-
-          Item {
             id: spaceSwitcher
             anchors.centerIn: parent
             readonly property int spaceCount: dashboard.dashboardState.spaces.length
             readonly property real tabStep: Style.space(24)
-            width: spaceCount * tabStep + (dashboard.mode === "edit" ? Style.space(20) : 0)
+            width: spaceTabs.implicitWidth + (dashboard.mode === "edit" ? Style.space(20) : 0)
             height: Style.space(28)
 
             function dropIndexFor(spaceTab) {
               var center = spaceTab.x + spaceTab.width / 2 + spaceTab.dragOffset
-              return Math.max(0, Math.min(spaceCount - 1, Math.floor(center / tabStep)))
+              var targetIndex = 0
+              for (var index = 0; index < spaceTabsRepeater.count; index++) {
+                var candidate = spaceTabsRepeater.itemAt(index)
+                if (candidate && center >= candidate.x + candidate.width / 2)
+                  targetIndex = index
+              }
+              return Math.max(0, Math.min(spaceCount - 1, targetIndex))
             }
 
-            Repeater {
-              model: dashboard.dashboardState.spaces
-              delegate: Item {
-                id: spaceTab
-                required property var modelData
-                required property int index
-                property real dragOffset: 0
-                property bool wasDragged: false
-                readonly property bool active: modelData.id === dashboard.dashboardState.activeSpaceId
-                x: index * spaceSwitcher.tabStep
-                width: spaceSwitcher.tabStep
-                height: parent.height
-                z: spaceDrag.active ? 3 : 0
+            Row {
+              id: spaceTabs
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: Style.spacing.xs
+              height: parent.height
 
-                transform: Translate { x: spaceTab.dragOffset }
+              Repeater {
+                id: spaceTabsRepeater
+                model: dashboard.dashboardState.spaces
+                delegate: Item {
+                  id: spaceTab
+                  required property var modelData
+                  required property int index
+                  property real dragOffset: 0
+                  property bool wasDragged: false
+                  readonly property bool active: modelData.id === dashboard.dashboardState.activeSpaceId
+                  width: active
+                    ? (dashboard.overlay === "rename"
+                      ? Style.space(190)
+                      : Math.min(Style.space(260), Math.max(Style.space(52), activeSpaceName.implicitWidth + Style.spacing.sm * 2)))
+                    : spaceSwitcher.tabStep
+                  height: parent.height
+                  z: spaceDrag.active ? 3 : 0
 
-                HoverHandler {
-                  id: spaceTabHover
-                }
+                  transform: Translate { x: spaceTab.dragOffset }
 
-                Rectangle {
-                  id: spaceIndicator
-                  anchors.centerIn: parent
-                  width: Style.space(9)
-                  height: width
-                  radius: width / 2
-                  scale: spaceTab.active ? 1.28 : 1
-                  color: spaceTab.active
-                    ? Color.accent
-                    : (spaceTabHover.hovered ? Color.accent
-                      : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.32))
+                  HoverHandler {
+                    id: spaceTabHover
+                  }
 
-                  Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-                }
+                  Rectangle {
+                    id: spaceIndicator
+                    anchors.centerIn: parent
+                    visible: !spaceTab.active
+                    width: Style.space(9)
+                    height: width
+                    radius: width / 2
+                    color: spaceTabHover.hovered
+                      ? Color.accent
+                      : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.32)
+                  }
 
-                MouseArea {
-                  id: spaceMouse
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onPressed: spaceTab.wasDragged = false
-                  onClicked: if (!spaceTab.wasDragged && !spaceTab.active)
-                    dashboard.selectSpace(spaceTab.modelData.id)
-                }
+                  Text {
+                    id: activeSpaceName
+                    anchors.centerIn: parent
+                    width: parent.width - Style.spacing.sm * 2
+                    visible: spaceTab.active && dashboard.overlay !== "rename"
+                    text: spaceTab.modelData.name
+                    color: Color.accent
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.subtitle
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
+                  }
 
-                DragHandler {
-                  id: spaceDrag
-                  enabled: dashboard.mode === "edit"
-                  target: null
-                  xAxis.enabled: true
-                  yAxis.enabled: false
-                  onTranslationChanged: spaceTab.dragOffset = translation.x
-                  onActiveChanged: {
-                    if (active) return
-                    if (spaceTab.dragOffset !== 0) {
-                      spaceTab.wasDragged = true
-                      var targetIndex = spaceSwitcher.dropIndexFor(spaceTab)
-                      spaceTab.dragOffset = 0
-                      if (targetIndex !== spaceTab.index)
-                        dashboard.reorderSpace(spaceTab.modelData.id, targetIndex)
-                    } else spaceTab.dragOffset = 0
+                  Rectangle {
+                    anchors.fill: parent
+                    visible: spaceTab.active && dashboard.overlay === "rename"
+                    radius: Style.cornerRadius
+                    color: Style.normalFillFor(Color.popups.text, Color.accent)
+                    border.width: 1
+                    border.color: Color.accent
+
+                    TextInput {
+                      id: inlineNameInput
+                      anchors.fill: parent
+                      anchors.leftMargin: Style.spacing.sm
+                      anchors.rightMargin: Style.spacing.sm
+                      visible: parent.visible
+                      text: visible ? root.editorText : ""
+                      color: Color.popups.text
+                      selectionColor: Color.accent
+                      verticalAlignment: TextInput.AlignVCenter
+                      font.family: Style.font.family
+                      font.pixelSize: Style.font.body
+                      onTextChanged: if (visible) root.editorText = text
+                      onAccepted: root.finishNameEditor()
+                      Keys.onEscapePressed: {
+                        dashboard.overlay = ""
+                        keyCatcher.forceActiveFocus()
+                      }
+                      onVisibleChanged: if (visible) Qt.callLater(function() {
+                        inlineNameInput.forceActiveFocus()
+                        inlineNameInput.selectAll()
+                      })
+                    }
+                  }
+
+                  MouseArea {
+                    id: spaceMouse
+                    anchors.fill: parent
+                    enabled: dashboard.overlay !== "rename"
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onPressed: spaceTab.wasDragged = false
+                    onClicked: if (!spaceTab.wasDragged && !spaceTab.active)
+                      dashboard.selectSpace(spaceTab.modelData.id)
+                    onDoubleClicked: if (spaceTab.active) root.beginRename()
+                  }
+
+                  DragHandler {
+                    id: spaceDrag
+                    enabled: dashboard.mode === "edit"
+                    target: null
+                    xAxis.enabled: true
+                    yAxis.enabled: false
+                    onTranslationChanged: spaceTab.dragOffset = translation.x
+                    onActiveChanged: {
+                      if (active) return
+                      if (spaceTab.dragOffset !== 0) {
+                        spaceTab.wasDragged = true
+                        var targetIndex = spaceSwitcher.dropIndexFor(spaceTab)
+                        spaceTab.dragOffset = 0
+                        if (targetIndex !== spaceTab.index)
+                          dashboard.reorderSpace(spaceTab.modelData.id, targetIndex)
+                      } else spaceTab.dragOffset = 0
+                    }
                   }
                 }
               }
