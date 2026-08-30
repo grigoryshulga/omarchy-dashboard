@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PROTOTYPE — Native Dashboard Host</title>
+  <style>
+    :root { color-scheme: dark; font: 15px/1.45 system-ui, sans-serif; }
+    body { margin: 0; background: #111318; color: #e8eaf0; }
+    main { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+    h1 { margin-bottom: 4px; }
+    .warning { color: #f6c177; margin-top: 0; }
+    .tabs, .actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0; }
+    button { border: 1px solid #454b5a; border-radius: 8px; padding: 9px 13px;
+      background: #20242d; color: inherit; cursor: pointer; }
+    button:hover, button.active { border-color: #8aadf4; background: #29334a; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+    section { background: #181b22; border: 1px solid #303541; border-radius: 12px; padding: 16px; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #cad3f5; }
+    #verdict { border-left: 3px solid #a6da95; padding-left: 12px; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Native Dashboard Host</h1>
+  <p class="warning">PROTOTYPE — throwaway model, not production UI or persistence.</p>
+  <p>Question: can Dashboard own host-scoped plugin placements while the current
+    Omarchy shell keeps loading plugins through a temporary <code>plugins[]</code> adapter?</p>
+
+  <nav class="tabs" aria-label="Guided walkthroughs">
+    <button data-scenario="native" class="active">Native placement</button>
+    <button data-scenario="reload">Reload and settings</button>
+    <button data-scenario="remove">Removal</button>
+  </nav>
+  <div class="actions">
+    <button id="next">Run next step</button>
+    <button id="reset">Reset scenario</button>
+    <button id="freeAdd">Free play: add weather</button>
+    <button id="freeRemove">Free play: remove weather</button>
+  </div>
+  <p id="step"></p>
+  <div class="grid">
+    <section><h2>Dashboard state</h2><pre id="dashboard"></pre></section>
+    <section><h2>shell.json projection</h2><pre id="shell"></pre></section>
+  </div>
+  <section style="margin-top:16px"><h2>Event log</h2><pre id="events"></pre></section>
+  <p id="verdict">Expected verdict: the host reference is authoritative for placement;
+    <code>plugins[]</code> only keeps Omarchy 4.0.1 loading the plugin.</p>
+</main>
+<script>
+  const hostId = "gshulga.dashboard";
+  let state, shell, events, scenario, stepIndex;
+
+  const scenarios = {
+    native: [
+      ["Add a native dashboardPage tile", () => add("acme.weather", "weather-tile", "main")],
+      ["Observe separate host placement and compatibility load reference", () => note("No bar placement was created")]
+    ],
+    reload: [
+      ["Add tile and instance settings", () => { add("acme.weather", "weather-tile", "work"); placement().settings.units = "metric"; sync(); }],
+      ["Simulate Dashboard layout reload", () => { state = structuredClone(state); sync(); note("Settings survived synchronization") }]
+    ],
+    remove: [
+      ["Add tile", () => add("acme.weather", "weather-tile", "main")],
+      ["Remove tile from Dashboard", () => remove("acme.weather")],
+      ["Observe compatibility limitation", () => note("plugins[] remains until Omarchy natively counts hosts")]
+    ]
+  };
+
+  function initial() {
+    return {
+      state: { spaces: [{ id: "main", tiles: [] }, { id: "work", tiles: [] }] },
+      shell: { bar: { layout: { left: [], center: [], right: [] } }, plugins: [] }
+    };
+  }
+  function refs() {
+    return state.spaces.flatMap(space => space.tiles.map(tile => ({
+      id: tile.pluginId, instanceId: tile.id, slot: space.id
+    })));
+  }
+  function placement() {
+    return shell.hosts?.[hostId]?.placements?.[0];
+  }
+  function sync() {
+    const previous = Object.fromEntries((shell.hosts?.[hostId]?.placements || [])
+      .map(entry => [entry.id, entry.settings || {}]));
+    const desired = refs().map(ref => ({ ...ref, settings: previous[ref.id] || {} }));
+    if (desired.length) shell.hosts = { [hostId]: { placements: desired } };
+    else delete shell.hosts;
+    for (const ref of refs()) if (!shell.plugins.some(entry => entry.id === ref.id))
+      shell.plugins.push({ id: ref.id });
+    render();
+  }
+  function add(pluginId, tileId, slot) {
+    if (refs().some(ref => ref.id === pluginId)) return note("Duplicate plugin rejected");
+    state.spaces.find(space => space.id === slot).tiles.push({ id: tileId, pluginId });
+    events.push(`host put ${hostId} ${pluginId} (${tileId})`);
+    sync();
+  }
+  function remove(pluginId) {
+    for (const space of state.spaces) space.tiles = space.tiles.filter(tile => tile.pluginId !== pluginId);
+    events.push(`host remove ${hostId} ${pluginId}`);
+    sync();
+  }
+  function note(message) { events.push(message); render(); }
+  function render() {
+    document.querySelector("#dashboard").textContent = JSON.stringify(state, null, 2);
+    document.querySelector("#shell").textContent = JSON.stringify(shell, null, 2);
+    document.querySelector("#events").textContent = events.join("\n") || "No events yet";
+    const steps = scenarios[scenario];
+    document.querySelector("#step").textContent = stepIndex < steps.length
+      ? `Next: ${steps[stepIndex][0]}` : "Walkthrough complete";
+  }
+  function reset(name = scenario || "native") {
+    scenario = name; stepIndex = 0; events = [];
+    ({ state, shell } = initial());
+    document.querySelectorAll("[data-scenario]").forEach(button =>
+      button.classList.toggle("active", button.dataset.scenario === scenario));
+    render();
+  }
+  document.querySelectorAll("[data-scenario]").forEach(button => button.onclick = () => reset(button.dataset.scenario));
+  document.querySelector("#next").onclick = () => {
+    const steps = scenarios[scenario];
+    if (stepIndex < steps.length) steps[stepIndex++][1]();
+    render();
+  };
+  document.querySelector("#reset").onclick = () => reset();
+  document.querySelector("#freeAdd").onclick = () => add("acme.weather", "weather-tile", "main");
+  document.querySelector("#freeRemove").onclick = () => remove("acme.weather");
+  reset("native");
+</script>
+</body>
+</html>

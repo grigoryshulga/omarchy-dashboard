@@ -228,6 +228,7 @@ omarchy-shell shell call gshulga.dashboard status x
 
 ```bash
 omarchy-shell shell call gshulga.dashboard execute '{"type":"getState"}'
+omarchy-shell shell call gshulga.dashboard execute '{"type":"listHostEntries"}'
 omarchy-shell shell call gshulga.dashboard execute '{"type":"addSpace","name":"Work"}'
 omarchy-shell shell call gshulga.dashboard execute '{"type":"addPlugin","pluginId":"omarchy.network"}'
 omarchy-shell shell call gshulga.dashboard execute '{"type":"setTileEmbedding","embedding":"launcher"}'
@@ -237,7 +238,7 @@ omarchy-shell shell call gshulga.dashboard execute '{"type":"addText","text":"Sy
 omarchy-shell shell call gshulga.dashboard execute '{"type":"addDivider","x1":0,"y1":100,"x2":600,"y2":100}'
 ```
 
-Поддерживаются `status`, `getState`, `listPlugins`, `open`, `close`, `toggle`,
+Поддерживаются `status`, `getState`, `listPlugins`, `listHostEntries`, `open`, `close`, `toggle`,
 `selectSpace`, `nextSpace`, `addSpace`, `renameSpace`, `removeSpace`,
 `addPlugin`, `selectTile`, `removeTile`, `moveTile`, `resizeTile`, `placeTile`,
 `activateTile`, `setTileEmbedding`, `addText`, `updateText`, `addDivider`,

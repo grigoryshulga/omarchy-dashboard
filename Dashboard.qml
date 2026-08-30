@@ -164,6 +164,7 @@ Item {
       popoutPluginId: popoutTile ? String(popoutTile.pluginId || "") : "",
       activeSpaceId: dashboardState ? dashboardState.activeSpaceId : "",
       tileCount: count,
+      hostedPluginCount: plugins.hostEntries.length,
       elementCount: activeElements.length,
       spaceCount: dashboardState && dashboardState.spaces ? dashboardState.spaces.length : 0,
       selectedTileId: selectedTileId,
@@ -207,6 +208,9 @@ Item {
     if (type === "status") return status()
     if (type === "getState") return JSON.stringify({ ok: true, state: dashboardState })
     if (type === "listPlugins") return JSON.stringify({ ok: true, plugins: plugins.availablePlugins })
+    if (type === "listHostEntries") return JSON.stringify({
+      ok: true, hostId: pluginId, placements: plugins.hostEntries
+    })
     if (type === "open") open(JSON.stringify({ screenName: command.screenName || "" }))
     else if (type === "close") close()
     else if (type === "toggle") toggle(JSON.stringify({ screenName: command.screenName || "" }))
@@ -415,6 +419,7 @@ Item {
 
   function removeSpace(spaceId) {
     commit({ type: "removeSpace", spaceId: spaceId })
+    plugins.syncHostPlacements(dashboardState)
   }
 
   function placeTile(tileId, rect) {
@@ -506,6 +511,7 @@ Item {
 
   function removeTile(tileId) {
     commit({ type: "removeTile", spaceId: activeSpace.id, tileId: tileId })
+    plugins.syncHostPlacements(dashboardState)
   }
 
   function removeElement(elementId) {
@@ -711,6 +717,7 @@ Item {
       if (activeTiles[index].id === tileId) added = true
     if (!added) return false
     plugins.enable(draft.pluginId, draft.manifest)
+    plugins.syncHostPlacements(dashboardState)
     selectedTileId = tileId
     placementDraft = null
     return true
@@ -745,7 +752,10 @@ Item {
     directoryPath: root.stateDirectory
     statePath: root.statePath
     readerPath: root.pluginDirectory + "/bin/omarchy-dashboard-read-state"
-    onLoaded: root.ensureSelection()
+    onLoaded: {
+      root.plugins.syncHostPlacements(root.dashboardState)
+      root.ensureSelection()
+    }
   }
 
   DashboardBlurSettings {

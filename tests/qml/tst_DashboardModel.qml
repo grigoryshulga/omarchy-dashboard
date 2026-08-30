@@ -4,6 +4,7 @@ import "../.." as Dashboard
 import "../../DashboardAppearance.js" as DashboardAppearance
 import "../../DashboardModel.js" as DashboardModel
 import "../../GridEngine.js" as GridEngine
+import "../../HostPlacements.js" as HostPlacements
 import "../../HyprlandBlur.js" as HyprlandBlur
 import "../../PluginControls.js" as PluginControls
 import "../../PluginIconResolver.js" as PluginIconResolver
@@ -50,6 +51,43 @@ TestCase {
     verify(!DashboardAppearance.usesGlass("Framed"))
     verify(DashboardAppearance.usesGlass("Glass"))
     verify(DashboardAppearance.usesGlass("Push"))
+  }
+
+  function test_host_placements_follow_dashboard_tiles_and_preserve_settings() {
+    var config = { hosts: { "gshulga.dashboard": { placements: [{
+      id: "example.weather", instanceId: "old-tile", slot: "old",
+      settings: { units: "metric" }
+    }] } } }
+    var document = { spaces: [
+      { id: "work", tiles: [
+        { id: "weather-tile", pluginId: "example.weather" },
+        { id: "mail-tile", pluginId: "example.mail" }
+      ] }
+    ] }
+
+    var references = HostPlacements.references(document)
+    compare(references.length, 2)
+    verify(HostPlacements.synchronize(config, "gshulga.dashboard", references))
+    var entries = HostPlacements.entries(config, "gshulga.dashboard")
+    compare(entries.length, 2)
+    compare(entries[0].instanceId, "weather-tile")
+    compare(entries[0].slot, "work")
+    compare(entries[0].settings.units, "metric")
+    compare(HostPlacements.settingsFor(
+      config, "gshulga.dashboard", "example.weather", "").units, "metric")
+  }
+
+  function test_host_placements_remove_stale_references_and_reject_duplicates() {
+    var config = ({})
+    var desired = [
+      { id: "example.one", instanceId: "one", slot: "main" },
+      { id: "example.one", instanceId: "duplicate", slot: "other" },
+      { id: "example.two", instanceId: "one", slot: "other" }
+    ]
+    verify(HostPlacements.synchronize(config, "gshulga.dashboard", desired))
+    compare(HostPlacements.entries(config, "gshulga.dashboard").length, 1)
+    verify(HostPlacements.synchronize(config, "gshulga.dashboard", []))
+    verify(config.hosts === undefined)
   }
 
   function test_space_shortcut_works_when_focused_plugin_accepts_the_key() {
