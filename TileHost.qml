@@ -20,6 +20,8 @@ Item {
   property bool resizing: false
   property bool verticalGuideVisible: false
   property bool horizontalGuideVisible: false
+  property real verticalGuidePosition: 0
+  property real horizontalGuidePosition: 0
   property bool hadInteraction: false
   property string pageError: ""
   property string launchError: ""
@@ -82,10 +84,12 @@ Item {
         h: startRect.h
       }
       var alignment = GridEngine.snapRectToCenter(
-        candidate, gridWidth, gridHeight, Math.max(12, gridStep / 2))
+        candidate, gridWidth, gridHeight, Math.max(12, gridStep / 2), gridStep)
       candidate = alignment.rect
       verticalGuideVisible = alignment.vertical
       horizontalGuideVisible = alignment.horizontal
+      verticalGuidePosition = alignment.verticalPosition
+      horizontalGuidePosition = alignment.horizontalPosition
     }
     previewRect = candidate
   }
@@ -211,6 +215,8 @@ Item {
     parent: root.canvas
     verticalGuideVisible: root.verticalGuideVisible
     horizontalGuideVisible: root.horizontalGuideVisible
+    verticalGuidePosition: root.verticalGuidePosition
+    horizontalGuidePosition: root.horizontalGuidePosition
   }
 
   Rectangle {

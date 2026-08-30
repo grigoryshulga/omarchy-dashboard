@@ -106,22 +106,29 @@ function centeredBounds(width, height, step, spaces) {
   }
 }
 
-// Magnetically aligns a rectangular item's center with either canvas axis.
-// The stored origin stays on the five-pixel lattice even when an exact center
-// would land between lattice points; the guide still marks the true canvas axis.
-function snapRectToCenter(rect, boundWidth, boundHeight, threshold) {
+// Magnetically aligns a rectangular item's center with the nearest central
+// lines of the active grid. An axis is unavailable when the item's dimensions
+// make it impossible for both its origin and center to stay on that grid.
+function snapRectToCenter(rect, boundWidth, boundHeight, threshold, step) {
   var source = rect || ({})
   var width = finiteNumber(source.w, 0)
   var height = finiteNumber(source.h, 0)
   var limitWidth = Math.max(0, finiteNumber(boundWidth, 0))
   var limitHeight = Math.max(0, finiteNumber(boundHeight, 0))
   var radius = Math.max(0, finiteNumber(threshold, 0))
-  var targetX = clamp(snap((limitWidth - width) / 2), 0, Math.max(0, limitWidth - width))
-  var targetY = clamp(snap((limitHeight - height) / 2), 0, Math.max(0, limitHeight - height))
+  var increment = gridStep(step)
+  var verticalPosition = snap(limitWidth / 2, increment)
+  var horizontalPosition = snap(limitHeight / 2, increment)
+  var targetX = verticalPosition - width / 2
+  var targetY = horizontalPosition - height / 2
   var currentX = finiteNumber(source.x, 0)
   var currentY = finiteNumber(source.y, 0)
-  var vertical = Math.abs(currentX - targetX) <= radius
-  var horizontal = Math.abs(currentY - targetY) <= radius
+  var verticalCompatible = targetX >= 0 && targetX + width <= limitWidth
+    && Math.abs(targetX - snap(targetX, increment)) < 0.001
+  var horizontalCompatible = targetY >= 0 && targetY + height <= limitHeight
+    && Math.abs(targetY - snap(targetY, increment)) < 0.001
+  var vertical = verticalCompatible && Math.abs(currentX - targetX) <= radius
+  var horizontal = horizontalCompatible && Math.abs(currentY - targetY) <= radius
   return {
     rect: {
       x: vertical ? targetX : currentX,
@@ -130,7 +137,9 @@ function snapRectToCenter(rect, boundWidth, boundHeight, threshold) {
       h: height
     },
     vertical: vertical,
-    horizontal: horizontal
+    horizontal: horizontal,
+    verticalPosition: verticalPosition,
+    horizontalPosition: horizontalPosition
   }
 }
 

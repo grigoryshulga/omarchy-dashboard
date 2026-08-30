@@ -549,6 +549,26 @@ TestCase {
     verify(aligned.horizontal)
   }
 
+  function test_center_snap_keeps_origin_on_active_grid() {
+    var aligned = GridEngine.snapRectToCenter(
+      { x: 870, y: 390, w: 300, h: 300 }, 2010, 1050, 15, 30)
+    verify(aligned.vertical)
+    verify(aligned.horizontal)
+    compare(aligned.rect.x % 30, 0)
+    compare(aligned.rect.y % 30, 0)
+    compare(aligned.verticalPosition, 1020)
+    compare(aligned.horizontalPosition, 540)
+  }
+
+  function test_center_snap_skips_axis_when_size_cannot_stay_on_grid() {
+    var aligned = GridEngine.snapRectToCenter(
+      { x: 810, y: 0, w: 390, h: 300 }, 2010, 1050, 15, 30)
+    verify(!aligned.vertical)
+    compare(aligned.rect.x, 810)
+    compare(aligned.rect.x % 30, 0)
+    compare(aligned.verticalPosition % 30, 0)
+  }
+
   function test_first_grid_operation_aligns_existing_geometry() {
     compare(GridEngine.snapFrom(395, 1, 50), 400)
     compare(GridEngine.snapFrom(395, -1, 50), 395)

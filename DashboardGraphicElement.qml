@@ -18,6 +18,8 @@ Item {
   property string pointerMode: ""
   property bool verticalGuideVisible: false
   property bool horizontalGuideVisible: false
+  property real verticalGuidePosition: 0
+  property real horizontalGuidePosition: 0
 
   readonly property bool editing: dashboard.mode === "edit"
   readonly property bool selected: dashboard.selectedElementId === element.id
@@ -78,10 +80,12 @@ Item {
           h: startGeometry.h
         }
         var alignment = GridEngine.snapRectToCenter(
-          candidate, gridWidth, gridHeight, Math.max(12, step / 2))
+          candidate, gridWidth, gridHeight, Math.max(12, step / 2), step)
         previewGeometry = alignment.rect
         verticalGuideVisible = alignment.vertical
         horizontalGuideVisible = alignment.horizontal
+        verticalGuidePosition = alignment.verticalPosition
+        horizontalGuidePosition = alignment.horizontalPosition
       }
       return
     }
@@ -136,6 +140,8 @@ Item {
     parent: root.canvas
     verticalGuideVisible: root.verticalGuideVisible
     horizontalGuideVisible: root.horizontalGuideVisible
+    verticalGuidePosition: root.verticalGuidePosition
+    horizontalGuidePosition: root.horizontalGuidePosition
   }
 
   Item {

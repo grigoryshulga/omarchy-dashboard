@@ -14,6 +14,8 @@ Item {
   property bool resizing: false
   property bool verticalGuideVisible: false
   property bool horizontalGuideVisible: false
+  property real verticalGuidePosition: 0
+  property real horizontalGuidePosition: 0
 
   readonly property var draft: dashboard.placementDraft
   readonly property var rect: draft ? draft.rect : ({ x: 0, y: 0, w: 0, h: 0 })
@@ -64,9 +66,11 @@ Item {
         h: startRect.h
       }
       var alignment = GridEngine.snapRectToCenter(
-        candidate, canvas.width, canvas.height, Math.max(12, step / 2))
+        candidate, canvas.width, canvas.height, Math.max(12, step / 2), step)
       verticalGuideVisible = alignment.vertical
       horizontalGuideVisible = alignment.horizontal
+      verticalGuidePosition = alignment.verticalPosition
+      horizontalGuidePosition = alignment.horizontalPosition
       dashboard.updatePlacementRect(alignment.rect)
     }
   }
@@ -82,6 +86,8 @@ Item {
     parent: root.canvas
     verticalGuideVisible: root.verticalGuideVisible
     horizontalGuideVisible: root.horizontalGuideVisible
+    verticalGuidePosition: root.verticalGuidePosition
+    horizontalGuidePosition: root.horizontalGuidePosition
   }
 
   TileSilhouette {
