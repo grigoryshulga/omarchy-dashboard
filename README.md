@@ -53,6 +53,93 @@ Dashboard можно открыть кнопкой в bar или командо�
 omarchy-shell shell toggle gshulga.dashboard
 ```
 
+## Управление плагинами из CLI
+
+После установки Dashboard его CLI можно добавить в пользовательский `PATH`:
+
+```bash
+mkdir -p ~/.local/bin
+ln -sfn ~/.config/omarchy/plugins/gshulga.dashboard/bin/omarchy-dashboard \
+  ~/.local/bin/omarchy-dashboard
+```
+
+Установка из Git по умолчанию создаёт **Pending Placement**: плагин уже
+принадлежит Dashboard, но ещё не занимает место ни в одном Space.
+
+```bash
+omarchy-dashboard plugin install https://github.com/acme/weather.git
+```
+
+Такой плагин появляется первым в каталоге с отметкой `Pending placement`.
+Откройте Dashboard, нажмите `Alt+E`, затем `Alt++`, выберите плагин и разместите
+его обычным силуэтом.
+
+Уже установленный плагин также можно отправить в pending:
+
+```bash
+omarchy-dashboard plugin add acme.weather
+```
+
+Если Space и геометрия известны заранее, создайте **Placed Tile** сразу. `Rect`
+задаётся в логических QML-пикселях как `X,Y,W,H` и проверяется строго: Dashboard
+не сдвигает и не уменьшает его при коллизии.
+
+```bash
+omarchy-dashboard plugin install https://github.com/acme/weather.git \
+  --space space-main --rect 0,0,420,300
+
+omarchy-dashboard plugin add acme.weather \
+  --space space-main --rect 0,0,420,300
+```
+
+Автоматическое размещение включается только явно:
+
+```bash
+omarchy-dashboard plugin add acme.weather --space space-main --auto
+```
+
+Полный набор команд:
+
+```bash
+omarchy-dashboard space list
+omarchy-dashboard space create Work --id space-work
+omarchy-dashboard space rename Work Focus
+omarchy-dashboard space select Focus
+omarchy-dashboard space remove Focus --yes
+omarchy-dashboard grid show
+omarchy-dashboard grid set 30
+omarchy-dashboard element add-text Life --space Home --rect 30,15,660,45 --id home-life-title
+omarchy-dashboard element add-divider --space Home --line 30,75,690,75 --id home-life-rule
+omarchy-dashboard element list --space Home
+omarchy-dashboard element remove home-life-rule
+omarchy-dashboard plugin list
+omarchy-dashboard plugin list --state pending --json
+omarchy-dashboard plugin place acme.weather --space space-main --rect 0,0,420,300
+omarchy-dashboard plugin move acme.weather --space space-work --auto
+omarchy-dashboard plugin pending acme.weather
+omarchy-dashboard plugin remove acme.weather
+omarchy-dashboard plugin uninstall acme.weather
+omarchy-dashboard plugin uninstall acme.weather --remove-placement --yes
+```
+
+Встроенная справка рассчитана и на человека, и на агента: общий `--help`
+описывает coordinate model, безопасный provisioning workflow, JSON-контракт и
+коды выхода; help групп и отдельных команд содержит семантику и готовые примеры.
+
+```bash
+omarchy-dashboard --help
+omarchy-dashboard plugin --help
+omarchy-dashboard plugin add --help
+omarchy-dashboard element --help
+```
+
+`element` управляет Dashboard-owned текстом и разделителями; координаты задаются
+в тех же логических пикселях canvas, что и `plugin --rect`. `remove` удаляет
+только Host Placement и сохраняет Plugin Installation на
+диске. `uninstall` удаляет код, но отказывается делать это, пока плагин находится
+в Dashboard, если явно не указан `--remove-placement`. Для automation все
+команды чтения и изменения поддерживают `--json`.
+
 Пример пользовательского Hyprland binding:
 
 ```ini
@@ -228,6 +315,7 @@ omarchy-shell shell call gshulga.dashboard status x
 
 ```bash
 omarchy-shell shell call gshulga.dashboard execute '{"type":"getState"}'
+omarchy-shell shell call gshulga.dashboard execute '{"type":"listHostEntries"}'
 omarchy-shell shell call gshulga.dashboard execute '{"type":"addSpace","name":"Work"}'
 omarchy-shell shell call gshulga.dashboard execute '{"type":"addPlugin","pluginId":"omarchy.network"}'
 omarchy-shell shell call gshulga.dashboard execute '{"type":"setTileEmbedding","embedding":"launcher"}'
@@ -237,7 +325,7 @@ omarchy-shell shell call gshulga.dashboard execute '{"type":"addText","text":"Sy
 omarchy-shell shell call gshulga.dashboard execute '{"type":"addDivider","x1":0,"y1":100,"x2":600,"y2":100}'
 ```
 
-Поддерживаются `status`, `getState`, `listPlugins`, `open`, `close`, `toggle`,
+Поддерживаются `status`, `getState`, `listPlugins`, `listHostEntries`, `open`, `close`, `toggle`,
 `selectSpace`, `nextSpace`, `addSpace`, `renameSpace`, `removeSpace`,
 `addPlugin`, `selectTile`, `removeTile`, `moveTile`, `resizeTile`, `placeTile`,
 `activateTile`, `setTileEmbedding`, `addText`, `updateText`, `addDivider`,

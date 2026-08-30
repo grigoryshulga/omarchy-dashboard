@@ -167,7 +167,9 @@ Item {
             }
             Text {
               width: parent.width
-              text: pluginRow.modelData.compatibility
+              text: pluginRow.modelData.pending
+                ? "Pending placement · " + pluginRow.modelData.compatibility
+                : pluginRow.modelData.compatibility
               color: Color.accent
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
@@ -181,7 +183,7 @@ Item {
             anchors.rightMargin: Style.spacing.md
             anchors.verticalCenter: parent.verticalCenter
             icon: "\uf067"
-            text: "Add"
+            text: pluginRow.modelData.pending ? "Place" : "Add"
             accent: true
             onClicked: root.pluginRequested(pluginRow.modelData.id)
           }

@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell.Io
 import "GridEngine.js" as GridEngine
+import "HostPlacements.js" as HostPlacements
 import "PluginControls.js" as PluginControls
 import "PluginIconResolver.js" as PluginIconResolver
 import "PluginPresentation.js" as PluginPresentation
@@ -17,6 +18,7 @@ Item {
   property bool active: false
   property var tiles: []
   property var spaces: []
+  property var pendingPlacements: []
 
   property var adaptations: ({})
   property var adaptationErrors: ({})
@@ -26,6 +28,8 @@ Item {
 
   readonly property int registryRevision: registry ? registry.registryRevision : 0
   readonly property var availablePlugins: discoverAvailablePlugins()
+  readonly property var hostEntries: HostPlacements.entries(
+    shell ? shell.shellConfig : null, dashboardPluginId)
 
   function descriptor(id) {
     if (!registry || !registry.installedPlugins) return null
@@ -43,10 +47,18 @@ Item {
       availablePresentations: capabilities.available,
       preferredPresentation: capabilities.preferred,
       canLaunchNative: capabilities.hasNativeSurface,
+      pending: isPending(resolved),
       icon: icon.value,
       iconKind: icon.kind,
       manifest: pluginManifest
     }
+  }
+
+  function isPending(id) {
+    var pending = Array.isArray(pendingPlacements) ? pendingPlacements : []
+    for (var index = 0; index < pending.length; index++)
+      if (pending[index] && String(pending[index].pluginId) === String(id)) return true
+    return false
   }
 
   function discoverAvailablePlugins() {
@@ -65,7 +77,10 @@ Item {
       if (!entry || entry.id === dashboardPluginId || used[entry.id]) continue
       entries.push(entry)
     }
-    entries.sort(function(left, right) { return left.name.localeCompare(right.name) })
+    entries.sort(function(left, right) {
+      if (left.pending !== right.pending) return left.pending ? -1 : 1
+      return left.name.localeCompare(right.name)
+    })
     return entries
   }
 
@@ -100,7 +115,7 @@ Item {
   }
 
   function enable(id, pluginManifest) {
-    if (!shell || !shell.pluginRegistry || shell.pluginRegistry.isEnabled(id)) return true
+    if (!shell || !shell.pluginRegistry) return false
     if (typeof shell.mutateShellConfig !== "function") return false
     try {
       shell.mutateShellConfig(function(config) {
@@ -108,6 +123,9 @@ Item {
         config.disabledPlugins = disabled.filter(function(entry) { return String(entry) !== id })
         if (config.disabledPlugins.length === 0) delete config.disabledPlugins
         if (pluginManifest && pluginManifest.__isFirstParty) return
+        // Compatibility adapter for Omarchy 4.0.1. The native reference lives
+        // in config.hosts; the current shell still consults plugins[] when it
+        // decides whether to load a third-party component/service.
         if (!Array.isArray(config.plugins)) config.plugins = []
         for (var index = 0; index < config.plugins.length; index++)
           if (config.plugins[index] && String(config.plugins[index].id) === id) return
@@ -116,6 +134,31 @@ Item {
       return true
     } catch (error) {
       console.warn("Dashboard: failed to enable " + id + ":", error)
+      return false
+    }
+  }
+
+  function syncHostPlacements(document) {
+    if (!shell || typeof shell.mutateShellConfig !== "function") return false
+    var desired = HostPlacements.references(document)
+    try {
+      shell.mutateShellConfig(function(config) {
+        HostPlacements.synchronize(config, dashboardPluginId, desired)
+        // Keep current Omarchy able to load every third-party hosted plugin.
+        if (!Array.isArray(config.plugins)) config.plugins = []
+        for (var index = 0; index < desired.length; index++) {
+          var id = desired[index].id
+          var manifest = registry && registry.installedPlugins ? registry.installedPlugins[id] : null
+          if (manifest && manifest.__isFirstParty) continue
+          var found = false
+          for (var pluginIndex = 0; pluginIndex < config.plugins.length; pluginIndex++)
+            if (config.plugins[pluginIndex] && String(config.plugins[pluginIndex].id) === id) found = true
+          if (!found) config.plugins.push({ id: id })
+        }
+      })
+      return true
+    } catch (error) {
+      console.warn("Dashboard: failed to synchronize host placements:", error)
       return false
     }
   }
@@ -230,6 +273,9 @@ Item {
 
   function pluginSettings(id) {
     try {
+      var hosted = HostPlacements.settingsFor(
+        shell ? shell.shellConfig : null, dashboardPluginId, id, "")
+      if (Object.keys(hosted).length > 0) return hosted
       if (shell && shell.bar && typeof shell.bar.moduleWidgets === "function") {
         var widgets = shell.bar.moduleWidgets(id)
         if (widgets.length > 0 && widgets[0] && widgets[0].settings) return widgets[0].settings
