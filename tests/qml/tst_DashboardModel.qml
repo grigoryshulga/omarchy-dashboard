@@ -10,7 +10,6 @@ import "../../qml/runtime/PluginControls.js" as PluginControls
 import "../../qml/runtime/PluginIconResolver.js" as PluginIconResolver
 import "../../qml/runtime/PluginPresentation.js" as PluginPresentation
 import "../../qml/core/SpatialNavigation.js" as SpatialNavigation
-import "../../qml/core/KeyboardBindings.js" as KeyboardBindings
 
 TestCase {
   name: "DashboardModel"
@@ -38,6 +37,30 @@ TestCase {
     function selectTile(direction) { selectedDirection = direction }
   }
 
+  QtObject {
+    id: globalShortcutDashboard
+    property string overlay: ""
+    property string mode: "edit"
+    property bool placingPlugin: false
+    property bool placingDivider: false
+    property string selectedTileId: "tile"
+    property string selectedElementId: ""
+    property int moveCalls: 0
+    property int resizeCalls: 0
+    function moveSelectedItemByGrid(dx, dy) { moveCalls += 1 }
+    function resizeSelectedItemByGrid(dw, dh) { resizeCalls += 1 }
+    function moveSpace(delta) { moveCalls += 1 }
+  }
+
+  QtObject {
+    id: globalShortcutSurface
+    property int focusRequests: 0
+    function retainKeyboardFocus() { focusRequests += 1 }
+    function beginCreate() {}
+    function beginRename() {}
+    function requestSpaceRemoval() {}
+  }
+
   DashboardUi.DashboardSpaceShortcuts {
     id: spaceShortcuts
     dashboard: shortcutDashboard
@@ -47,6 +70,13 @@ TestCase {
   DashboardUi.DashboardTileNavigationShortcuts {
     id: tileNavigationShortcuts
     dashboard: tileShortcutDashboard
+    active: true
+  }
+
+  DashboardUi.DashboardGlobalShortcuts {
+    id: globalShortcuts
+    dashboard: globalShortcutDashboard
+    surface: globalShortcutSurface
     active: true
   }
 
@@ -238,10 +268,17 @@ TestCase {
     compare(tileShortcutDashboard.selectedDirection, "left")
   }
 
-  function test_edit_keyboard_bindings_keep_move_and_resize_distinct() {
-    compare(KeyboardBindings.editDirectionAction(true, false, false), "move")
-    compare(KeyboardBindings.editDirectionAction(false, false, true), "resize")
-    compare(KeyboardBindings.editDirectionAction(true, false, true), "")
+  function test_global_shortcuts_dispatch_repeated_edit_commands_without_item_focus() {
+    globalShortcutDashboard.moveCalls = 0
+    globalShortcutDashboard.resizeCalls = 0
+    globalShortcutSurface.focusRequests = 0
+    globalShortcuts.move("left")
+    globalShortcuts.move("left")
+    globalShortcuts.resize("right")
+    globalShortcuts.resize("right")
+    compare(globalShortcutDashboard.moveCalls, 2)
+    compare(globalShortcutDashboard.resizeCalls, 2)
+    compare(globalShortcutSurface.focusRequests, 4)
   }
 
   function test_space_shortcut_is_suspended_while_an_overlay_is_open() {

@@ -7,7 +7,6 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import "../core/GridEngine.js" as GridEngine
-import "../core/KeyboardBindings.js" as KeyboardBindings
 
 PanelWindow {
   id: root
@@ -128,14 +127,6 @@ PanelWindow {
     Qt.callLater(function() { if (root.visible) keyCatcher.forceActiveFocus() })
   }
 
-  function directionForKey(key) {
-    if (key === Qt.Key_Left || key === Qt.Key_H) return "left"
-    if (key === Qt.Key_Right || key === Qt.Key_L) return "right"
-    if (key === Qt.Key_Up || key === Qt.Key_K) return "up"
-    if (key === Qt.Key_Down || key === Qt.Key_J) return "down"
-    return ""
-  }
-
   function handleKey(event) {
     var alt = (event.modifiers & Qt.AltModifier) !== 0
     var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
@@ -173,31 +164,7 @@ PanelWindow {
       return
     }
 
-    if (dashboard.placingPlugin) {
-      var placementDirection = directionForKey(event.key)
-      if (placementDirection) {
-        var horizontal = placementDirection === "left" ? -1 : (placementDirection === "right" ? 1 : 0)
-        var vertical = placementDirection === "up" ? -1 : (placementDirection === "down" ? 1 : 0)
-        if (shift) dashboard.resizePlacementByGrid(horizontal, vertical)
-        else dashboard.movePlacementByGrid(horizontal, vertical)
-        retainKeyboardFocus()
-        event.accepted = true
-      } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-        dashboard.confirmPluginPlacement()
-        event.accepted = true
-      }
-      return
-    }
-
     if (ctrl && !alt && dashboard.activateKeyboardShortcut(event.key)) {
-      event.accepted = true
-      return
-    }
-
-    if (event.key === Qt.Key_Tab && ctrl) {
-      dashboard.cycleTile(shift ? -1 : 1)
-      dashboard.mode = "browse"
-      keyCatcher.forceActiveFocus()
       event.accepted = true
       return
     }
@@ -206,57 +173,10 @@ PanelWindow {
       return
     }
 
-    var direction = directionForKey(event.key)
-    var editDirectionAction = KeyboardBindings.editDirectionAction(alt, ctrl, shift)
-    if ((direction === "left" || direction === "right") && editDirectionAction === "move") {
-      if (dashboard.mode === "edit" && (dashboard.selectedTileId || dashboard.selectedElementId))
-        dashboard.moveSelectedItemByGrid(direction === "left" ? -1 : 1, 0)
-      else dashboard.moveSpace(direction === "left" ? -1 : 1)
-      retainKeyboardFocus()
-      event.accepted = true
-    } else if ((direction === "up" || direction === "down") && editDirectionAction === "move"
-               && dashboard.mode === "edit") {
-      dashboard.moveSelectedItemByGrid(0, direction === "up" ? -1 : 1)
-      retainKeyboardFocus()
-      event.accepted = true
-    } else if (editDirectionAction === "resize" && dashboard.mode === "edit"
-               && direction) {
-      dashboard.resizeSelectedItemByGrid(
-        direction === "left" ? -1 : (direction === "right" ? 1 : 0),
-        direction === "up" ? -1 : (direction === "down" ? 1 : 0)
-      )
-      retainKeyboardFocus()
-      event.accepted = true
-    } else if (event.key === Qt.Key_PageUp) {
-      dashboard.moveSpace(-1); event.accepted = true
-    } else if (event.key === Qt.Key_PageDown) {
-      dashboard.moveSpace(1); event.accepted = true
-    } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && dashboard.mode === "browse") {
+    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && dashboard.mode === "browse") {
       enterInteract(); event.accepted = true
-    } else if (event.key === Qt.Key_E && alt) {
-      dashboard.toggleEditMode()
-      event.accepted = true
-    } else if (event.key === Qt.Key_V && alt && dashboard.mode === "edit") {
-      dashboard.toggleSurfaceMode()
-      event.accepted = true
-    } else if ((event.key === Qt.Key_Plus || event.key === Qt.Key_Equal) && alt
-               && dashboard.mode === "edit") {
-      dashboard.overlay = "catalog"
-      event.accepted = true
     } else if (event.key === Qt.Key_Question || (event.key === Qt.Key_Slash && shift)) {
       dashboard.overlay = "help"
-      event.accepted = true
-    } else if (event.key === Qt.Key_C && alt && dashboard.mode === "edit") {
-      beginCreate(); event.accepted = true
-    } else if (event.key === Qt.Key_R && alt && dashboard.mode === "edit") {
-      beginRename(); event.accepted = true
-    } else if (event.key === Qt.Key_X && alt && dashboard.mode === "edit") {
-      requestSpaceRemoval(dashboard.activeSpace.id); event.accepted = true
-    } else if ((event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace)
-               && dashboard.mode === "edit"
-               && (dashboard.selectedTileId || dashboard.selectedElementId)) {
-      if (dashboard.selectedElementId) dashboard.removeElement(dashboard.selectedElementId)
-      else dashboard.removeTile(dashboard.selectedTileId)
       event.accepted = true
     }
   }
@@ -283,6 +203,12 @@ PanelWindow {
 
   DashboardTileNavigationShortcuts {
     dashboard: root.dashboard
+    active: root.visible
+  }
+
+  DashboardGlobalShortcuts {
+    dashboard: root.dashboard
+    surface: root
     active: root.visible
   }
 
