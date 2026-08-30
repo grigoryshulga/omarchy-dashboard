@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Io
+import qs.Commons
 import "../core/GridEngine.js" as GridEngine
 import "../core/HostPlacements.js" as HostPlacements
 import "PluginControls.js" as PluginControls
@@ -31,6 +32,19 @@ Item {
   property string adaptingPluginId: ""
   property int pluginEpoch: 0
   property var scannedIcons: ({})
+
+  // Adapted bar panels are rendered inside the Dashboard surface, not on the
+  // bar. Give them Dashboard's foreground palette while retaining the shell
+  // reference that plugins use for settings and services.
+  QtObject {
+    id: dashboardBar
+
+    property color barForeground: Color.popups.text
+    property color foreground: Color.popups.text
+    property color urgent: Color.accent
+    property string fontFamily: Style.font.family
+    property var shell: root.shell
+  }
 
   readonly property int registryRevision: registry ? registry.registryRevision : 0
   readonly property var availablePlugins: discoverAvailablePlugins()
@@ -353,7 +367,7 @@ Item {
       settings: pluginSettings(tile.pluginId),
       service: service,
       shell: shell,
-      bar: shell ? shell.bar : null
+      bar: adaptations[tile.pluginId] ? dashboardBar : (shell ? shell.bar : null)
     }
     try {
       if (typeof page.initializeDashboard === "function") page.initializeDashboard(context)
