@@ -8,8 +8,26 @@ Item {
   id: root
 
   required property var dashboard
-  required property string tileRecordJson
-  readonly property var tile: JSON.parse(tileRecordJson)
+  required property string tileId
+  required property string tilePluginId
+  required property string tileLabel
+  required property string tileEmbedding
+  required property real tileX
+  required property real tileY
+  required property real tileW
+  required property real tileH
+  readonly property var tile: tileData
+  QtObject {
+    id: tileData
+    property string id: root.tileId
+    property string pluginId: root.tilePluginId
+    property string label: root.tileLabel
+    property string embedding: root.tileEmbedding
+    property real x: root.tileX
+    property real y: root.tileY
+    property real w: root.tileW
+    property real h: root.tileH
+  }
   required property Item canvas
   property real gridWidth: 0
   property real gridHeight: 0
