@@ -365,24 +365,59 @@ PanelWindow {
 
           Item {
             id: spaceTitle
-            anchors.left: parent.left
-            anchors.leftMargin: Style.spacing.sm
+            anchors.right: spaceSwitcher.left
+            anchors.rightMargin: Style.spacing.lg
             anchors.verticalCenter: parent.verticalCenter
             width: dashboard.overlay === "rename"
-              ? Style.space(190)
-              : Math.min(Style.space(280), Math.max(Style.space(72), activeSpaceName.implicitWidth))
-            height: Style.space(30)
+              ? Style.space(220)
+              : Math.min(Style.space(300), Math.max(Style.space(128), activeSpaceName.implicitWidth + Style.space(88)))
+            height: Style.space(28)
+
+            Rectangle {
+              anchors.fill: parent
+              visible: dashboard.overlay !== "rename"
+              radius: height / 2
+              color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.07)
+              border.width: 1
+              border.color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.14)
+            }
+
+            Text {
+              id: spaceLabel
+              anchors.left: parent.left
+              anchors.leftMargin: Style.spacing.sm
+              anchors.verticalCenter: parent.verticalCenter
+              visible: dashboard.overlay !== "rename"
+              text: "SPACE"
+              color: Color.popups.text
+              opacity: 0.48
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              font.bold: true
+            }
+
+            Rectangle {
+              anchors.left: spaceLabel.right
+              anchors.leftMargin: Style.spacing.sm
+              anchors.verticalCenter: parent.verticalCenter
+              visible: dashboard.overlay !== "rename"
+              width: 1
+              height: Style.space(12)
+              color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.22)
+            }
 
             Text {
               id: activeSpaceName
-              anchors.left: parent.left
+              anchors.left: spaceLabel.right
+              anchors.leftMargin: Style.spacing.md + 1
+              anchors.right: parent.right
+              anchors.rightMargin: Style.spacing.md
               anchors.verticalCenter: parent.verticalCenter
-              width: parent.width
               visible: dashboard.overlay !== "rename"
               text: dashboard.activeSpace.name
               color: Color.popups.text
               font.family: Style.font.family
-              font.pixelSize: Style.font.title
+              font.pixelSize: Style.font.subtitle
               font.bold: true
               elide: Text.ElideRight
             }
