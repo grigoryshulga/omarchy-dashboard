@@ -10,6 +10,7 @@ import "../../qml/runtime/PluginControls.js" as PluginControls
 import "../../qml/runtime/PluginIconResolver.js" as PluginIconResolver
 import "../../qml/runtime/PluginPresentation.js" as PluginPresentation
 import "../../qml/core/SpatialNavigation.js" as SpatialNavigation
+import "../../qml/core/KeyboardBindings.js" as KeyboardBindings
 
 TestCase {
   name: "DashboardModel"
@@ -235,6 +236,12 @@ TestCase {
     tileShortcutDashboard.selectedDirection = ""
     tileNavigationShortcuts.select("left")
     compare(tileShortcutDashboard.selectedDirection, "left")
+  }
+
+  function test_edit_keyboard_bindings_keep_move_and_resize_distinct() {
+    compare(KeyboardBindings.editDirectionAction(true, false, false), "move")
+    compare(KeyboardBindings.editDirectionAction(false, false, true), "resize")
+    compare(KeyboardBindings.editDirectionAction(true, false, true), "")
   }
 
   function test_space_shortcut_is_suspended_while_an_overlay_is_open() {

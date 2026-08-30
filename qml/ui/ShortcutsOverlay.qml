@@ -20,7 +20,7 @@ Item {
     { key: "Alt++", action: "Open plugin catalog (edit)" },
     { key: "Alt+E", action: "Toggle edit mode" },
     { key: "Alt+arrows / Alt+H J K L", action: "Move the selected tile, text, or divider" },
-    { key: "Shift+Alt+arrows / Shift+Alt+H J K L", action: "Resize the selected tile, text, or divider" },
+    { key: "Shift+arrows / Shift+H J K L", action: "Resize the selected tile, text, or divider" },
     { key: "Edit toolbar", action: "Draw a divider or add scalable text" },
     { key: "Placement: arrows or H J K L / Shift", action: "Move / resize; Enter places, Esc cancels" },
     { key: "Alt+C / Alt+R", action: "Create or rename a Space" },

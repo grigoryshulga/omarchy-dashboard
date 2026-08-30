@@ -7,6 +7,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import "../core/GridEngine.js" as GridEngine
+import "../core/KeyboardBindings.js" as KeyboardBindings
 
 PanelWindow {
   id: root
@@ -126,6 +127,10 @@ PanelWindow {
     }
   }
 
+  function retainKeyboardFocus() {
+    Qt.callLater(function() { if (root.visible) keyCatcher.forceActiveFocus() })
+  }
+
   function directionForKey(key) {
     if (key === Qt.Key_Left || key === Qt.Key_H) return "left"
     if (key === Qt.Key_Right || key === Qt.Key_L) return "right"
@@ -178,6 +183,7 @@ PanelWindow {
         var vertical = placementDirection === "up" ? -1 : (placementDirection === "down" ? 1 : 0)
         if (shift) dashboard.resizePlacementByGrid(horizontal, vertical)
         else dashboard.movePlacementByGrid(horizontal, vertical)
+        retainKeyboardFocus()
         event.accepted = true
       } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
         dashboard.confirmPluginPlacement()
@@ -204,21 +210,25 @@ PanelWindow {
     }
 
     var direction = directionForKey(event.key)
-    if ((direction === "left" || direction === "right") && alt && !ctrl) {
+    var editDirectionAction = KeyboardBindings.editDirectionAction(alt, ctrl, shift)
+    if ((direction === "left" || direction === "right") && editDirectionAction === "move") {
       if (dashboard.mode === "edit" && (dashboard.selectedTileId || dashboard.selectedElementId))
         dashboard.moveSelectedItemByGrid(direction === "left" ? -1 : 1, 0)
       else dashboard.moveSpace(direction === "left" ? -1 : 1)
+      retainKeyboardFocus()
       event.accepted = true
-    } else if ((direction === "up" || direction === "down") && alt && !ctrl
+    } else if ((direction === "up" || direction === "down") && editDirectionAction === "move"
                && dashboard.mode === "edit") {
       dashboard.moveSelectedItemByGrid(0, direction === "up" ? -1 : 1)
+      retainKeyboardFocus()
       event.accepted = true
-    } else if (shift && alt && dashboard.mode === "edit"
+    } else if (editDirectionAction === "resize" && dashboard.mode === "edit"
                && direction) {
       dashboard.resizeSelectedItemByGrid(
         direction === "left" ? -1 : (direction === "right" ? 1 : 0),
         direction === "up" ? -1 : (direction === "down" ? 1 : 0)
       )
+      retainKeyboardFocus()
       event.accepted = true
     } else if (event.key === Qt.Key_PageUp) {
       dashboard.moveSpace(-1); event.accepted = true
