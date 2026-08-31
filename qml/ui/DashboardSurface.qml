@@ -298,27 +298,42 @@ PanelWindow {
         dashboard.shortcutHintsVisible = false
     }
 
-    SwipeHandler {
+    MultiPointTouchArea {
       id: spaceSwipe
-      target: null
-      minimumPointCount: 3
-      maximumPointCount: 3
-      xAxis.enabled: true
-      yAxis.enabled: true
+      anchors.fill: parent
+      minimumTouchPoints: 3
+      maximumTouchPoints: 3
+      mouseEnabled: false
       enabled: root.visible && dashboard.mode === "browse" && dashboard.overlay === ""
         && !dashboard.placingPlugin && !dashboard.placingDivider
+      property real startHorizontal: 0
+      property real startVertical: 0
       property real completedHorizontal: 0
       property real completedVertical: 0
-      onActiveChanged: {
-        if (active) {
-          completedHorizontal = 0
-          completedVertical = 0
-        } else root.handleSpaceSwipe(completedHorizontal, completedVertical)
+
+      function center(touchPoints) {
+        var x = 0
+        var y = 0
+        for (var index = 0; index < touchPoints.length; index++) {
+          x += touchPoints[index].x
+          y += touchPoints[index].y
+        }
+        return { x: x / touchPoints.length, y: y / touchPoints.length }
       }
-      onTranslationChanged: {
-        completedHorizontal = translation.x
-        completedVertical = translation.y
+
+      onPressed: function(touchPoints) {
+        var point = center(touchPoints)
+        startHorizontal = point.x
+        startVertical = point.y
+        completedHorizontal = 0
+        completedVertical = 0
       }
+      onUpdated: function(touchPoints) {
+        var point = center(touchPoints)
+        completedHorizontal = point.x - startHorizontal
+        completedVertical = point.y - startVertical
+      }
+      onReleased: root.handleSpaceSwipe(completedHorizontal, completedVertical)
     }
 
     Rectangle {
