@@ -37,6 +37,10 @@ Item {
   property var startRect: null
   property bool dragging: false
   property bool resizing: false
+  property bool resizeLeft: false
+  property bool resizeRight: false
+  property bool resizeTop: false
+  property bool resizeBottom: false
   property bool verticalGuideVisible: false
   property bool horizontalGuideVisible: false
   property real verticalGuidePosition: 0
@@ -58,6 +62,7 @@ Item {
   readonly property string sourceUrl: String(presentation.source || "")
   readonly property bool compactActionTile: (presentation.kind === "launcher" || presentation.kind === "control")
     && Math.min(width, height) < Style.space(96)
+  readonly property real resizeHandleWidth: Math.max(Style.space(10), Style.spacing.sm * 2)
 
   x: tile.x
   y: tile.y
@@ -69,14 +74,18 @@ Item {
     return mouseArea.mapToItem(canvas, mouse.x, mouse.y)
   }
 
-  function beginPointer(mouseArea, mouse, resizeMode) {
+  function beginPointer(mouseArea, mouse, resizeEdges) {
     dashboard.selectTileId(tile.id)
     var point = pointInCanvas(mouseArea, mouse)
     pointerStart = Qt.point(point.x, point.y)
     startRect = { x: tile.x, y: tile.y, w: tile.w, h: tile.h }
     previewRect = { x: tile.x, y: tile.y, w: tile.w, h: tile.h }
-    dragging = !resizeMode
-    resizing = resizeMode
+    resizeLeft = resizeEdges && resizeEdges.left === true
+    resizeRight = resizeEdges && resizeEdges.right === true
+    resizeTop = resizeEdges && resizeEdges.top === true
+    resizeBottom = resizeEdges && resizeEdges.bottom === true
+    resizing = resizeLeft || resizeRight || resizeTop || resizeBottom
+    dragging = !resizing
     verticalGuideVisible = false
     horizontalGuideVisible = false
   }
@@ -93,13 +102,24 @@ Item {
       var compact = presentation.kind === "launcher" || presentation.kind === "control"
       var minW = compact ? GridEngine.MIN_WIDTH : hints.minW
       var minH = compact ? GridEngine.MIN_HEIGHT : hints.minH
+      var left = startRect.x
+      var right = startRect.x + startRect.w
+      var top = startRect.y
+      var bottom = startRect.y + startRect.h
+      if (resizeLeft)
+        left = Math.max(0, Math.min(right - minW,
+          GridEngine.snapFrom(startRect.x, deltaX, gridStep)))
+      else if (resizeRight)
+        right = Math.min(gridWidth, Math.max(left + minW,
+          GridEngine.snapFrom(startRect.x + startRect.w, deltaX, gridStep)))
+      if (resizeTop)
+        top = Math.max(0, Math.min(bottom - minH,
+          GridEngine.snapFrom(startRect.y, deltaY, gridStep)))
+      else if (resizeBottom)
+        bottom = Math.min(gridHeight, Math.max(top + minH,
+          GridEngine.snapFrom(startRect.y + startRect.h, deltaY, gridStep)))
       candidate = {
-        x: startRect.x,
-        y: startRect.y,
-        w: Math.max(minW, Math.min(gridWidth - startRect.x,
-          GridEngine.snapFrom(startRect.w, deltaX, gridStep))),
-        h: Math.max(minH, Math.min(gridHeight - startRect.y,
-          GridEngine.snapFrom(startRect.h, deltaY, gridStep)))
+        x: left, y: top, w: right - left, h: bottom - top
       }
     } else {
       candidate = {
@@ -129,6 +149,10 @@ Item {
   function clearPointer() {
     dragging = false
     resizing = false
+    resizeLeft = false
+    resizeRight = false
+    resizeTop = false
+    resizeBottom = false
     verticalGuideVisible = false
     horizontalGuideVisible = false
     previewRect = null
@@ -238,6 +262,31 @@ Item {
     dashboard.plugins.requestAdaptation(tile.pluginId)
   Component.onDestruction: unloadPage("tile-destroyed")
 
+  component ResizeHandle: MouseArea {
+    id: resizeHandle
+    property bool resizeLeft: false
+    property bool resizeRight: false
+    property bool resizeTop: false
+    property bool resizeBottom: false
+
+    enabled: root.editing
+    hoverEnabled: true
+    preventStealing: true
+    cursorShape: (resizeLeft && resizeTop) || (resizeRight && resizeBottom)
+      ? Qt.SizeFDiagCursor
+      : ((resizeRight && resizeTop) || (resizeLeft && resizeBottom)
+        ? Qt.SizeBDiagCursor
+        : ((resizeLeft || resizeRight) ? Qt.SizeHorCursor : Qt.SizeVerCursor))
+    onPressed: function(mouse) {
+      root.beginPointer(resizeHandle, mouse, {
+        left: resizeLeft, right: resizeRight, top: resizeTop, bottom: resizeBottom
+      })
+    }
+    onPositionChanged: function(mouse) { root.updatePointer(resizeHandle, mouse) }
+    onReleased: root.finishPointer()
+    onCanceled: root.cancelPointer()
+  }
+
   CanvasAlignmentGuides {
     parent: root.canvas
     verticalGuideVisible: root.verticalGuideVisible
@@ -254,7 +303,7 @@ Item {
     color: root.presentation.kind === "launcher" && actionMouse.containsMouse
       ? Style.hoverFillFor(Color.popups.text, Color.accent)
       : Color.popups.background
-    border.width: 1
+    border.width: root.editing ? Style.space(3) : 1
     border.color: root.selected
       ? Color.accent
       : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.09)
@@ -483,7 +532,7 @@ Item {
       visible: root.presentation.contentLayout === "edge-to-edge"
       radius: Style.cornerRadius
       color: "transparent"
-      border.width: 1
+      border.width: root.editing ? Style.space(3) : 1
       border.color: root.selected
         ? Color.accent
         : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.09)
@@ -552,6 +601,90 @@ Item {
       onCanceled: root.cancelPointer()
     }
 
+    ResizeHandle {
+      z: 25
+      anchors.left: parent.left
+      anchors.top: parent.top
+      width: root.resizeHandleWidth
+      height: width
+      resizeLeft: true
+      resizeTop: true
+    }
+
+    ResizeHandle {
+      z: 25
+      anchors.right: parent.right
+      anchors.top: parent.top
+      width: root.resizeHandleWidth
+      height: width
+      resizeRight: true
+      resizeTop: true
+    }
+
+    ResizeHandle {
+      z: 25
+      anchors.left: parent.left
+      anchors.bottom: parent.bottom
+      width: root.resizeHandleWidth
+      height: width
+      resizeLeft: true
+      resizeBottom: true
+    }
+
+    ResizeHandle {
+      z: 25
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      width: root.resizeHandleWidth
+      height: width
+      resizeRight: true
+      resizeBottom: true
+    }
+
+    ResizeHandle {
+      z: 25
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: parent.top
+      anchors.leftMargin: root.resizeHandleWidth
+      anchors.rightMargin: root.resizeHandleWidth
+      height: root.resizeHandleWidth
+      resizeTop: true
+    }
+
+    ResizeHandle {
+      z: 25
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      anchors.leftMargin: root.resizeHandleWidth
+      anchors.rightMargin: root.resizeHandleWidth
+      height: root.resizeHandleWidth
+      resizeBottom: true
+    }
+
+    ResizeHandle {
+      z: 25
+      anchors.left: parent.left
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      anchors.topMargin: root.resizeHandleWidth
+      anchors.bottomMargin: root.resizeHandleWidth
+      width: root.resizeHandleWidth
+      resizeLeft: true
+    }
+
+    ResizeHandle {
+      z: 25
+      anchors.right: parent.right
+      anchors.top: parent.top
+      anchors.bottom: parent.bottom
+      anchors.topMargin: root.resizeHandleWidth
+      anchors.bottomMargin: root.resizeHandleWidth
+      width: root.resizeHandleWidth
+      resizeRight: true
+    }
+
     Rectangle {
       visible: root.editing
       anchors.left: parent.left
@@ -609,37 +742,6 @@ Item {
       }
     }
 
-    Rectangle {
-      visible: root.editing
-      anchors.right: parent.right
-      anchors.bottom: parent.bottom
-      anchors.margins: Style.spacing.xs
-      width: Style.space(24)
-      height: width
-      radius: Style.cornerRadius
-      z: 30
-      color: resizeArea.containsMouse || root.resizing ? Color.accent
-        : Qt.rgba(Color.popups.background.r, Color.popups.background.g, Color.popups.background.b, 0.88)
-      Text {
-        textFormat: Text.PlainText
-        anchors.centerIn: parent
-        text: "\uf065"
-        color: Color.popups.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-      }
-      MouseArea {
-        id: resizeArea
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.SizeFDiagCursor
-        preventStealing: true
-        onPressed: function(mouse) { root.beginPointer(resizeArea, mouse, true) }
-        onPositionChanged: function(mouse) { root.updatePointer(resizeArea, mouse) }
-        onReleased: root.finishPointer()
-        onCanceled: root.cancelPointer()
-      }
-    }
   }
 
   Item {

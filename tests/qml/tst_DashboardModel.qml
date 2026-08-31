@@ -642,6 +642,22 @@ TestCase {
     compare(state.spaces[0].tiles[0].h, 120)
   }
 
+  function test_tile_can_resize_from_left_and_top_edges() {
+    var state = DashboardModel.normalize({
+      version: DashboardModel.VERSION,
+      activeSpaceId: "main",
+      spaces: [{ id: "main", name: "Main", tiles: [tile("resizable", 100, 100, 200, 200)] }]
+    })
+    state = DashboardModel.apply(state, {
+      type: "placeTile", spaceId: "main", tileId: "resizable",
+      rect: { x: 50, y: 70, w: 250, h: 230 }
+    }, 800, 600)
+    compare(state.spaces[0].tiles[0].x, 50)
+    compare(state.spaces[0].tiles[0].y, 70)
+    compare(state.spaces[0].tiles[0].w, 250)
+    compare(state.spaces[0].tiles[0].h, 230)
+  }
+
   function test_launcher_tiles_can_resize_to_the_grid_minimum() {
     var state = DashboardModel.normalize({
       version: DashboardModel.VERSION,
