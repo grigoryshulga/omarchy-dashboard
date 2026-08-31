@@ -56,7 +56,7 @@ Item {
     && GridEngine.canPlace(previewRect, dashboard.activeTiles, tile.id, gridWidth, gridHeight)
   readonly property var presentation: dashboard.plugins.presentation(tile)
   readonly property string sourceUrl: String(presentation.source || "")
-  readonly property bool compactLauncher: presentation.kind === "launcher"
+  readonly property bool compactActionTile: (presentation.kind === "launcher" || presentation.kind === "control")
     && Math.min(width, height) < Style.space(96)
 
   x: tile.x
@@ -90,8 +90,9 @@ Item {
     var candidate
     if (resizing) {
       var hints = dashboard.plugins.sizeHints(tile.pluginId, gridWidth, gridHeight)
-      var minW = presentation.kind === "launcher" ? GridEngine.MIN_WIDTH : hints.minW
-      var minH = presentation.kind === "launcher" ? GridEngine.MIN_HEIGHT : hints.minH
+      var compact = presentation.kind === "launcher" || presentation.kind === "control"
+      var minW = compact ? GridEngine.MIN_WIDTH : hints.minW
+      var minH = compact ? GridEngine.MIN_HEIGHT : hints.minH
       candidate = {
         x: startRect.x,
         y: startRect.y,
@@ -263,7 +264,8 @@ Item {
     Item {
       id: content
       anchors.fill: parent
-      anchors.margins: root.presentation.contentLayout === "edge-to-edge" ? 0 : Style.space(10)
+      anchors.margins: root.presentation.contentLayout === "edge-to-edge" ? 0
+        : (root.compactActionTile ? Style.space(3) : Style.space(10))
       clip: true
       z: root.presentation.kind === "launcher" || root.presentation.kind === "control" ? 5 : 0
 
@@ -333,13 +335,13 @@ Item {
       Column {
         anchors.centerIn: parent
         width: Math.max(0, parent.width - Style.spacing.lg * 2)
-        spacing: root.compactLauncher ? 0 : Style.spacing.md
+        spacing: root.compactActionTile ? 0 : Style.spacing.md
         visible: root.presentation.kind === "launcher"
         opacity: root.presentation.canLaunch ? 1 : 0.52
 
         Item {
           anchors.horizontalCenter: parent.horizontalCenter
-          width: root.compactLauncher
+          width: root.compactActionTile
             ? Math.max(0, Math.min(Style.space(104), content.width, content.height))
             : Math.max(Style.space(38), Math.min(
               Style.space(104), content.width * 0.30, content.height * 0.38))
@@ -372,7 +374,7 @@ Item {
         Text {
           textFormat: Text.PlainText
           width: parent.width
-          visible: !root.compactLauncher
+          visible: !root.compactActionTile
           text: root.presentation.name || root.tile.label || root.tile.pluginId
           color: Color.popups.text
           font.family: Style.font.family
@@ -387,7 +389,7 @@ Item {
         Text {
           textFormat: Text.PlainText
           width: parent.width
-          visible: !root.compactLauncher && root.launchError.length > 0
+          visible: !root.compactActionTile && root.launchError.length > 0
           text: root.launchError
           color: Color.accent
           font.family: Style.font.family
@@ -407,7 +409,7 @@ Item {
       Column {
         anchors.centerIn: parent
         width: Math.max(0, parent.width - Style.spacing.lg * 2)
-        spacing: Style.spacing.sm
+        spacing: root.compactActionTile ? 0 : Style.spacing.sm
         visible: root.presentation.kind === "control"
 
         Text {
@@ -417,11 +419,14 @@ Item {
           color: root.presentation.active ? Color.accent : Color.popups.text
           opacity: root.presentation.state === "preparing" ? 0.45 : 0.9
           font.family: Style.font.family
-          font.pixelSize: Style.space(28)
+          font.pixelSize: root.compactActionTile
+            ? Math.max(0, Math.min(Style.space(40), Math.floor(Math.min(content.width, content.height) * 0.65)))
+            : Style.space(28)
         }
         Text {
           textFormat: Text.PlainText
           width: parent.width
+          visible: !root.compactActionTile
           text: root.presentation.name || root.tile.label
           color: Color.popups.text
           font.family: Style.font.family
@@ -432,6 +437,7 @@ Item {
         }
         Rectangle {
           anchors.horizontalCenter: parent.horizontalCenter
+          visible: !root.compactActionTile
           width: controlStatus.implicitWidth + Style.spacing.md * 2
           height: Style.space(24)
           radius: Style.cornerRadius > 0 ? height / 2 : 0
@@ -453,7 +459,7 @@ Item {
         Text {
           textFormat: Text.PlainText
           width: parent.width
-          visible: root.launchError.length > 0
+          visible: !root.compactActionTile && root.launchError.length > 0
           text: root.launchError
           color: Color.accent
           font.family: Style.font.family

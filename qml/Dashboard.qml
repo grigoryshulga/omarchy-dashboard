@@ -814,7 +814,8 @@ Item {
 
   function tileMinimumSize(tileValue) {
     if (!tileValue) return { minW: GridEngine.MIN_WIDTH, minH: GridEngine.MIN_HEIGHT }
-    if (plugins.presentation(tileValue).kind === "launcher")
+    var kind = plugins.presentation(tileValue).kind
+    if (kind === "launcher" || kind === "control")
       return { minW: GridEngine.MIN_WIDTH, minH: GridEngine.MIN_HEIGHT }
     var hints = plugins.sizeHints(tileValue.pluginId, gridWidth, gridHeight)
     return { minW: hints.minW, minH: hints.minH }
