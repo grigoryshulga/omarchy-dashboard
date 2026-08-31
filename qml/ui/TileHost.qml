@@ -56,6 +56,8 @@ Item {
     && GridEngine.canPlace(previewRect, dashboard.activeTiles, tile.id, gridWidth, gridHeight)
   readonly property var presentation: dashboard.plugins.presentation(tile)
   readonly property string sourceUrl: String(presentation.source || "")
+  readonly property bool compactLauncher: presentation.kind === "launcher"
+    && Math.min(width, height) < Style.space(96)
 
   x: tile.x
   y: tile.y
@@ -88,12 +90,14 @@ Item {
     var candidate
     if (resizing) {
       var hints = dashboard.plugins.sizeHints(tile.pluginId, gridWidth, gridHeight)
+      var minW = presentation.kind === "launcher" ? GridEngine.MIN_WIDTH : hints.minW
+      var minH = presentation.kind === "launcher" ? GridEngine.MIN_HEIGHT : hints.minH
       candidate = {
         x: startRect.x,
         y: startRect.y,
-        w: Math.max(hints.minW, Math.min(gridWidth - startRect.x,
+        w: Math.max(minW, Math.min(gridWidth - startRect.x,
           GridEngine.snapFrom(startRect.w, deltaX, gridStep))),
-        h: Math.max(hints.minH, Math.min(gridHeight - startRect.y,
+        h: Math.max(minH, Math.min(gridHeight - startRect.y,
           GridEngine.snapFrom(startRect.h, deltaY, gridStep)))
       }
     } else {
@@ -329,14 +333,16 @@ Item {
       Column {
         anchors.centerIn: parent
         width: Math.max(0, parent.width - Style.spacing.lg * 2)
-        spacing: Style.spacing.md
+        spacing: root.compactLauncher ? 0 : Style.spacing.md
         visible: root.presentation.kind === "launcher"
         opacity: root.presentation.canLaunch ? 1 : 0.52
 
         Item {
           anchors.horizontalCenter: parent.horizontalCenter
-          width: Math.max(Style.space(38), Math.min(
-            Style.space(104), content.width * 0.30, content.height * 0.38))
+          width: root.compactLauncher
+            ? Math.max(0, Math.min(Style.space(104), content.width, content.height))
+            : Math.max(Style.space(38), Math.min(
+              Style.space(104), content.width * 0.30, content.height * 0.38))
           height: width
 
           Image {
@@ -366,6 +372,7 @@ Item {
         Text {
           textFormat: Text.PlainText
           width: parent.width
+          visible: !root.compactLauncher
           text: root.presentation.name || root.tile.label || root.tile.pluginId
           color: Color.popups.text
           font.family: Style.font.family
@@ -380,7 +387,7 @@ Item {
         Text {
           textFormat: Text.PlainText
           width: parent.width
-          visible: root.launchError.length > 0
+          visible: !root.compactLauncher && root.launchError.length > 0
           text: root.launchError
           color: Color.accent
           font.family: Style.font.family

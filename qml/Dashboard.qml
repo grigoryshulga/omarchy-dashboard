@@ -812,13 +812,21 @@ Item {
     resizeSelectedTileWith("resizeTileByGrid", dw, dh)
   }
 
+  function tileMinimumSize(tileValue) {
+    if (!tileValue) return { minW: GridEngine.MIN_WIDTH, minH: GridEngine.MIN_HEIGHT }
+    if (plugins.presentation(tileValue).kind === "launcher")
+      return { minW: GridEngine.MIN_WIDTH, minH: GridEngine.MIN_HEIGHT }
+    var hints = plugins.sizeHints(tileValue.pluginId, gridWidth, gridHeight)
+    return { minW: hints.minW, minH: hints.minH }
+  }
+
   function resizeSelectedTileWith(commandType, dw, dh) {
     if (!selectedTileId) return
     var tile = selectedTile()
-    var hints = plugins.sizeHints(tile ? tile.pluginId : "", gridWidth, gridHeight)
+    var minimum = tileMinimumSize(tile)
     commit({
       type: commandType, spaceId: activeSpace.id, tileId: selectedTileId,
-      dw: dw, dh: dh, minW: hints.minW, minH: hints.minH
+      dw: dw, dh: dh, minW: minimum.minW, minH: minimum.minH
     })
   }
 

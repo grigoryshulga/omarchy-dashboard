@@ -642,6 +642,20 @@ TestCase {
     compare(state.spaces[0].tiles[0].h, 120)
   }
 
+  function test_launcher_tiles_can_resize_to_the_grid_minimum() {
+    var state = DashboardModel.normalize({
+      version: DashboardModel.VERSION,
+      activeSpaceId: "main",
+      spaces: [{ id: "main", name: "Main", tiles: [tile("launcher", 0, 0, 120, 120)] }]
+    })
+    state = DashboardModel.apply(state, {
+      type: "resizeTile", spaceId: "main", tileId: "launcher", dw: -1000, dh: -1000,
+      minW: GridEngine.MIN_WIDTH, minH: GridEngine.MIN_HEIGHT
+    }, 800, 600)
+    compare(state.spaces[0].tiles[0].w, GridEngine.MIN_WIDTH)
+    compare(state.spaces[0].tiles[0].h, GridEngine.MIN_HEIGHT)
+  }
+
   function test_plugins_are_unique_across_spaces() {
     var state = DashboardModel.defaultState()
     state = DashboardModel.apply(state, {
