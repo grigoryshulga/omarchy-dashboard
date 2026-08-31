@@ -459,6 +459,14 @@ Item {
 
     Rectangle {
       anchors.fill: parent
+      visible: root.keyboardShortcutVisible
+      radius: Style.cornerRadius
+      color: Qt.rgba(0, 0, 0, 0.22)
+      z: 5
+    }
+
+    Rectangle {
+      anchors.fill: parent
       visible: root.presentation.contentLayout === "edge-to-edge"
       radius: Style.cornerRadius
       color: "transparent"
@@ -470,12 +478,10 @@ Item {
     }
 
     Rectangle {
-      anchors.left: parent.left
-      anchors.top: parent.top
-      anchors.margins: Style.spacing.sm
       visible: root.keyboardShortcutVisible
-      width: shortcutText.implicitWidth + Style.spacing.md * 2
-      height: Math.max(Style.space(26), shortcutText.implicitHeight + Style.spacing.xs * 2)
+      anchors.centerIn: parent
+      width: Math.max(height, shortcutText.implicitWidth + Style.space(32))
+      height: Style.space(58)
       radius: Style.cornerRadius > 0 ? height / 2 : 0
       z: 25
       color: Qt.rgba(Color.popups.background.r, Color.popups.background.g,
@@ -492,7 +498,7 @@ Item {
         text: root.keyboardShortcut
         color: root.selected ? Color.accent : Color.popups.text
         font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.title
         font.bold: true
       }
     }
