@@ -177,6 +177,7 @@ bindd = SUPER, D, Dashboard, exec, omarchy-shell shell toggle gshulga.dashboard
 
 | Keys | Action |
 | --- | --- |
+| `SUPER+D` | Toggle Dashboard from anywhere |
 | `← ↑ ↓ →` / `H J K L` | Select the nearest tile by geometry |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tile |
 | `Enter` | Give the selected plugin focus (`interact`) |
