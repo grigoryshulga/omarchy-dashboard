@@ -195,6 +195,23 @@ PanelWindow {
     if (visible) {
       dashboard.updateGridBounds(gridCanvas.width, gridCanvas.height)
       Qt.callLater(function() { if (root.visible) keyCatcher.forceActiveFocus() })
+      initialFocusRetry.remaining = 10
+      initialFocusRetry.restart()
+    }
+  }
+
+  Timer {
+    id: initialFocusRetry
+    interval: 100
+    repeat: true
+    property int remaining: 0
+    onTriggered: {
+      if (!root.visible || dashboard.mode !== "browse" || dashboard.overlay !== "" || remaining <= 0) {
+        stop()
+        return
+      }
+      keyCatcher.forceActiveFocus()
+      remaining -= 1
     }
   }
 
