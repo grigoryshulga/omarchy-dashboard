@@ -7,6 +7,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import "../core/GridEngine.js" as GridEngine
+import "../core/SpaceSwipe.js" as SpaceSwipe
 
 PanelWindow {
   id: root
@@ -125,6 +126,16 @@ PanelWindow {
 
   function retainKeyboardFocus() {
     Qt.callLater(function() { if (root.visible) keyCatcher.forceActiveFocus() })
+  }
+
+  function handleSpaceSwipe(horizontal, vertical) {
+    if (!visible || dashboard.mode !== "browse" || dashboard.overlay !== ""
+        || dashboard.placingPlugin || dashboard.placingDivider
+        || dashboard.dashboardState.spaces.length < 2) return
+    var direction = SpaceSwipe.directionForTranslation(horizontal, vertical)
+    if (direction === 0) return
+    dashboard.moveSpace(direction)
+    retainKeyboardFocus()
   }
 
   function handleKey(event) {
@@ -285,6 +296,29 @@ PanelWindow {
       if (event.key === Qt.Key_Control
           || (event.modifiers & Qt.ControlModifier) === 0)
         dashboard.shortcutHintsVisible = false
+    }
+
+    SwipeHandler {
+      id: spaceSwipe
+      target: null
+      minimumPointCount: 3
+      maximumPointCount: 3
+      xAxis.enabled: true
+      yAxis.enabled: true
+      enabled: root.visible && dashboard.mode === "browse" && dashboard.overlay === ""
+        && !dashboard.placingPlugin && !dashboard.placingDivider
+      property real completedHorizontal: 0
+      property real completedVertical: 0
+      onActiveChanged: {
+        if (active) {
+          completedHorizontal = 0
+          completedVertical = 0
+        } else root.handleSpaceSwipe(completedHorizontal, completedVertical)
+      }
+      onTranslationChanged: {
+        completedHorizontal = translation.x
+        completedVertical = translation.y
+      }
     }
 
     Rectangle {

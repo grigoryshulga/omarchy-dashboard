@@ -183,6 +183,7 @@ bindd = SUPER, D, Dashboard, exec, omarchy-shell shell toggle gshulga.dashboard
 | `Enter` | Give the selected plugin focus (`interact`) |
 | `Esc` | Leave `interact`, then `edit`, then close Dashboard |
 | `Page Up` / `Page Down` | Previous / next Space |
+| Three-finger horizontal swipe | Previous / next Space (when the compositor forwards touch points to Dashboard) |
 | `Alt+1` … `Alt+9` | Go to a Space by number |
 | `Alt++` | Open the plugin catalog in `edit` |
 | `Alt+E` | Toggle `edit` |

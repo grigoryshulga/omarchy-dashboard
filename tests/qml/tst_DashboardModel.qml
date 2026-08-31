@@ -10,6 +10,7 @@ import "../../qml/runtime/PluginControls.js" as PluginControls
 import "../../qml/runtime/PluginIconResolver.js" as PluginIconResolver
 import "../../qml/runtime/PluginPresentation.js" as PluginPresentation
 import "../../qml/core/SpatialNavigation.js" as SpatialNavigation
+import "../../qml/core/SpaceSwipe.js" as SpaceSwipe
 
 TestCase {
   name: "DashboardModel"
@@ -111,6 +112,14 @@ TestCase {
     verify(!DashboardAppearance.usesGlass("Framed"))
     verify(DashboardAppearance.usesGlass("Glass"))
     verify(DashboardAppearance.usesGlass("Push"))
+  }
+
+  function test_space_swipe_requires_a_deliberate_horizontal_motion() {
+    compare(SpaceSwipe.directionForTranslation(95, 0), 0)
+    compare(SpaceSwipe.directionForTranslation(96, 96), 0)
+    compare(SpaceSwipe.directionForTranslation(160, 170), 0)
+    compare(SpaceSwipe.directionForTranslation(-140, 20), 1)
+    compare(SpaceSwipe.directionForTranslation(140, 20), -1)
   }
 
   function test_host_placements_follow_dashboard_tiles_and_preserve_settings() {
