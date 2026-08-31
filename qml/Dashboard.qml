@@ -74,14 +74,6 @@ Item {
   readonly property bool glassBackground: DashboardAppearance.usesGlass(surfaceMode)
   readonly property bool blurBackground: glassBackground
     && plugins.dashboardSetting("blurBackground", true) === true
-  readonly property var backgroundService: plugins.pluginService("omarchy.background")
-  readonly property string backgroundPath: {
-    var service = backgroundService
-    if (!service) return ""
-    return String(service.displayedBackground || service.currentBackground || "")
-  }
-  readonly property string backgroundUrl: backgroundPath ? Util.fileUrl(backgroundPath) : ""
-  readonly property var blurEffect: blurSettings.effect
 
   function setSurfaceMode(value) {
     var normalized = DashboardAppearance.surfaceMode(value)
@@ -182,7 +174,6 @@ Item {
       cornerRadius: Style.cornerRadius,
       surfaceMode: surfaceMode,
       blurBackground: blurBackground,
-      backgroundPath: backgroundPath,
       gridSpacing: dashboardState ? dashboardState.gridSpacing : 10,
       gridWidth: dashboardState ? dashboardState.canvasWidth : gridWidth,
       gridHeight: dashboardState ? dashboardState.canvasHeight : gridHeight,
@@ -195,7 +186,7 @@ Item {
     function onRawEvent(event) {
       if (event && String(event.name || "") === "configreloaded") {
         Style.scheduleRefresh()
-        blurSettings.scheduleRefresh()
+        blurSettings.scheduleApply()
       }
     }
   }
@@ -1093,6 +1084,7 @@ Item {
 
   Runtime.DashboardBlurSettings {
     id: blurSettings
+    active: root.blurBackground
   }
 
   Runtime.PluginRuntime {

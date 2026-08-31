@@ -8,37 +8,38 @@ Item {
   id: root
 
   visible: false
-  property var options: HyprlandBlur.DEFAULTS
-  readonly property var effect: HyprlandBlur.effect(options)
+  property bool active: false
+  property bool pending: false
 
-  function refresh() {
-    if (readProc.running) return
-    var keys = ["enabled", "size", "passes", "brightness", "contrast", "vibrancy"]
-    var batch = []
-    for (var index = 0; index < keys.length; index++)
-      batch.push("getoption decoration:blur:" + keys[index])
-    readProc.command = ["hyprctl", "-j", "--batch", batch.join(" ; ")]
-    readProc.running = true
+  function applyRule() {
+    if (ruleProc.running) {
+      pending = true
+      return
+    }
+    ruleProc.command = ["hyprctl", "eval", HyprlandBlur.ruleExpression(active)]
+    ruleProc.running = true
   }
 
-  function scheduleRefresh() {
-    refreshTimer.restart()
+  function scheduleApply() {
+    applyTimer.restart()
   }
 
   Process {
-    id: readProc
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: root.options = HyprlandBlur.parse(text, root.options)
+    id: ruleProc
+    onExited: function() {
+      if (!root.pending) return
+      root.pending = false
+      Qt.callLater(root.applyRule)
     }
   }
 
   Timer {
-    id: refreshTimer
+    id: applyTimer
     interval: 200
     repeat: false
-    onTriggered: root.refresh()
+    onTriggered: root.applyRule()
   }
 
-  Component.onCompleted: refresh()
+  onActiveChanged: scheduleApply()
+  Component.onCompleted: scheduleApply()
 }

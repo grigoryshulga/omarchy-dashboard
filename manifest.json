@@ -43,15 +43,15 @@
         "key": "surfaceMode",
         "type": "enum",
         "label": "Surface mode",
-        "description": "Framed keeps the classic card; Glass uses the current wallpaper across the full screen.",
+        "description": "Framed keeps the classic card; Glass uses a translucent, system-blurred surface.",
         "options": ["Framed", "Glass"],
         "defaultValue": "Glass"
       },
       {
         "key": "blurBackground",
         "type": "boolean",
-        "label": "Blur wallpaper",
-        "description": "Blur the current Omarchy wallpaper using live Hyprland blur values.",
+        "label": "Blur background",
+        "description": "Ask Hyprland to blur the desktop behind Dashboard with the system blur settings.",
         "defaultValue": true
       }
     ]

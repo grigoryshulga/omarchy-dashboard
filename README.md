@@ -20,8 +20,7 @@ keyboard.
 - universal tiles: embedded pages, compact `dashboardWidget`s, service controls,
   Dashboard popouts, or native/information fallbacks;
 - two surface modes: classic `Framed` and fullscreen `Glass`;
-- an isolated, window-free wallpaper backdrop: the current wallpaper comes from
-  `omarchy.background`, and its effect follows live Hyprland blur settings;
+- compositor-owned Glass blur that exactly follows Hyprland's live blur settings;
 - theme, dimensions, spacing, and corner radii from the current Omarchy Shell;
   corner radii update after a Hyprland config reload without restarting the shell;
 - bounded, validated state in the XDG state directory.
@@ -264,15 +263,15 @@ header: the window button selects `Framed`, and the maximize button selects
 `Glass`. The active choice is highlighted; `Alt+V` toggles between them from the
 keyboard.
 
-For `Glass`, Dashboard reads the current wallpaper path directly from the live
-`omarchy.background` service and renders it inside its own surface. Moved
-windows therefore never appear in the backdrop, even during animation. The
-supported `enabled`, `size`, `passes`, `brightness`, `contrast`, and `vibrancy`
-parameters are read from live Hyprland `decoration.blur` and updated after
-`configreloaded`; they are translated into a bounded Qt `MultiEffect`, because
-the compositor blur cannot exclude windows without an external layer rule. The
-color and opacity of the scrim come from Omarchy's live `Color.menu.scrim` theme
-token. `Blur wallpaper` can be disabled independently of the scrim.
+For `Glass`, Dashboard keeps its layer-shell surface transparent and registers a
+Hyprland blur layer rule for the `gshulga-dashboard` namespace. Its `xray` mode
+keeps application windows out of the sampled backdrop. Hyprland renders the
+backdrop itself, so every current system blur parameter—including the blur
+algorithm, noise, brightness, contrast, vibrancy, and future compositor
+options—applies without a QML approximation. The rule is restored after a
+Hyprland config reload and follows the `Blur background` setting. The color and
+opacity of the foreground scrim still come from Omarchy's live
+`Color.menu.scrim` theme token and can be disabled independently.
 
 ## Plugin embedding
 

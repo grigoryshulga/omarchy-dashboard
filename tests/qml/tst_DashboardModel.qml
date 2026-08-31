@@ -330,24 +330,20 @@ TestCase {
     shortcutDashboard.overlay = ""
   }
 
-  function test_hyprland_blur_options_map_to_a_bounded_wallpaper_effect() {
-    var parsed = HyprlandBlur.parse(
-      '{"option":"decoration:blur:enabled","bool":true}\n' +
-      '{"option":"decoration:blur:size","int":10}\n' +
-      '{"option":"decoration:blur:passes","int":3}\n' +
-      '{"option":"decoration:blur:brightness","float":0.8}\n' +
-      '{"option":"decoration:blur:contrast","float":1.0}\n' +
-      '{"option":"decoration:blur:vibrancy","float":0.5}')
-    var effect = HyprlandBlur.effect(parsed)
-    verify(effect.enabled)
-    compare(effect.blurMax, 120)
-    compare(effect.brightness, -0.2)
-    compare(effect.contrast, 0)
-    compare(effect.saturation, 0.5)
+  function test_hyprland_blur_rule_targets_the_dashboard_layer() {
+    var enabled = HyprlandBlur.ruleExpression(true)
+    verify(enabled.indexOf("hl.layer_rule") >= 0)
+    verify(enabled.indexOf('name = "gshulga-dashboard-blur"') >= 0)
+    verify(enabled.indexOf('namespace = "gshulga-dashboard"') >= 0)
+    verify(enabled.indexOf("blur = true") >= 0)
+    verify(enabled.indexOf("xray = true") >= 0)
+    verify(enabled.indexOf("gshulga_dashboard_blur_rule_version ~= 2") >= 0)
+    verify(enabled.indexOf(":set_enabled(false)") >= 0)
+    verify(enabled.indexOf(":set_enabled(true)") >= 0)
+    verify(enabled.indexOf("decoration:blur") < 0)
 
-    effect = HyprlandBlur.effect({ enabled: false, size: 100, passes: 20 })
-    verify(!effect.enabled)
-    compare(effect.blurMax, 128)
+    var disabled = HyprlandBlur.ruleExpression(false)
+    verify(disabled.indexOf(":set_enabled(false)") >= 0)
   }
 
   function test_grid_uses_five_pixel_snap() {

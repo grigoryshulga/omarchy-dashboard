@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
@@ -237,46 +236,6 @@ PanelWindow {
     function onModeChanged() {
       if (root.visible && dashboard.mode !== "interact")
         Qt.callLater(function() { if (root.visible) keyCatcher.forceActiveFocus() })
-    }
-  }
-
-  Rectangle {
-    anchors.fill: parent
-    visible: dashboard.glassBackground
-    color: Color.background
-  }
-
-  Item {
-    id: wallpaperBackdrop
-    anchors.fill: parent
-    visible: dashboard.glassBackground && dashboard.backgroundUrl !== ""
-    clip: true
-
-    Image {
-      id: wallpaperImage
-      anchors.fill: parent
-      source: dashboard.backgroundUrl
-      fillMode: Image.PreserveAspectCrop
-      asynchronous: true
-      cache: true
-      smooth: true
-      mipmap: true
-      sourceSize.width: width
-      sourceSize.height: height
-    }
-
-    MultiEffect {
-      anchors.fill: wallpaperImage
-      source: wallpaperImage
-      visible: dashboard.blurBackground && dashboard.blurEffect.enabled
-        && wallpaperImage.status === Image.Ready
-      autoPaddingEnabled: false
-      blurEnabled: visible
-      blur: 1
-      blurMax: dashboard.blurEffect.blurMax
-      brightness: dashboard.blurEffect.brightness
-      contrast: dashboard.blurEffect.contrast
-      saturation: dashboard.blurEffect.saturation
     }
   }
 
