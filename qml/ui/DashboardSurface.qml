@@ -516,6 +516,7 @@ PanelWindow {
           Row {
             id: appearanceControls
             anchors.left: parent.left
+            anchors.leftMargin: 30
             anchors.verticalCenter: parent.verticalCenter
             visible: toolbar.controlsVisible && dashboard.mode === "edit"
             spacing: Style.spacing.xs
