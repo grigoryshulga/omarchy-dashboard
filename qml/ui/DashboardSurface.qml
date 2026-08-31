@@ -514,7 +514,7 @@ PanelWindow {
 
           Row {
             id: appearanceControls
-            x: Math.max(0, spaceSwitcher.tabX(0) - width - Style.spacing.lg)
+            x: Math.max(0, spaceSwitcher.tabX(spaceSwitcher.activeIndex) - width - Style.spacing.lg)
             anchors.verticalCenter: parent.verticalCenter
             visible: toolbar.controlsVisible && dashboard.mode === "edit"
             spacing: Style.spacing.xs
@@ -531,12 +531,14 @@ PanelWindow {
             DashboardActionButton {
               icon: "\uf2d0"
               text: "Framed"
+              alwaysExpanded: true
               active: dashboard.surfaceMode === "framed"
               onClicked: dashboard.setSurfaceMode("Framed")
             }
             DashboardActionButton {
               icon: "\uf065"
               text: "Glass"
+              alwaysExpanded: true
               active: dashboard.surfaceMode === "glass"
               onClicked: dashboard.setSurfaceMode("Glass")
             }
@@ -551,21 +553,34 @@ PanelWindow {
             visible: toolbar.controlsVisible && dashboard.mode === "edit"
             spacing: Style.spacing.xs
 
+            Text {
+              textFormat: Text.PlainText
+              anchors.verticalCenter: parent.verticalCenter
+              text: "Add"
+              color: Color.popups.text
+              opacity: 0.62
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+            }
+
             DashboardActionButton {
               icon: "\uf12e"
               text: "Add Plugin"
+              alwaysExpanded: true
               enabled: !dashboard.placingPlugin && !dashboard.placingDivider
               onClicked: dashboard.overlay = "catalog"
             }
             DashboardActionButton {
               icon: "\uf068"
               text: "Draw Divider"
+              alwaysExpanded: true
               enabled: !dashboard.placingPlugin && !dashboard.placingDivider
               onClicked: dashboard.beginDividerPlacement()
             }
             DashboardActionButton {
               icon: "T"
               text: "Add Text"
+              alwaysExpanded: true
               enabled: !dashboard.placingPlugin && !dashboard.placingDivider
               onClicked: root.beginNewText()
             }
