@@ -489,6 +489,7 @@ PanelWindow {
             }
 
             DashboardActionButton {
+              id: addSpaceButton
               x: spaceSwitcher.tabX(spaceSwitcher.spaceCount - 1)
                 + spaceSwitcher.tabWidthAt(spaceSwitcher.spaceCount - 1)
                 + spaceSwitcher.tabGap
@@ -504,7 +505,7 @@ PanelWindow {
           }
 
           DashboardActionButton {
-            x: appearanceControls.x - width - Style.spacing.sm
+            x: addSpaceButton.x + addSpaceButton.width + Style.spacing.sm
             anchors.verticalCenter: parent.verticalCenter
             visible: dashboard.mode === "edit" && dashboard.dashboardState.spaces.length > 1
             icon: "\uf1f8"
@@ -514,7 +515,7 @@ PanelWindow {
 
           Row {
             id: appearanceControls
-            x: Math.max(0, spaceSwitcher.tabX(spaceSwitcher.activeIndex) - width - Style.spacing.lg)
+            anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             visible: toolbar.controlsVisible && dashboard.mode === "edit"
             spacing: Style.spacing.xs
