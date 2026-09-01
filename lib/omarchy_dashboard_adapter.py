@@ -651,11 +651,29 @@ def choose_source(source_dir: Path, entry_point: str) -> Path:
         sibling = (candidate.parent / "Panel.qml").resolve()
         if sibling.is_file() and source_dir in sibling.parents:
             source = sibling
+        else:
+            source = discover_sibling_panel(candidate, source_dir) or source
     return source
 
 
 def has_standard_host(source: str) -> bool:
     return any(node.type_name == "KeyboardPanel" for node in object_nodes(tokens(source)))
+
+
+def discover_sibling_panel(entry_source: Path, source_dir: Path) -> Path | None:
+    """Find one unambiguous standard panel beside a bar-widget entry point."""
+    candidates: list[Path] = []
+    for sibling in sorted(entry_source.parent.glob("*Panel.qml")):
+        candidate = sibling.resolve()
+        if candidate == entry_source or not candidate.is_file() or source_dir not in candidate.parents:
+            continue
+        nodes = object_nodes(tokens(read_entry_point(candidate)))
+        if nodes and nodes[0].type_name == "Panel" \
+                and sum(node.type_name == "KeyboardPanel" for node in nodes) == 1:
+            candidates.append(candidate)
+    if len(candidates) > 1:
+        raise AdaptationError("plugin has ambiguous sibling panel candidates")
+    return candidates[0] if candidates else None
 
 
 def copy_tree(source_dir: Path, target_dir: Path) -> str:

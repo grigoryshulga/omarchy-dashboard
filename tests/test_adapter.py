@@ -104,6 +104,28 @@ class AdapterTests(unittest.TestCase):
             (source / "Panel.qml").write_text(PANEL)
             self.assertEqual(adapter.choose_source(source, "BarWidget.qml").name, "Panel.qml")
 
+    def test_discovers_a_unique_named_sibling_panel(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            source.mkdir()
+            (source / "BarWidget.qml").write_text("Item {}\n")
+            (source / "OmatePanel.qml").write_text(PANEL)
+
+            self.assertEqual(adapter.choose_source(source, "BarWidget.qml").name, "OmatePanel.qml")
+
+    def test_rejects_ambiguous_named_sibling_panels(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "source"
+            source.mkdir()
+            (source / "BarWidget.qml").write_text("Item {}\n")
+            (source / "FirstPanel.qml").write_text(PANEL)
+            (source / "SecondPanel.qml").write_text(PANEL)
+
+            with self.assertRaisesRegex(adapter.AdaptationError, "ambiguous sibling panel"):
+                adapter.choose_source(source, "BarWidget.qml")
+
     def test_rejects_custom_windows_and_ambiguous_hosts(self):
         with self.assertRaisesRegex(adapter.AdaptationError, "mapped surface"):
             adapter.transform_qml("""Panel {
