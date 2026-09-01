@@ -1,9 +1,12 @@
 # Omarchy Dashboard
 
-A fullscreen, keyboard-first dashboard for Omarchy Shell plugins. The Dashboard
-behaves like a scratchpad workspace while remaining a single Quickshell surface:
-plugin pages can therefore share a grid, be resized, and be switched with the
-keyboard.
+Omarchy Dashboard turns your Omarchy Shell plugins into one keyboard-first
+workspace. Arrange plugin pages, widgets, system controls, and launchers as
+resizable tiles on a snap-to-grid canvas; organize them into named Spaces; and
+switch between browsing, interacting, and editing without leaving the
+Dashboard. Choose a focused Framed surface or a transparent Glass view that
+follows your theme and Hyprland blur settings. The built-in catalog and CLI make
+adding, placing, and automating plugins straightforward.
 
 ![Omarchy Dashboard in Glass mode with the Tokyo Night theme](preview.png)
 
