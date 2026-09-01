@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Atomically write Dashboard state through a pinned, trusted directory."""
+
+from __future__ import annotations
+
+import errno
+import os
+import secrets
+import stat
+import sys
+
+
+TOO_LARGE = 2
+UNSAFE = 3
+IO_ERROR = 4
+MAX_STATE_BYTES = 256 * 1024
+READ_CHUNK_BYTES = 64 * 1024
+
+
+def checked_parent(path: str) -> tuple[int, str]:
+    if not os.path.isabs(path) or os.path.normpath(path) != path:
+        raise ValueError("state path must be absolute and normalized")
+    parent, name = os.path.split(path)
+    if not name:
+        raise ValueError("state path has no filename")
+
+    # Creation is only a convenience for a first run. All subsequent work uses
+    # the descriptor below, so the final parent cannot be swapped underneath us.
+    os.makedirs(parent, mode=0o700, exist_ok=True)
+    flags = os.O_RDONLY | os.O_CLOEXEC
+    if hasattr(os, "O_DIRECTORY"):
+        flags |= os.O_DIRECTORY
+    descriptor = os.open(parent, flags)
+    metadata = os.fstat(descriptor)
+    if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != os.getuid():
+        os.close(descriptor)
+        raise ValueError("state directory is not owned by the current user")
+    if stat.S_IMODE(metadata.st_mode) & (stat.S_IWGRP | stat.S_IWOTH):
+        os.close(descriptor)
+        raise ValueError("state directory is writable by another user")
+    return descriptor, name
+
+
+def existing_leaf_is_safe(parent_descriptor: int, name: str) -> None:
+    try:
+        metadata = os.stat(name, dir_fd=parent_descriptor, follow_symlinks=False)
+    except FileNotFoundError:
+        return
+    if (stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != os.getuid()):
+        raise ValueError("state is not a user-owned regular file")
+    if stat.S_IMODE(metadata.st_mode) & (stat.S_IWGRP | stat.S_IWOTH):
+        raise ValueError("state is writable by another user")
+
+
+def read_exactly(expected_bytes: int, maximum: int) -> bytes:
+    if expected_bytes < 0 or expected_bytes > maximum:
+        raise OverflowError("state exceeds maximum size")
+    chunks: list[bytes] = []
+    remaining = expected_bytes
+    while remaining:
+        chunk = sys.stdin.buffer.read(min(remaining, READ_CHUNK_BYTES))
+        if not chunk:
+            raise OSError("state writer received truncated input")
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    return b"".join(chunks)
+
+
+def temporary_file(parent_descriptor: int) -> tuple[int, str]:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    for _ in range(32):
+        name = ".gshulga.dashboard.%s.tmp" % secrets.token_hex(16)
+        try:
+            return os.open(name, flags, 0o600, dir_fd=parent_descriptor), name
+        except FileExistsError:
+            continue
+    raise OSError("could not create a unique state temporary file")
+
+
+def write_state(path: str, expected_bytes: int, maximum: int) -> None:
+    content = read_exactly(expected_bytes, maximum)
+    parent_descriptor, name = checked_parent(path)
+    temporary_name = ""
+    try:
+        existing_leaf_is_safe(parent_descriptor, name)
+        descriptor, temporary_name = temporary_file(parent_descriptor)
+        try:
+            written = 0
+            while written < len(content):
+                count = os.write(descriptor, content[written:])
+                if count <= 0:
+                    raise OSError("could not write state")
+                written += count
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+
+        # renameat resolves both names through the already-validated directory
+        # descriptor. Replacing a raced symlink replaces the link itself; it
+        # never follows it.
+        os.replace(temporary_name, name, src_dir_fd=parent_descriptor,
+                   dst_dir_fd=parent_descriptor)
+        temporary_name = ""
+        os.fsync(parent_descriptor)
+    finally:
+        if temporary_name:
+            try:
+                os.unlink(temporary_name, dir_fd=parent_descriptor)
+            except OSError:
+                pass
+        os.close(parent_descriptor)
+
+
+def main() -> int:
+    if len(sys.argv) != 4:
+        return IO_ERROR
+    try:
+        expected_bytes = int(sys.argv[2])
+        maximum = int(sys.argv[3])
+        if maximum < 1 or maximum > MAX_STATE_BYTES:
+            raise ValueError("invalid maximum")
+        write_state(sys.argv[1], expected_bytes, maximum)
+        return 0
+    except OverflowError:
+        return TOO_LARGE
+    except ValueError:
+        return UNSAFE
+    except OSError as error:
+        if error.errno in (errno.ELOOP, errno.ENOTDIR, errno.ENXIO, errno.ENOTSUP):
+            return UNSAFE
+        return IO_ERROR
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

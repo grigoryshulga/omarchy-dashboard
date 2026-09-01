@@ -32,6 +32,7 @@ Item {
   property string adaptingPluginId: ""
   property int pluginEpoch: 0
   property var scannedIcons: ({})
+  property bool iconScanTimedOut: false
 
   // Adapted bar panels are rendered inside the Dashboard surface, not on the
   // bar. Give them Dashboard's foreground palette while retaining the shell
@@ -153,22 +154,57 @@ Item {
     }
   }
 
-  function enable(id, pluginManifest) {
-    if (!shell || !shell.pluginRegistry) return false
+  function enableInConfig(config, id, pluginManifest) {
+    if (!config || !safePluginId(id)) return false
+    var disabled = Array.isArray(config.disabledPlugins) ? config.disabledPlugins : []
+    config.disabledPlugins = disabled.filter(function(entry) { return String(entry) !== id })
+    if (config.disabledPlugins.length === 0) delete config.disabledPlugins
+    if (pluginManifest && pluginManifest.__isFirstParty) return true
+    // Compatibility adapter for Omarchy 4.0.1. The native reference lives in
+    // config.hosts; the current shell also consults plugins[] for third-party
+    // component and service loading.
+    if (!Array.isArray(config.plugins)) config.plugins = []
+    for (var index = 0; index < config.plugins.length; index++)
+      if (config.plugins[index] && String(config.plugins[index].id) === id) return true
+    config.plugins.push({ id: id })
+    return true
+  }
+
+  // Publish the Shell reference and plugin enablement in one mutate operation.
+  // Callers pass a fully normalized candidate Dashboard document, so no
+  // Dashboard mutation is made unless this operation succeeds.
+  function applyHostPlacementTransaction(document, enablingId, pluginManifest) {
+    if (!shell) return false
     if (typeof shell.mutateShellConfig !== "function") return false
+    if (enablingId && !safePluginId(enablingId)) return false
+    var desired = HostPlacements.references(document)
     try {
       shell.mutateShellConfig(function(config) {
-        var disabled = Array.isArray(config.disabledPlugins) ? config.disabledPlugins : []
-        config.disabledPlugins = disabled.filter(function(entry) { return String(entry) !== id })
-        if (config.disabledPlugins.length === 0) delete config.disabledPlugins
-        if (pluginManifest && pluginManifest.__isFirstParty) return
-        // Compatibility adapter for Omarchy 4.0.1. The native reference lives
-        // in config.hosts; the current shell still consults plugins[] when it
-        // decides whether to load a third-party component/service.
-        if (!Array.isArray(config.plugins)) config.plugins = []
-        for (var index = 0; index < config.plugins.length; index++)
-          if (config.plugins[index] && String(config.plugins[index].id) === id) return
-        config.plugins.push({ id: id })
+        if (enablingId && !enableInConfig(config, enablingId, pluginManifest))
+          throw new Error("invalid plugin id")
+        if (!HostPlacements.synchronize(config, dashboardPluginId, desired))
+          throw new Error("invalid host placement configuration")
+        // Preserve the compatibility plugins[] entry for every hosted
+        // third-party plugin, including entries that were already placed.
+        for (var index = 0; index < desired.length; index++) {
+          var id = desired[index].id
+          var manifest = registry && registry.installedPlugins ? registry.installedPlugins[id] : null
+          if (manifest && manifest.__isFirstParty) continue
+          enableInConfig(config, id, manifest)
+        }
+      })
+      return true
+    } catch (error) {
+      console.warn("Dashboard: failed to commit host placement transaction:", error)
+      return false
+    }
+  }
+
+  function enable(id, pluginManifest) {
+    if (!shell || !shell.pluginRegistry || typeof shell.mutateShellConfig !== "function") return false
+    try {
+      shell.mutateShellConfig(function(config) {
+        if (!enableInConfig(config, id, pluginManifest)) throw new Error("invalid plugin id")
       })
       return true
     } catch (error) {
@@ -178,28 +214,7 @@ Item {
   }
 
   function syncHostPlacements(document) {
-    if (!shell || typeof shell.mutateShellConfig !== "function") return false
-    var desired = HostPlacements.references(document)
-    try {
-      shell.mutateShellConfig(function(config) {
-        HostPlacements.synchronize(config, dashboardPluginId, desired)
-        // Keep current Omarchy able to load every third-party hosted plugin.
-        if (!Array.isArray(config.plugins)) config.plugins = []
-        for (var index = 0; index < desired.length; index++) {
-          var id = desired[index].id
-          var manifest = registry && registry.installedPlugins ? registry.installedPlugins[id] : null
-          if (manifest && manifest.__isFirstParty) continue
-          var found = false
-          for (var pluginIndex = 0; pluginIndex < config.plugins.length; pluginIndex++)
-            if (config.plugins[pluginIndex] && String(config.plugins[pluginIndex].id) === id) found = true
-          if (!found) config.plugins.push({ id: id })
-        }
-      })
-      return true
-    } catch (error) {
-      console.warn("Dashboard: failed to synchronize host placements:", error)
-      return false
-    }
+    return applyHostPlacementTransaction(document, "", null)
   }
 
   function explicitPageUrl(pluginId) {
@@ -303,11 +318,15 @@ Item {
   function requestIconScan() {
     if (iconScanner.running) return
     iconScanner.command = [
+      "/usr/bin/python3", "-I", pluginDirectory + "/bin/omarchy-dashboard-run-helper",
+      "--max-bytes", String(maxHelperOutputLength), "--timeout-seconds", "5", "--",
       "/usr/bin/python3", "-I", pluginDirectory + "/lib/omarchy_dashboard_icons.py",
       "/usr/share/omarchy/shell/plugins",
       String(dashboardHost.home || "") + "/.config/omarchy/plugins"
     ]
+    iconScanTimedOut = false
     iconScanner.running = true
+    iconTimeout.restart()
   }
 
   function pluginSettings(id) {
@@ -456,6 +475,8 @@ Item {
     if (!entry || !entryPoint) return
     adaptingPluginId = pluginId
     adapter.command = [
+      "/usr/bin/python3", "-I", pluginDirectory + "/bin/omarchy-dashboard-run-helper",
+      "--max-bytes", String(maxHelperOutputLength), "--timeout-seconds", "15", "--",
       "/usr/bin/python3", "-I", pluginDirectory + "/lib/omarchy_dashboard_adapter.py",
       "--json-output", "--",
       String(entry.manifest.__sourceDir || ""),
@@ -465,7 +486,6 @@ Item {
       pluginDirectory + "/qml/adapters"
     ]
     adapter.running = true
-    adapterTimeout.restart()
   }
 
   function prepareVisiblePanels() {
@@ -518,6 +538,7 @@ Item {
     clearEnvironment: true
     stdout: StdioCollector { id: adapterOutput; waitForEnd: true }
     stderr: StdioCollector { id: adapterErrors; waitForEnd: true }
+    onStarted: adapterTimeout.restart()
     onExited: function(exitCode) {
       adapterTimeout.stop()
       adapterKillTimer.stop()
@@ -560,14 +581,25 @@ Item {
     id: iconScanner
     clearEnvironment: true
     stdout: StdioCollector { id: iconOutput; waitForEnd: true }
-    stderr: StdioCollector { waitForEnd: true }
+    onStarted: iconTimeout.restart()
     onExited: function(exitCode) {
+      iconTimeout.stop()
+      iconKillTimer.stop()
+      if (root.iconScanTimedOut) {
+        root.iconScanTimedOut = false
+        console.warn("Dashboard: icon discovery timed out")
+        return
+      }
+      if (exitCode === 120) {
+        console.warn("Dashboard: icon discovery timed out")
+        return
+      }
+      if (exitCode === 121) {
+        console.warn("Dashboard: icon discovery returned too much metadata")
+        return
+      }
       if (exitCode !== 0) return
       try {
-        if (String(iconOutput.text || "").length > root.maxHelperOutputLength) {
-          console.warn("Dashboard: icon discovery returned too much metadata")
-          return
-        }
         var parsed = JSON.parse(String(iconOutput.text || "{}"))
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return
         root.scannedIcons = parsed
@@ -596,6 +628,23 @@ Item {
     id: adapterKillTimer
     interval: 1000
     onTriggered: if (adapter.running) adapter.signal(9)
+  }
+
+  Timer {
+    id: iconTimeout
+    interval: 6000
+    onTriggered: {
+      if (!iconScanner.running) return
+      root.iconScanTimedOut = true
+      iconScanner.running = false
+      iconKillTimer.restart()
+    }
+  }
+
+  Timer {
+    id: iconKillTimer
+    interval: 1000
+    onTriggered: if (iconScanner.running) iconScanner.signal(9)
   }
 
   Component.onCompleted: requestIconScan()

@@ -8,6 +8,7 @@ Item {
   required property string directoryPath
   required property string statePath
   required property string readerPath
+  required property string writerPath
   property var document: DashboardModel.defaultState()
 
   property string pendingText: ""
@@ -15,6 +16,7 @@ Item {
   property bool writeInProgress: false
   property int saveRetryCount: 0
   property bool readTimedOut: false
+  property bool writeTimedOut: false
   property bool ready: false
 
   signal loaded()
@@ -38,7 +40,12 @@ Item {
     writingText = pendingText
     pendingText = ""
     writeInProgress = true
-    stateFile.setText(writingText)
+    stateWriter.command = [
+      "/usr/bin/python3", "-I", root.writerPath,
+      root.statePath, String(DashboardModel.utf8ByteLength(writingText)),
+      String(DashboardModel.MAX_STATE_BYTES)
+    ]
+    stateWriter.running = true
   }
 
   function scheduleSave() {
@@ -64,44 +71,43 @@ Item {
     loaded()
   }
 
-  Component.onCompleted: directoryInit.running = true
+  Component.onCompleted: {
+    stateReader.command = [
+      "/usr/bin/python3", "-I", root.readerPath,
+      root.statePath, String(DashboardModel.MAX_STATE_BYTES)
+    ]
+    stateReader.running = true
+  }
   Component.onDestruction: flush()
 
   Process {
-    id: directoryInit
+    id: stateWriter
     clearEnvironment: true
-    command: ["/usr/bin/mkdir", "-p", "--", root.directoryPath]
+    stdinEnabled: true
+    onStarted: {
+      stateWriterTimeout.restart()
+      stateWriter.write(root.writingText)
+    }
     onExited: function(exitCode) {
-      if (exitCode === 0) {
-        stateReader.command = [
-          "/usr/bin/python3", "-I", root.readerPath,
-          root.statePath, String(DashboardModel.MAX_STATE_BYTES)
-        ]
-        stateReader.running = true
-      } else console.warn("Dashboard: could not create the state directory")
-    }
-  }
-
-  FileView {
-    id: stateFile
-    path: root.statePath
-    atomicWrites: true
-    preload: false
-    printErrors: false
-    onSaved: {
-      root.writeInProgress = false
-      root.writingText = ""
-      root.saveRetryCount = 0
-      if (root.pendingText) saveTimer.restart()
-    }
-    onSaveFailed: function(error) {
+      stateWriterTimeout.stop()
+      stateWriterKillTimer.stop()
       root.writeInProgress = false
       if (!root.pendingText) root.pendingText = root.writingText
       root.writingText = ""
-      if (root.saveRetryCount < 2) {
+      if (root.writeTimedOut) {
+        root.writeTimedOut = false
+        console.warn("Dashboard: state writer timed out")
+      } else if (exitCode === 0) {
+        root.saveRetryCount = 0
+      } else if (exitCode === 2) {
+        console.warn("Dashboard: state exceeds the size limit")
+      } else if (exitCode === 3) {
+        console.warn("Dashboard: refusing an unsafe state path")
+      } else if (root.saveRetryCount < 2) {
         root.saveRetryCount += 1
         saveTimer.restart()
-      } else console.warn("Dashboard: failed to save state:", error)
+      } else console.warn("Dashboard: failed to save state")
+      if (!root.writeInProgress && root.pendingText && exitCode === 0) saveTimer.restart()
     }
   }
 
@@ -109,6 +115,23 @@ Item {
     id: saveTimer
     interval: root.saveRetryCount > 0 ? 1000 : 180
     onTriggered: root.flush()
+  }
+
+  Timer {
+    id: stateWriterTimeout
+    interval: 3000
+    onTriggered: {
+      if (!stateWriter.running) return
+      root.writeTimedOut = true
+      stateWriter.running = false
+      stateWriterKillTimer.restart()
+    }
+  }
+
+  Timer {
+    id: stateWriterKillTimer
+    interval: 1000
+    onTriggered: if (stateWriter.running) stateWriter.signal(9)
   }
 
   Process {

@@ -404,8 +404,12 @@ Item {
       var removedState = DashboardModel.apply(dashboardState, {
         type: "removeSpace", spaceId: removeResolution.space.id
       }, gridWidth, gridHeight)
-      stateStore.replaceDocument(removedState)
-      plugins.syncHostPlacements(dashboardState)
+      if (!plugins.applyHostPlacementTransaction(removedState, "", null)) return {
+        schemaVersion: 1, ok: false, code: "host-transaction-failed", revision: dashboardState.revision
+      }
+      if (!stateStore.replaceDocument(removedState)) return {
+        schemaVersion: 1, ok: false, code: "persistence-stage-failed", revision: dashboardState.revision
+      }
       stateStore.flush()
       return {
         schemaVersion: 1, ok: true, changed: true, revision: dashboardState.revision,
@@ -527,10 +531,11 @@ Item {
       placement: result.placement || null, revision: dashboardState.revision
     }
     if (result.changed) {
-      stateStore.replaceDocument(result.state)
-      if (result.placement && !plugins.enable(requestedPluginId, descriptor.manifest))
-        return { schemaVersion: 1, ok: false, code: "host-sync-failed", revision: dashboardState.revision }
-      plugins.syncHostPlacements(dashboardState)
+      var enablingId = operation !== "remove" && result.placement ? requestedPluginId : ""
+      if (!plugins.applyHostPlacementTransaction(result.state, enablingId, descriptor.manifest))
+        return { schemaVersion: 1, ok: false, code: "host-transaction-failed", revision: dashboardState.revision }
+      if (!stateStore.replaceDocument(result.state))
+        return { schemaVersion: 1, ok: false, code: "persistence-stage-failed", revision: dashboardState.revision }
       stateStore.flush()
     }
     return {
@@ -677,6 +682,25 @@ Item {
     ensureSelection()
   }
 
+  // Host references are the one part of Dashboard state mirrored in
+  // shell.json. Build the candidate first, publish the Shell side in one
+  // transaction, and only then make the Dashboard document observable.
+  function commitHostMutation(command, enablingId, pluginManifest) {
+    if (!stateStore.ready) return false
+    var nextDocument = DashboardModel.apply(dashboardState, command, gridWidth, gridHeight)
+    if (!plugins.applyHostPlacementTransaction(nextDocument, enablingId || "", pluginManifest || null)) {
+      console.warn("Dashboard: host placement transaction failed; state was not changed")
+      return false
+    }
+    if (!stateStore.replaceDocument(nextDocument)) {
+      console.warn("Dashboard: Shell placement committed but Dashboard state could not be staged")
+      return false
+    }
+    stateStore.flush()
+    ensureSelection()
+    return true
+  }
+
   function updateGridBounds(width, height) {
     if (Number(width) < GridEngine.STEP || Number(height) < GridEngine.STEP) return
     var current = GridEngine.bounds(width, height)
@@ -731,8 +755,7 @@ Item {
   }
 
   function removeSpace(spaceId) {
-    commit({ type: "removeSpace", spaceId: spaceId })
-    plugins.syncHostPlacements(dashboardState)
+    commitHostMutation({ type: "removeSpace", spaceId: spaceId })
   }
 
   function placeTile(tileId, rect) {
@@ -832,8 +855,7 @@ Item {
   }
 
   function removeTile(tileId) {
-    commit({ type: "removeTile", spaceId: activeSpace.id, tileId: tileId })
-    plugins.syncHostPlacements(dashboardState)
+    commitHostMutation({ type: "removeTile", spaceId: activeSpace.id, tileId: tileId })
   }
 
   function removeElement(elementId) {
@@ -1038,17 +1060,20 @@ Item {
     if (!placementValid) return false
     var draft = placementDraft
     var tileId = String(draft.instanceId || "") || "tile-" + Date.now() + "-" + activeTiles.length
-    commit({
+    var placementCommand = {
       type: "addTile", spaceId: activeSpace.id, id: tileId,
       pluginId: draft.pluginId, label: draft.label, rect: draft.rect,
       embedding: draft.embedding
-    })
-    var added = false
-    for (var index = 0; index < activeTiles.length; index++)
-      if (activeTiles[index].id === tileId) added = true
-    if (!added) return false
-    plugins.enable(draft.pluginId, draft.manifest)
-    plugins.syncHostPlacements(dashboardState)
+    }
+    var nextDocument = DashboardModel.apply(dashboardState, placementCommand, gridWidth, gridHeight)
+    var added = DashboardModel.placement(nextDocument, tileId)
+    if (!added || !plugins.applyHostPlacementTransaction(nextDocument, draft.pluginId, draft.manifest))
+      return false
+    if (!stateStore.replaceDocument(nextDocument)) {
+      console.warn("Dashboard: Shell placement committed but Dashboard state could not be staged")
+      return false
+    }
+    stateStore.flush()
     selectedTileId = tileId
     placementDraft = null
     return true
@@ -1083,6 +1108,7 @@ Item {
     directoryPath: root.stateDirectory
     statePath: root.statePath
     readerPath: root.pluginDirectory + "/bin/omarchy-dashboard-read-state"
+    writerPath: root.pluginDirectory + "/bin/omarchy-dashboard-write-state"
     onLoaded: {
       root.gridWidth = Number(root.dashboardState.canvasWidth) || GridEngine.DEFAULT_WIDTH
       root.gridHeight = Number(root.dashboardState.canvasHeight) || GridEngine.DEFAULT_HEIGHT
