@@ -218,15 +218,16 @@ Panel {
             with self.assertRaisesRegex(adapter.AdaptationError, "entry point exceeds"):
                 adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
 
-    def test_rejects_a_plugin_tree_with_more_than_512_files_before_copying(self):
+    def test_rejects_a_plugin_tree_with_more_than_1024_files_before_copying(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = self.write_source(root)
-            for index in range(512):
+            for index in range(1024):
                 (source / f"extra-{index}.qml").write_text("Item {}\n")
 
-            with self.assertRaisesRegex(adapter.AdaptationError, "too many files"):
-                adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
+            with mock.patch.object(adapter, "MAX_SOURCE_ENTRIES", 2048):
+                with self.assertRaisesRegex(adapter.AdaptationError, "too many files"):
+                    adapter.build(source, "Panel.qml", root / "cache", "example.plugin", ADAPTER_DIR)
 
     def test_rejects_a_plugin_tree_larger_than_its_byte_budget_before_copying(self):
         with tempfile.TemporaryDirectory() as temporary:
