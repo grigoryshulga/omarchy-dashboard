@@ -70,8 +70,8 @@ function capabilityLabel(manifest, options) {
 function launcher(caps, runtime, source, state, reason) {
   var nativeAvailable = runtime.nativeAvailable === true
   var canPopout = !!source
-  var target = nativeAvailable ? "native" : (canPopout ? "popout" : "")
-  var preparing = !target && caps.canAdapt && !runtime.adaptationError
+  var preparing = !canPopout && caps.canAdapt && !runtime.adaptationError
+  var target = canPopout || preparing ? "popout" : (nativeAvailable ? "native" : "")
   return {
     kind: LAUNCHER,
     state: state || (preparing ? "preparing" : "ready"),

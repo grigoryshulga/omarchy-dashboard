@@ -155,6 +155,27 @@ Item {
     }
   }
 
+  function popoutSize(id) {
+    var entries = hostEntries
+    for (var index = 0; index < entries.length; index++)
+      if (entries[index].id === id) return entries[index].popoutSize
+    return null
+  }
+
+  function setPopoutSize(id, size) {
+    if (!shell || typeof shell.mutateShellConfig !== "function") return false
+    try {
+      shell.mutateShellConfig(function(config) {
+        if (!HostPlacements.setPopoutSize(config, dashboardPluginId, id, size))
+          throw new Error("invalid popout size or missing placement")
+      })
+      return true
+    } catch (error) {
+      console.warn("Dashboard: could not save popout size:", error)
+      return false
+    }
+  }
+
   function enableInConfig(config, id, pluginManifest) {
     if (!config || !safePluginId(id)) return false
     var disabled = Array.isArray(config.disabledPlugins) ? config.disabledPlugins : []
@@ -466,7 +487,6 @@ Item {
   function launchNative(pluginId) {
     if (!nativeAvailable(pluginId) || !shell || typeof shell.summon !== "function") return false
     var result = shell.summon(pluginId)
-    if (result && dashboardHost && typeof dashboardHost.close === "function") dashboardHost.close()
     return result === true
   }
 
@@ -516,7 +536,6 @@ Item {
       var preference = PluginPresentation.normalizePreference(visibleTiles[index].embedding)
       if (!id || preference === "widget" || preference === "control"
           || (preference === "auto" && PluginControls.profile(id))
-          || (preference === "launcher" && nativeAvailable(id))
           || (preference === "launcher" && widgetPageUrl(id))
           || (preference === "auto" && widgetPageUrl(id))
           || explicitPageUrl(id) || adaptations[id] || adaptationErrors[id] !== undefined

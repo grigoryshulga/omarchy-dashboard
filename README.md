@@ -295,10 +295,10 @@ currently available for Stay Awake (`omarchy.idle`), Night Light, and Do Not
 Disturb; they use the same public service methods as the standard Omarchy
 indicators.
 
-For a `bar-widget`, the launcher first uses the live instance in the bar. If the
-plugin is absent from the bar but its QML can be adapted safely, the UI opens in
-a Dashboard popout. Bluetooth can therefore function as a button without a
-separate bar configuration.
+Launchers prefer a Dashboard popout, including when a live instance exists in
+the bar. Clicking while adaptation is running opens the popout with a loading
+state. Only plugins that cannot be adapted fall back to their native surface;
+launching one no longer explicitly closes Dashboard.
 
 Adaptation tries distinct `panel`, `overlay`, `barWidget`, and `menu` entry
 points in that order, using one validated copy of the plugin for all attempts.
@@ -314,6 +314,53 @@ a bar instance. Hosted pages receive the shell's `manifest`, `pluginRegistry`,
 when they declare these properties. The same values are available to
 `initializeDashboard(context)`. Initialization failures are displayed in the
 tile or popout.
+
+### Popout size and controls
+
+Popouts stay inside the Dashboard surface. The Dashboard remains open and
+visible around them; closing a popout, clicking outside it, or pressing Escape
+returns to the Dashboard. A popout uses at most 90% of the available width and
+85% of the height, even when its plugin asks for more room.
+
+Drag the bottom-right corner to resize a popout. The size is saved separately
+for each hosted plugin and survives reopening, moving the tile, and restarting
+the shell. The header shows the current outer dimensions. **Auto size** clears
+the saved size and restores the plugin's preferences.
+
+Automatic sizing takes each dimension from `dashboard.popout.preferredWidth`
+and `preferredHeight`, then `dashboard.preferredWidth` / `preferredHeight`,
+then the original panel's intrinsic dimensions, with an 860×680 content
+fallback. Adapted `KeyboardPanel` fitting helpers retain their requested
+dimensions before fitting; adapted windows use their implicit dimensions.
+Declared pages can provide `implicitWidth` / `implicitHeight`. The host adds
+space for its header and padding. Minimum sizes are honored when the available
+area permits.
+
+Plugin authors may specify popout dimensions independently of tile dimensions:
+
+```json
+{
+  "dashboard": {
+    "popout": {
+      "preferredWidth": 620,
+      "preferredHeight": 440,
+      "minWidth": 320,
+      "minHeight": 240
+    }
+  }
+}
+```
+
+For automation, set an outer size or restore automatic sizing through IPC:
+
+```bash
+omarchy-shell shell call gshulga.dashboard execute '{"type":"setPopoutSize","pluginId":"omarchy.bluetooth","size":{"width":680,"height":520}}'
+omarchy-shell shell call gshulga.dashboard execute '{"type":"setPopoutSize","pluginId":"omarchy.bluetooth","size":null}'
+```
+
+Overrides live in the host placement's `popoutSize` field in `shell.json`,
+separately from the plugin's own settings. Native fallback windows are owned
+by the plugin and do not use these popout size controls.
 
 The Launcher is a self-contained button tile: icon, name, and no implementation
 details. A regular click immediately runs its action. The icon comes from an
@@ -373,7 +420,7 @@ omarchy-shell shell call gshulga.dashboard execute '{"type":"addDivider","x1":0,
 ```
 
 Supported operations are `status`, `getState`, `listPlugins`, `listHostEntries`,
-`open`, `close`, `toggle`, `selectSpace`, `nextSpace`, `addSpace`,
+`open`, `close`, `toggle`, `setPopoutSize`, `selectSpace`, `nextSpace`, `addSpace`,
 `renameSpace`, `removeSpace`, `addPlugin`, `selectTile`, `removeTile`,
 `moveTile`, `resizeTile`, `placeTile`, `activateTile`, `setTileEmbedding`,
 `addText`, `updateText`, `addDivider`, `placeElement`, `removeElement`,

@@ -5,6 +5,7 @@ import "../../qml/core/DashboardAppearance.js" as DashboardAppearance
 import "../../qml/core/DashboardModel.js" as DashboardModel
 import "../../qml/core/GridEngine.js" as GridEngine
 import "../../qml/core/HostPlacements.js" as HostPlacements
+import "../../qml/core/PopoutGeometry.js" as PopoutGeometry
 import "../../qml/core/HyprlandBlur.js" as HyprlandBlur
 import "../../qml/runtime/PluginControls.js" as PluginControls
 import "../../qml/runtime/PluginIconResolver.js" as PluginIconResolver
@@ -567,7 +568,7 @@ TestCase {
     compare(result.source, "file:///Widget.qml")
     result = PluginPresentation.resolve(manifest, "launcher", { explicit: "file:///Page.qml" },
       { nativeAvailable: true })
-    compare(result.launchTarget, "native")
+    compare(result.launchTarget, "popout")
   }
 
   function test_universal_presentation_adapts_then_falls_back_to_launcher() {
@@ -595,7 +596,67 @@ TestCase {
 
     var nativeLauncher = PluginPresentation.resolve(standard, "launcher", {}, { nativeAvailable: true })
     verify(nativeLauncher.canLaunch)
-    compare(nativeLauncher.launchTarget, "native")
+    compare(nativeLauncher.launchTarget, "popout")
+    compare(nativeLauncher.state, "preparing")
+    var unsupported = PluginPresentation.resolve(standard, "launcher", { adaptationError: "unsupported" },
+      { nativeAvailable: true })
+    compare(unsupported.launchTarget, "native")
+  }
+
+  function test_popout_size_uses_manifest_then_intrinsic_hints_and_user_override() {
+    var metadata = { preferredWidth: 500, preferredHeight: 300,
+      popout: { preferredWidth: 600, preferredHeight: 400 } }
+    var natural = { width: 700, height: 500 }
+    var bounds = { width: 1200, height: 900 }
+    var chrome = { width: 20, height: 60 }
+    var size = PopoutGeometry.resolve(metadata, natural, null, bounds, chrome)
+    compare(size.width, 620)
+    compare(size.height, 460)
+    size = PopoutGeometry.resolve({}, natural, null, bounds, chrome)
+    compare(size.width, 720)
+    compare(size.height, 560)
+    size = PopoutGeometry.resolve(metadata, natural, { width: 800, height: 600 }, bounds, chrome)
+    compare(size.width, 800)
+    compare(size.height, 600)
+    size = PopoutGeometry.resolve({ preferredWidth: 550 }, natural, null, bounds, chrome)
+    compare(size.width, 570)
+    compare(size.height, 560)
+  }
+
+  function test_popout_size_respects_surround_even_with_large_minimum_or_saved_size() {
+    var size = PopoutGeometry.resolve({ popout: { minWidth: 1800, minHeight: 1600 } }, {},
+      { width: 4000, height: 3000 }, { width: 900, height: 600 }, { width: 20, height: 60 })
+    compare(size.width, 900)
+    compare(size.height, 600)
+    size = PopoutGeometry.resolve({ preferredWidth: -1, preferredHeight: Infinity }, {},
+      { width: NaN, height: -50 }, { width: 1000, height: 800 }, {})
+    compare(size.width, 860)
+    compare(size.height, 680)
+    size = PopoutGeometry.resolve({}, {}, null, { width: 0, height: 0 }, {})
+    compare(size.width, 0)
+    compare(size.height, 0)
+  }
+
+  function test_popout_size_survives_placement_moves_and_can_reset_independently() {
+    var config = {}
+    HostPlacements.synchronize(config, "dashboard", [
+      { id: "plugin.one", instanceId: "one", slot: "work" },
+      { id: "plugin.two", instanceId: "two", slot: "work" }
+    ])
+    verify(HostPlacements.setPopoutSize(config, "dashboard", "plugin.one", { width: 700, height: 450 }))
+    verify(!HostPlacements.setPopoutSize(config, "dashboard", "missing", { width: 700, height: 450 }))
+    verify(!HostPlacements.setPopoutSize(config, "dashboard", "plugin.one", { width: Infinity, height: 450 }))
+    HostPlacements.synchronize(config, "dashboard", [
+      { id: "plugin.one", instanceId: "replacement", slot: "home" },
+      { id: "plugin.two", instanceId: "two", slot: "pending" }
+    ])
+    var entries = HostPlacements.entries(config, "dashboard")
+    compare(entries[0].popoutSize.width, 700)
+    compare(entries[0].popoutSize.height, 450)
+    compare(entries[1].popoutSize, null)
+    compare(Object.keys(entries[0].settings).length, 0)
+    verify(HostPlacements.setPopoutSize(config, "dashboard", "plugin.one", null))
+    compare(HostPlacements.entries(config, "dashboard")[0].popoutSize, null)
   }
 
   function test_dashboard_owned_service_controls_are_explicit_and_toggle_safely() {

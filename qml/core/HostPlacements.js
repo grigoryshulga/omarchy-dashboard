@@ -51,6 +51,7 @@ function entries(config, hostId) {
       id: pluginId,
       instanceId: instanceId,
       slot: safeId(source.slot),
+      popoutSize: normalizePopoutSize(source.popoutSize),
       settings: plainObject(source.settings) ? source.settings : ({})
     })
   }
@@ -111,12 +112,15 @@ function synchronize(config, hostId, desiredReferences) {
     usedPlugins[pluginId] = true
     usedInstances[instanceId] = true
     var previous = existingByInstance[instanceId] || existingByPlugin[pluginId]
-    next.push({
+    var placement = {
       id: pluginId,
       instanceId: instanceId,
       slot: safeId(source.slot),
       settings: previous && plainObject(previous.settings) ? previous.settings : ({})
-    })
+    }
+    var popoutSize = previous ? normalizePopoutSize(previous.popoutSize) : null
+    if (popoutSize) placement.popoutSize = popoutSize
+    next.push(placement)
   }
 
   var record = host(config, hostId, next.length > 0)
@@ -137,4 +141,26 @@ function settingsFor(config, hostId, pluginId, instanceId) {
     if (!wantedInstance && current[index].id === wantedPlugin) return current[index].settings
   }
   return ({})
+}
+
+function normalizePopoutSize(value) {
+  if (!plainObject(value) || typeof value.width !== "number" || typeof value.height !== "number"
+      || !isFinite(value.width) || !isFinite(value.height)
+      || value.width < 1 || value.height < 1 || value.width > 8192 || value.height > 8192) return null
+  return { width: Math.round(value.width), height: Math.round(value.height) }
+}
+
+function setPopoutSize(config, hostId, pluginId, size) {
+  var record = host(config, hostId, false)
+  var id = safeId(pluginId)
+  var normalized = normalizePopoutSize(size)
+  if (!record || !id || (size !== null && !normalized)) return false
+  for (var index = 0; index < record.placements.length; index++) {
+    var placement = record.placements[index]
+    if (!plainObject(placement) || placement.id !== id) continue
+    if (normalized) placement.popoutSize = normalized
+    else delete placement.popoutSize
+    return true
+  }
+  return false
 }

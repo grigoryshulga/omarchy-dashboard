@@ -215,6 +215,9 @@ Item {
       ok: true, hostId: pluginId, placements: plugins.hostEntries
     })
     if (type === "managePlugins") return JSON.stringify(managePlugins(command.request || ({})))
+    if (type === "setPopoutSize") return JSON.stringify({
+      ok: plugins.setPopoutSize(String(command.pluginId || ""), command.size)
+    })
     if (type === "open") open(JSON.stringify({ screenName: command.screenName || "" }))
     else if (type === "close") close()
     else if (type === "toggle") toggle(JSON.stringify({ screenName: command.screenName || "" }))

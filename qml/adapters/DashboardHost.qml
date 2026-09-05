@@ -28,11 +28,20 @@ Item {
   property var mask: null
   property int contentWidth: width
   property int contentHeight: height
+  property bool dashboardContentWidthHint: false
+  property bool dashboardContentHeightHint: false
+  property real preferredContentWidth: 0
+  property real preferredContentHeight: 0
+  readonly property real dashboardPreferredWidth: preferredContentWidth
+    || (dashboardContentWidthHint ? contentWidth : implicitWidth)
+  readonly property real dashboardPreferredHeight: preferredContentHeight
+    || (dashboardContentHeightHint ? contentHeight : implicitHeight)
   readonly property bool interactionAllowed: dashboardHost && dashboardHost.mode === "interact"
   default property alias contentItem: contentHolder.children
 
   function fittedContentWidth(value, cap) {
     var desired = Math.max(1, Number(value) || 1)
+    Qt.callLater(root.rememberWidth, cap > 0 ? Math.min(desired, Number(cap)) : desired)
     var maximum = root.width > 0 ? root.width : desired
     if (cap !== undefined && Number(cap) > 0) maximum = Math.min(maximum, Number(cap))
     return Math.round(Math.min(desired, maximum))
@@ -40,6 +49,7 @@ Item {
 
   function fittedContentHeight(value, cap) {
     var desired = Math.max(1, Number(value) || 1)
+    Qt.callLater(root.rememberHeight, cap > 0 ? Math.min(desired, Number(cap)) : desired)
     var maximum = root.height > 0 ? root.height : desired
     if (cap !== undefined && Number(cap) > 0) maximum = Math.min(maximum, Number(cap))
     return Math.round(Math.min(desired, maximum))
@@ -47,7 +57,16 @@ Item {
 
   function cappedContentHeight(value) {
     var desired = Math.max(1, Number(value) || 1)
+    Qt.callLater(root.rememberHeight, desired)
     return Math.round(Math.min(desired, root.height > 0 ? root.height : desired))
+  }
+
+  function rememberWidth(value) { preferredContentWidth = value }
+  function rememberHeight(value) { preferredContentHeight = value }
+
+  onDashboardHostChanged: {
+    if (dashboardHost && typeof dashboardHost.registerSurface === "function")
+      dashboardHost.registerSurface(root)
   }
 
   function focusPanel() {

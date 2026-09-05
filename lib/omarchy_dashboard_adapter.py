@@ -23,7 +23,7 @@ class AdaptationError(Exception):
     """The source does not satisfy Dashboard's deliberately narrow contract."""
 
 
-ADAPTER_VERSION = "dashboard-adapter-v9"
+ADAPTER_VERSION = "dashboard-adapter-v10"
 PADDED_LAYOUT = "padded"
 EDGE_TO_EDGE_LAYOUT = "edge-to-edge"
 CONTENT_LAYOUTS = frozenset((PADDED_LAYOUT, EDGE_TO_EDGE_LAYOUT))
@@ -329,6 +329,8 @@ def transform_standard_panel(
             host.open_token.end,
             host.open_token.end,
             f"\n    anchors.fill: parent\n    dashboardHost: {root_id}.dashboardHost\n    page: {root_id}"
+            f"\n    dashboardContentWidthHint: {str(direct_property(token_list, host, 'contentWidth') is not None).lower()}"
+            f"\n    dashboardContentHeightHint: {str(direct_property(token_list, host, 'contentHeight') is not None).lower()}"
             f"\n    onFocusTargetChanged: {root_id}.dashboardFocusTarget = focusTarget"
             f"\n    Component.onCompleted: {root_id}.dashboardFocusTarget = focusTarget",
         ),

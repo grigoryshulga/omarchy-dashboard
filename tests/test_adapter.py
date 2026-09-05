@@ -177,6 +177,8 @@ Item {
     id: surface
     objectName: "surface"
     title: "Settings"
+    implicitWidth: 720
+    implicitHeight: 500
     minimumSize: Qt.size(400, 300)
     maximumSize: Qt.size(1200, 900)
     color: "red"
@@ -198,6 +200,8 @@ TestCase {
   height: 480
   property string mode: "interact"
   property int escapes: 0
+  property var registeredSurface: null
+  function registerSurface(surface) { registeredSurface = surface }
   function handleEscape() { escapes += 1 }
   function test_lifecycle() {
     var component = Qt.createComponent(''' + json.dumps(output.as_uri()) + ''')
@@ -209,6 +213,9 @@ TestCase {
     verify(surface !== null)
     verify(content !== null)
     compare(surface.parent, page)
+    compare(test.registeredSurface, surface)
+    compare(surface.dashboardPreferredWidth, 720)
+    compare(surface.dashboardPreferredHeight, 500)
     verify(!surface.visible)
     page.open()
     verify(surface.visible)
@@ -216,6 +223,10 @@ TestCase {
     compare(content.height, 480)
     page.width = 800
     compare(content.width, 800)
+    compare(surface.fittedContentWidth(1000), 800)
+    tryCompare(surface, "dashboardPreferredWidth", 1000)
+    compare(surface.fittedContentHeight(900), 480)
+    tryCompare(surface, "dashboardPreferredHeight", 900)
     content.forceActiveFocus()
     keyClick(Qt.Key_Escape)
     compare(test.escapes, 1)
