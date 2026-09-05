@@ -2,7 +2,8 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
-import "../core/GridEngine.js" as GridEngine
+import "../layout/GridEngine.js" as GridEngine
+import "../layout" as Layout
 
 Item {
   id: root
@@ -316,7 +317,7 @@ Item {
     onCanceled: root.cancelPointer()
   }
 
-  CanvasAlignmentGuides {
+  Layout.CanvasAlignmentGuides {
     parent: root.canvas
     verticalGuideVisible: root.verticalGuideVisible
     horizontalGuideVisible: root.horizontalGuideVisible
@@ -782,7 +783,7 @@ Item {
     height: visible ? root.previewRect.h : 0
     z: 50
 
-    TileSilhouette {
+    Layout.TileSilhouette {
       anchors.fill: parent
       valid: root.previewValid
       title: root.presentation.name || root.tile.label || root.tile.pluginId

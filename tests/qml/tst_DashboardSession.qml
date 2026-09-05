@@ -1,6 +1,6 @@
 import QtQuick
 import QtTest
-import "../../qml/ui" as DashboardUi
+import "../../qml/plugins" as Plugins
 
 TestCase {
   id: test
@@ -42,14 +42,14 @@ TestCase {
     function selectTileId(id) { selectedTileId = id }
   }
 
-  DashboardUi.DashboardSessionTiles {
+  Plugins.DashboardSessionTiles {
     id: session
     opened: fakeDashboard.opened
     spaces: test.spaces
     activeSpaceId: test.activeSpaceId
   }
 
-  DashboardUi.DashboardTileCollection {
+  Plugins.DashboardTileCollection {
     id: collection
     tiles: session.tiles
   }
@@ -57,7 +57,7 @@ TestCase {
   Repeater {
     id: tiles
     model: collection.model
-    delegate: DashboardUi.TileHost {
+    delegate: Plugins.TileHost {
       required property string tileSpaceId
       dashboard: fakeDashboard
       canvas: test

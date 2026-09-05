@@ -2,7 +2,8 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
-import "../core/PopoutGeometry.js" as PopoutGeometry
+import "PopoutGeometry.js" as PopoutGeometry
+import "../ui" as Ui
 
 Item {
   id: root
@@ -166,13 +167,13 @@ Item {
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
         }
-        DashboardActionButton {
+        Ui.DashboardActionButton {
           icon: "󰒠"
           text: "Auto size"
           active: !root.savedSize && !root.resizeDraft
           onClicked: root.useAutomaticSize()
         }
-        DashboardActionButton {
+        Ui.DashboardActionButton {
           icon: "\uf00d"
           text: "Close"
           onClicked: root.closeRequested()

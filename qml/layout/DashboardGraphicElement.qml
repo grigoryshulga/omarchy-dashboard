@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
-import "../core/GridEngine.js" as GridEngine
+import "GridEngine.js" as GridEngine
 
 Item {
   id: root

@@ -458,21 +458,25 @@ separately with `bash tests/live-corner-radius.sh`. The script temporarily
 changes the effective rounding through the same Lua `eval`, checks the reaction
 to `configreloaded`, and restores the original value.
 
-The suite includes QML unit tests for the model, grid, and navigation; Python
-tests for the secure adapter and state reader; an adapter smoke test; and
-Omarchy manifest validation. `qml/Dashboard.qml` owns only the session and UI
-commands; `qml/runtime/DashboardStore.qml` encapsulates persistence, and
-`qml/runtime/PluginRuntime.qml` encapsulates discovery, lifecycle injection,
-and plugin-page adaptation.
+The suite includes QML tests grouped by responsibility, Python tests for CLI
+and helper behavior, an adapter smoke test against installed Omarchy plugins,
+and manifest validation. Management protocol tests exercise transaction order
+and failure handling through the same interface used by the CLI.
 
-The source tree follows the module seams used by the implementation:
+The QML source is organized by responsibility:
 
-- `qml/` contains the two manifest entry points;
-- `qml/core/` contains state, geometry, navigation, and other pure logic;
-- `qml/runtime/` contains persistence and Omarchy/plugin integration;
-- `qml/ui/` contains the visual Dashboard implementation;
-- `qml/adapters/` contains helpers copied into adapted plugin panels;
-- `lib/` and `bin/` contain the Python implementation and executable wrappers.
+| Location | Responsibility |
+| --- | --- |
+| `qml/Dashboard.qml`, `qml/BarWidget.qml` | Manifest entry points, session and UI commands |
+| `qml/commands/` | Versioned external management commands |
+| `qml/state/` | Document validation, mutations and persistence |
+| `qml/plugins/` | Discovery, presentation, lifecycle, resident tiles and popouts |
+| `qml/plugins/adapters/` | Hosts copied into adapted plugin panels |
+| `qml/layout/` | Grid geometry, placement and graphic elements |
+| `qml/navigation/` | Spatial navigation, gestures and keyboard shortcuts |
+| `qml/appearance/` | Surface modes and Hyprland blur integration |
+| `qml/ui/` | Dashboard surface and shared buttons/dialogs |
+| `lib/`, `bin/` | Python implementations and executable entry points |
 
-Architectural decisions and implementation stages are recorded in
-locally in `docs/MASTER_PLAN.md`.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for ownership, dependency direction,
+plugin lifetime, and a guide to the relevant tests.

@@ -1,6 +1,6 @@
 import QtQuick
 import QtTest
-import "../../qml/ui" as DashboardUi
+import "../../qml/plugins" as Plugins
 
 TestCase {
   id: test
@@ -42,7 +42,7 @@ TestCase {
 
   Component {
     id: popoutComponent
-    DashboardUi.DashboardPopout {
+    Plugins.DashboardPopout {
       width: 1000
       height: 800
       dashboard: fakeDashboard

@@ -5,8 +5,11 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
-import "../core/GridEngine.js" as GridEngine
-import "../core/SpaceSwipe.js" as SpaceSwipe
+import "../layout/GridEngine.js" as GridEngine
+import "../navigation/SpaceSwipe.js" as SpaceSwipe
+import "../layout" as Layout
+import "../navigation" as Navigation
+import "../plugins" as Plugins
 
 PanelWindow {
   id: root
@@ -223,30 +226,30 @@ PanelWindow {
     onActivatedAmbiguously: root.handleEscape()
   }
 
-  DashboardSpaceShortcuts {
+  Navigation.DashboardSpaceShortcuts {
     dashboard: root.dashboard
     active: root.visible
   }
 
-  DashboardTileNavigationShortcuts {
+  Navigation.DashboardTileNavigationShortcuts {
     dashboard: root.dashboard
     active: root.visible
   }
 
-  DashboardGlobalShortcuts {
+  Navigation.DashboardGlobalShortcuts {
     dashboard: root.dashboard
     surface: root
     active: root.visible
   }
 
-  DashboardSessionTiles {
+  Plugins.DashboardSessionTiles {
     id: sessionTiles
     opened: dashboard.opened
     spaces: dashboard.dashboardState.spaces
     activeSpaceId: dashboard.activeSpace.id
   }
 
-  DashboardTileCollection {
+  Plugins.DashboardTileCollection {
     id: tileCollection
     tiles: sessionTiles.tiles
   }
@@ -756,7 +759,7 @@ PanelWindow {
             Repeater {
               id: tileRepeater
               model: tileCollection.model
-              delegate: TileHost {
+              delegate: Plugins.TileHost {
                 required property string tileSpaceId
                 dashboard: root.dashboard
                 canvas: gridCanvas
@@ -771,7 +774,7 @@ PanelWindow {
             Repeater {
               id: graphicElementRepeater
               model: dashboard.activeElements
-              delegate: DashboardGraphicElement {
+              delegate: Layout.DashboardGraphicElement {
                 required property var modelData
                 dashboard: root.dashboard
                 element: modelData
@@ -846,7 +849,7 @@ PanelWindow {
               onCanceled: dashboard.cancelDividerPlacement()
             }
 
-            PlacementGhost {
+            Layout.PlacementGhost {
               dashboard: root.dashboard
               canvas: gridCanvas
             }
@@ -968,7 +971,7 @@ PanelWindow {
       onRejected: root.cancelTextEditor()
     }
 
-    PluginCatalog {
+    Plugins.PluginCatalog {
       anchors.fill: parent
       visible: dashboard.overlay === "catalog"
       z: 20
@@ -983,7 +986,7 @@ PanelWindow {
       }
     }
 
-    ShortcutsOverlay {
+    Navigation.ShortcutsOverlay {
       anchors.fill: parent
       visible: dashboard.overlay === "help"
       z: 25
@@ -993,7 +996,7 @@ PanelWindow {
       }
     }
 
-    DashboardPopout {
+    Plugins.DashboardPopout {
       anchors.fill: parent
       visible: dashboard.overlay === "plugin"
       z: 30

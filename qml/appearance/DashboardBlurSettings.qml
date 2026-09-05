@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell.Io
-import "../core/HyprlandBlur.js" as HyprlandBlur
+import "HyprlandBlur.js" as HyprlandBlur
 
 Item {
   id: root

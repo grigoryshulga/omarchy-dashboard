@@ -1,6 +1,6 @@
 import QtQuick
 import QtTest
-import "../../qml/ui" as DashboardUi
+import "../../qml/plugins" as Plugins
 
 TestCase {
   id: test
@@ -50,7 +50,7 @@ TestCase {
 
   Component {
     id: tileComponent
-    DashboardUi.TileHost {
+    Plugins.TileHost {
       dashboard: fakeDashboard
       canvas: test
       tileId: "one"

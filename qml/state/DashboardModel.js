@@ -1,5 +1,5 @@
 .pragma library
-.import "GridEngine.js" as GridEngine
+.import "../layout/GridEngine.js" as GridEngine
 
 var VERSION = 5
 var MAX_STATE_BYTES = 256 * 1024

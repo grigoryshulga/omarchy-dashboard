@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ADAPTER_DIR = ROOT / "qml" / "adapters"
+ADAPTER_DIR = ROOT / "qml" / "plugins" / "adapters"
 SPEC = importlib.util.spec_from_file_location("adapter", ROOT / "lib" / "omarchy_dashboard_adapter.py")
 adapter = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None

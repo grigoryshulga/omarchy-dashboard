@@ -10,24 +10,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class QmlSecurityTests(unittest.TestCase):
     def test_state_writes_use_the_descriptor_based_helper(self) -> None:
-        source = (ROOT / "qml" / "runtime" / "DashboardStore.qml").read_text(encoding="utf-8")
+        source = (ROOT / "qml" / "state" / "DashboardStore.qml").read_text(encoding="utf-8")
         self.assertIn("writerPath", source)
         self.assertIn("stateWriter.write(root.writingText)", source)
         self.assertNotIn("FileView", source)
         self.assertNotIn("setText(", source)
 
     def test_external_helpers_are_bounded_before_qml_collects_output(self) -> None:
-        source = (ROOT / "qml" / "runtime" / "PluginRuntime.qml").read_text(encoding="utf-8")
+        source = (ROOT / "qml" / "plugins" / "PluginRuntime.qml").read_text(encoding="utf-8")
         self.assertIn("omarchy-dashboard-run-helper", source)
         self.assertIn("--max-bytes", source)
         self.assertIn("adapterTimeout", source)
         self.assertIn("iconTimeout", source)
-
-    def test_host_placement_state_is_staged_after_the_shell_transaction(self) -> None:
-        source = (ROOT / "qml" / "Dashboard.qml").read_text(encoding="utf-8")
-        transaction = source.index("plugins.applyHostPlacementTransaction(result.state")
-        replacement = source.index("stateStore.replaceDocument(result.state)", transaction)
-        self.assertLess(transaction, replacement)
 
     def test_every_text_renderer_is_explicitly_plain_text(self) -> None:
         for path in sorted((ROOT / "qml").rglob("*.qml")):

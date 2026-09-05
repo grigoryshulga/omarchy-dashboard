@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
+import "../ui" as Ui
 
 Item {
   id: root
@@ -66,7 +67,7 @@ Item {
           font.pixelSize: Style.font.title
           font.bold: true
         }
-        DashboardActionButton {
+        Ui.DashboardActionButton {
           anchors.right: parent.right
           anchors.verticalCenter: parent.verticalCenter
           icon: "\uf00d"
