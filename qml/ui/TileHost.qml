@@ -52,7 +52,13 @@ Item {
 
   readonly property bool selected: dashboard.selectedTileId === tile.id
   readonly property bool editing: dashboard.mode === "edit"
-  readonly property bool interacting: dashboard.mode === "interact" && selected
+  readonly property bool pointerEnabled: surfaceActive && dashboard.overlay === ""
+    && !dashboard.placingPlugin && !dashboard.placingDivider
+  readonly property bool interacting: canInteract && surfaceActive && dashboard.overlay === ""
+    && dashboard.mode === "interact" && selected
+  readonly property bool canInteract: (presentation.kind === "embedded" || presentation.kind === "widget")
+    && loadedPage !== null && pageError === ""
+  readonly property real frameWidth: editing || interacting ? Style.space(3) : 1
   readonly property string keyboardShortcut: dashboard.keyboardShortcutForTile(tile.id)
   readonly property bool keyboardShortcutVisible: dashboard.shortcutHintsVisible
     && keyboardShortcut !== "" && !interacting
@@ -164,7 +170,14 @@ Item {
   }
 
   function focusPlugin() {
-    if (loadedPage) dashboard.plugins.focusPage(loadedPage)
+    if (interacting && loadedPage) dashboard.plugins.focusPage(loadedPage)
+  }
+
+  function selectForPointer() {
+    if (!pointerEnabled || editing || selected) return
+    // Selection by hover must not automatically activate the next plugin.
+    if (dashboard.mode === "interact") dashboard.mode = "browse"
+    dashboard.selectTileId(tile.id)
   }
 
   function activateAction() {
@@ -229,17 +242,17 @@ Item {
 
   onSourceUrlChanged: {
     pageError = ""
-    if (!sourceUrl && surfaceActive && presentation.state === "preparing")
+    if (!sourceUrl && surfaceActive && presentation && presentation.state === "preparing")
       dashboard.plugins.requestAdaptation(tile.pluginId)
   }
   onSurfaceActiveChanged: {
-    if (surfaceActive && !sourceUrl && presentation.state === "preparing")
+    if (surfaceActive && !sourceUrl && presentation && presentation.state === "preparing")
       dashboard.plugins.requestAdaptation(tile.pluginId)
     if (!surfaceActive) unloadPage("surface-hidden")
   }
   onPresentationChanged: {
     launchError = ""
-    if (surfaceActive && !sourceUrl && presentation.state === "preparing")
+    if (surfaceActive && !sourceUrl && presentation && presentation.state === "preparing")
       dashboard.plugins.requestAdaptation(tile.pluginId)
   }
   onInteractingChanged: {
@@ -303,7 +316,7 @@ Item {
     color: root.presentation.kind === "launcher" && actionMouse.containsMouse
       ? Style.hoverFillFor(Color.popups.text, Color.accent)
       : Color.popups.background
-    border.width: root.editing ? Style.space(3) : 1
+    border.width: root.frameWidth
     border.color: root.selected
       ? Color.accent
       : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.09)
@@ -530,14 +543,42 @@ Item {
 
     Rectangle {
       anchors.fill: parent
-      visible: root.presentation.contentLayout === "edge-to-edge"
+      visible: root.interacting || root.presentation.contentLayout === "edge-to-edge"
       radius: Style.cornerRadius
       color: "transparent"
-      border.width: root.editing ? Style.space(3) : 1
+      border.width: root.frameWidth
       border.color: root.selected
         ? Color.accent
         : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.09)
       z: 10
+    }
+
+    Rectangle {
+      objectName: "interactionIndicator"
+      visible: root.interacting
+      anchors.top: parent.top
+      anchors.right: parent.right
+      anchors.margins: root.frameWidth
+      width: Math.min(parent.width - root.frameWidth * 2, interactionText.implicitWidth + Style.spacing.md * 2)
+      height: Style.space(22)
+      radius: Style.cornerRadius
+      color: Color.accent
+      z: 15
+      Text {
+        textFormat: Text.PlainText
+        id: interactionText
+        anchors.fill: parent
+        anchors.leftMargin: Style.spacing.sm
+        anchors.rightMargin: Style.spacing.sm
+        text: "Interacting · Esc"
+        color: Color.background
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.bold: true
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        elide: Text.ElideRight
+      }
     }
 
     Rectangle {
@@ -569,22 +610,21 @@ Item {
     MouseArea {
       id: actionMouse
       anchors.fill: parent
-      enabled: !root.interacting && !root.editing
+      enabled: root.pointerEnabled && !root.interacting && !root.editing
       acceptedButtons: Qt.LeftButton
       hoverEnabled: true
-      cursorShape: root.presentation.kind === "control"
+      cursorShape: root.canInteract || root.presentation.kind === "control"
         || (root.presentation.kind === "launcher" && root.presentation.canLaunch)
         ? Qt.PointingHandCursor : Qt.ArrowCursor
+      onPositionChanged: function(mouse) {
+        if (mouse.buttons === Qt.NoButton) root.selectForPointer()
+      }
       onClicked: {
+        root.selectForPointer()
         root.dashboard.selectTileId(root.tile.id)
-        if (root.presentation.kind === "control"
+        if (root.canInteract || root.presentation.kind === "control"
             || (root.presentation.kind === "launcher" && root.presentation.canLaunch))
           root.activateAction()
-      }
-      onDoubleClicked: {
-        if (root.presentation.kind === "control" || root.presentation.kind === "launcher") return
-        root.dashboard.selectTileId(root.tile.id)
-        root.dashboard.activateTile(root.tile)
       }
     }
 

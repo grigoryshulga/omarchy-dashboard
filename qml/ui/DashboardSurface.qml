@@ -252,7 +252,9 @@ PanelWindow {
     }
     function onModeChanged() {
       if (root.visible && dashboard.mode !== "interact")
-        Qt.callLater(function() { if (root.visible) keyCatcher.forceActiveFocus() })
+        Qt.callLater(function() {
+          if (root.visible && dashboard.mode !== "interact") keyCatcher.forceActiveFocus()
+        })
     }
   }
 

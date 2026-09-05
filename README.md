@@ -219,8 +219,14 @@ block near the canvas center activates magnetic alignment: translucent accent
 guides independently show vertical and horizontal center-axis matches. The axes
 fall on the nearest active grid lines and do not shift an object's origin from
 the grid step; an axis incompatible with the object's current size is not
-activated. Double-click a tile's content to enter `interact`; `Escape` always
-returns to `browse` without closing the inner panel.
+activated. Hover a tile to select it, then click once to enter `interact`.
+That first click gives the plugin focus; subsequent clicks operate its controls.
+A thicker accent frame and an `Interacting · Esc` badge distinguish interaction
+from selection. Hovering another tile leaves the previous plugin's interaction
+and selects the next tile without activating it. Mouse drags, edit mode, and
+open overlays do not change selection through hover. `Escape` returns to
+`browse` without closing the inner panel. Launcher and service-control tiles
+keep their immediate single-click actions.
 
 The `Draw Divider` button starts a brief drawing mode: drag a line between two
 grid points and Dashboard locks its dominant axis, saving a strictly horizontal
