@@ -17,6 +17,7 @@ adding, placing, and automating plugins straightforward.
 - decorative grid overlays: horizontal and vertical dividers between grid points
   plus text labels with automatically scaled fonts;
 - multiple named Spaces with a compact switcher and inline renaming;
+- lazy loading of Space contents, retained in memory until Dashboard closes;
 - `browse`, `interact`, and `edit` modes with predictable focus ownership;
 - opening on the monitor that invoked the launcher, or on the focused monitor;
 - a catalog of installed system and user plugins;
@@ -386,6 +387,19 @@ competing IPC handlers, timers, and singleton service state. The detailed author
 contract is maintained locally in `docs/PLUGIN_CONTRACT.md`.
 
 ## State and cache
+
+Embedded plugin pages and widgets load when their Space is first visited.
+Switching Spaces hides them and suspends their input, while retaining the same
+QML instances, local state, and lifecycle. Returning to a Space does not
+initialize its plugins again. A single Dashboard window owns these instances,
+so summoning Dashboard on another monitor also preserves them.
+
+New plugins on hidden Spaces remain unloaded until that Space is visited.
+Moving or reordering an existing tile preserves its instance; removing a tile
+or Space releases the affected instances. Closing Dashboard releases all its
+tile instances, and the next opening starts a fresh lazy session. Changing a
+plugin's presentation or reloading its code can still replace its page.
+Shared services and bar widgets remain owned by Omarchy Shell.
 
 - layout: `$XDG_STATE_HOME/omarchy/gshulga.dashboard.json` or
   `~/.local/state/omarchy/gshulga.dashboard.json`;

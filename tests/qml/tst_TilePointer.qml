@@ -14,7 +14,7 @@ TestCase {
     id: fakePlugins
     property string kind: "embedded"
     function presentation(tile) {
-      return { kind: kind, state: "ready", canLaunch: true, name: "Test", icon: "x",
+      return { kind: kind, state: "ready", canLaunch: true, active: false, name: "Test", icon: "x",
         contentLayout: "edge-to-edge", available: ["embedded", "launcher"],
         source: kind === "embedded" ? Qt.resolvedUrl("../fixtures/InteractivePage.qml") : "" }
     }

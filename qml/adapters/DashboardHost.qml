@@ -36,7 +36,7 @@ Item {
     || (dashboardContentWidthHint ? contentWidth : implicitWidth)
   readonly property real dashboardPreferredHeight: preferredContentHeight
     || (dashboardContentHeightHint ? contentHeight : implicitHeight)
-  readonly property bool interactionAllowed: dashboardHost && dashboardHost.mode === "interact"
+  readonly property bool interactionAllowed: visible && dashboardHost && dashboardHost.mode === "interact"
   default property alias contentItem: contentHolder.children
 
   function fittedContentWidth(value, cap) {

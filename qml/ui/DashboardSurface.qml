@@ -239,9 +239,16 @@ PanelWindow {
     active: root.visible
   }
 
+  DashboardSessionTiles {
+    id: sessionTiles
+    opened: dashboard.opened
+    spaces: dashboard.dashboardState.spaces
+    activeSpaceId: dashboard.activeSpace.id
+  }
+
   DashboardTileCollection {
     id: tileCollection
-    tiles: dashboard.activeTiles
+    tiles: sessionTiles.tiles
   }
 
   Connections {
@@ -750,11 +757,14 @@ PanelWindow {
               id: tileRepeater
               model: tileCollection.model
               delegate: TileHost {
+                required property string tileSpaceId
                 dashboard: root.dashboard
                 canvas: gridCanvas
                 gridWidth: gridCanvas.width
                 gridHeight: gridCanvas.height
-                surfaceActive: root.visible
+                visible: tileSpaceId === root.dashboard.activeSpace.id
+                surfaceActive: root.visible && visible
+                keepLoaded: root.dashboard.opened
               }
             }
 

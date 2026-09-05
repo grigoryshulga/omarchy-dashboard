@@ -32,6 +32,7 @@ Item {
   property real gridWidth: 0
   property real gridHeight: 0
   property bool surfaceActive: false
+  property bool keepLoaded: surfaceActive
   property var previewRect: null
   property point pointerStart: Qt.point(0, 0)
   property var startRect: null
@@ -221,23 +222,26 @@ Item {
   }
 
   function restorePassivePlugin() {
-    if (!interacting && surfaceActive) Qt.callLater(function() {
-      if (!root.interacting && root.surfaceActive) root.restorePlugin()
-    })
+    if (!interacting && surfaceActive) passiveRestoreTimer.restart()
+  }
+
+  function restoreIfPassive() {
+    if (!interacting && surfaceActive) restorePlugin()
   }
 
   function initializeLoadedPage() {
     loadedPage = pageLoader.item
     pageError = ""
     if (!dashboard.plugins.inject(loadedPage, tile)) {
+      unloadPage("initialization-failed")
       pageError = "The plugin page failed during initialization."
-      pageLoader.active = false
-    } else if (interacting) Qt.callLater(root.focusPlugin)
+    } else if (interacting) focusTimer.restart()
   }
 
   function unloadPage(reason) {
-    if (loadedPage) dashboard.plugins.deactivate(loadedPage, reason)
+    var page = loadedPage
     loadedPage = null
+    if (page) dashboard.plugins.deactivate(page, reason)
   }
 
   onSourceUrlChanged: {
@@ -248,7 +252,8 @@ Item {
   onSurfaceActiveChanged: {
     if (surfaceActive && !sourceUrl && presentation && presentation.state === "preparing")
       dashboard.plugins.requestAdaptation(tile.pluginId)
-    if (!surfaceActive) unloadPage("surface-hidden")
+    // Hidden visited pages retain their Loader; only input/focus is suspended.
+    if (surfaceActive && loadedPage) restorePassivePlugin()
   }
   onPresentationChanged: {
     launchError = ""
@@ -258,10 +263,11 @@ Item {
   onInteractingChanged: {
     if (interacting) {
       hadInteraction = true
-      Qt.callLater(root.focusPlugin)
+      focusTimer.restart()
     } else if (hadInteraction) {
+      focusTimer.stop()
       hadInteraction = false
-      restorePlugin()
+      if (surfaceActive) restorePlugin()
     }
   }
 
@@ -273,7 +279,17 @@ Item {
   }
   Component.onCompleted: if (surfaceActive && !sourceUrl && presentation.state === "preparing")
     dashboard.plugins.requestAdaptation(tile.pluginId)
-  Component.onDestruction: unloadPage("tile-destroyed")
+  Component.onDestruction: {
+    focusTimer.stop()
+    passiveRestoreTimer.stop()
+    unloadPage("tile-destroyed")
+    pageLoader.active = false
+  }
+
+  // Object-owned timers are cancelled with a cached tile. Deferred JavaScript
+  // callbacks can otherwise outlive its QML context during a quick close.
+  Timer { id: focusTimer; interval: 0; onTriggered: root.focusPlugin() }
+  Timer { id: passiveRestoreTimer; interval: 0; onTriggered: root.restoreIfPassive() }
 
   component ResizeHandle: MouseArea {
     id: resizeHandle
@@ -335,7 +351,7 @@ Item {
         id: pageLoader
         anchors.fill: parent
         enabled: root.interacting
-        active: root.surfaceActive && root.sourceUrl !== "" && root.pageError === ""
+        active: root.keepLoaded && root.sourceUrl !== "" && root.pageError === ""
           && (root.presentation.kind === "embedded" || root.presentation.kind === "widget")
         asynchronous: true
         source: active ? root.sourceUrl : ""

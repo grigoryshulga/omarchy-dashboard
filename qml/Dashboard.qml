@@ -1139,16 +1139,17 @@ Item {
     pendingPlacements: root.pendingPlacements
   }
 
-  Variants {
-    model: Quickshell.screens
-    delegate: Component {
-      Ui.DashboardSurface {
-        required property var modelData
-        dashboard: root
-        screen: modelData
-        visible: root.opened && String(modelData.name || "") === root.activeScreenName
-      }
+  // One surface owns the session's plugin instances, even when summoned on
+  // another monitor. Moving its screen does not recreate the QML page tree.
+  Ui.DashboardSurface {
+    dashboard: root
+    screen: {
+      var screens = Quickshell.screens || []
+      for (var index = 0; index < screens.length; index++)
+        if (String(screens[index].name || "") === root.activeScreenName) return screens[index]
+      return screens.length > 0 ? screens[0] : null
     }
+    visible: root.opened && root.activeScreenName !== ""
   }
 
 }
