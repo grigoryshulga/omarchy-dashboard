@@ -5,7 +5,6 @@ import "DashboardModel.js" as DashboardModel
 Item {
   id: root
 
-  required property string directoryPath
   required property string statePath
   required property string readerPath
   required property string writerPath
@@ -92,7 +91,7 @@ Item {
       stateWriterTimeout.stop()
       stateWriterKillTimer.stop()
       root.writeInProgress = false
-      if (!root.pendingText) root.pendingText = root.writingText
+      if (exitCode !== 0 && !root.pendingText) root.pendingText = root.writingText
       root.writingText = ""
       if (root.writeTimedOut) {
         root.writeTimedOut = false
@@ -107,7 +106,7 @@ Item {
         root.saveRetryCount += 1
         saveTimer.restart()
       } else console.warn("Dashboard: failed to save state")
-      if (!root.writeInProgress && root.pendingText && exitCode === 0) saveTimer.restart()
+      if (root.pendingText && exitCode === 0) saveTimer.restart()
     }
   }
 

@@ -16,7 +16,6 @@ PanelWindow {
 
   required property var dashboard
   property string editorText: ""
-  property string textEditorValue: ""
   property string textEditorElementId: ""
   property string pendingRemovalSpaceId: ""
   readonly property int surfaceInset: Math.max(Style.spacing.panelGap, Style.gapsOut)
@@ -65,28 +64,22 @@ PanelWindow {
 
   function beginNewText() {
     textEditorElementId = ""
-    textEditorValue = "Text"
     dashboard.overlay = "text-editor"
   }
 
-  function beginTextEdit(elementId, value) {
+  function beginTextEdit(elementId) {
     textEditorElementId = String(elementId || "")
-    textEditorValue = String(value || "")
     dashboard.overlay = "inline-text"
   }
 
   function finishTextEditor(value) {
     if (textEditorElementId) dashboard.updateText(textEditorElementId, value)
     else dashboard.addText(value)
-    textEditorElementId = ""
-    textEditorValue = ""
-    dashboard.overlay = ""
-    keyCatcher.forceActiveFocus()
+    cancelTextEditor()
   }
 
   function cancelTextEditor() {
     textEditorElementId = ""
-    textEditorValue = ""
     dashboard.overlay = ""
     keyCatcher.forceActiveFocus()
   }
@@ -790,8 +783,8 @@ PanelWindow {
                 canvas: gridCanvas
                 gridWidth: gridCanvas.width
                 gridHeight: gridCanvas.height
-                onEditTextRequested: function(elementId, text) {
-                  root.beginTextEdit(elementId, text)
+                onEditTextRequested: function(elementId) {
+                  root.beginTextEdit(elementId)
                 }
               }
             }
@@ -986,9 +979,6 @@ PanelWindow {
       anchors.fill: parent
       visible: dashboard.overlay === "text-editor"
       z: 24
-      value: root.textEditorValue
-      title: root.textEditorElementId ? "Edit text" : "Add text"
-      acceptText: root.textEditorElementId ? "Save" : "Add"
       onAccepted: function(value) { root.finishTextEditor(value) }
       onRejected: root.cancelTextEditor()
     }

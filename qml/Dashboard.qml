@@ -42,8 +42,7 @@ Item {
     var configured = Quickshell.env("XDG_STATE_HOME")
     return configured && String(configured).charAt(0) === "/" ? String(configured) : home + "/.local/state"
   }
-  readonly property string stateDirectory: stateHome + "/omarchy"
-  readonly property string statePath: stateDirectory + "/gshulga.dashboard.json"
+  readonly property string statePath: stateHome + "/omarchy/gshulga.dashboard.json"
   readonly property string pluginDirectory: decodeURIComponent(Qt.resolvedUrl("../").toString().replace(/^file:\/\//, "").replace(/\/$/, ""))
   readonly property string cacheHome: {
     var configured = Quickshell.env("XDG_CACHE_HOME")
@@ -856,7 +855,6 @@ Item {
 
   State.DashboardStore {
     id: stateStore
-    directoryPath: root.stateDirectory
     statePath: root.statePath
     readerPath: root.pluginDirectory + "/bin/omarchy-dashboard-read-state"
     writerPath: root.pluginDirectory + "/bin/omarchy-dashboard-write-state"

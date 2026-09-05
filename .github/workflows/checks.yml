@@ -26,7 +26,7 @@ jobs:
       PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - name: Install dependencies
-        run: pacman -Syu --noconfirm --needed git python qt6-declarative qt6-tools ttf-dejavu
+        run: pacman -Syu --noconfirm --needed git python qt6-declarative qt6-tools quickshell ttf-dejavu
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: QML behavior
         run: bash tests/qml-model.sh
