@@ -29,7 +29,7 @@ Item {
   readonly property bool horizontalDivider: element.kind === "divider"
     && shown.y1 === shown.y2
 
-  signal editTextRequested(string elementId, string text)
+  signal editTextRequested(string elementId)
 
   anchors.fill: parent
   z: selected ? 40 : (editing ? 3 : 0)
@@ -191,7 +191,7 @@ Item {
       onPositionChanged: function(mouse) { root.updatePointer(textDragArea, mouse) }
       onReleased: root.finishPointer()
       onCanceled: root.clearPointer()
-      onDoubleClicked: root.editTextRequested(root.element.id, root.element.text)
+      onDoubleClicked: root.editTextRequested(root.element.id)
     }
 
     Rectangle {

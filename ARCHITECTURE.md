@@ -114,6 +114,8 @@ behavior they exercise:
 | `tst_DashboardPopout.qml` | Dismissal, resizing and initialization recovery |
 
 Python tests cover CLI behavior, adaptation, icons and secure helpers.
+`test_state_store.py` runs an isolated Quickshell instance to check that saves
+become idle, retain edits made during a write, and retry a failed write.
 `tests/adapter-smoke.sh` adapts installed Omarchy panels using a temporary cache.
 `tests/live-corner-radius.sh` is a separate live-system check. Tests that require
 Shell or real plugins are kept outside the pure model tests.

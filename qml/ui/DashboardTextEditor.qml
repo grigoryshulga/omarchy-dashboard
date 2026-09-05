@@ -2,18 +2,16 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
+import "../state/DashboardModel.js" as DashboardModel
 
 Item {
   id: root
-
-  property string value: ""
-  property string title: "Add text"
-  property string acceptText: "Add"
 
   signal accepted(string value)
   signal rejected()
 
   onVisibleChanged: if (visible) Qt.callLater(function() {
+    input.text = "Text"
     input.forceActiveFocus()
     input.selectAll()
   })
@@ -46,7 +44,7 @@ Item {
 
       Text {
         textFormat: Text.PlainText
-        text: root.title
+        text: "Add text"
         color: Color.popups.text
         font.family: Style.font.family
         font.pixelSize: Style.font.title
@@ -66,13 +64,12 @@ Item {
           anchors.fill: parent
           anchors.leftMargin: Style.spacing.md
           anchors.rightMargin: Style.spacing.md
-          text: root.value
           color: Color.popups.text
           selectionColor: Color.accent
           verticalAlignment: TextInput.AlignVCenter
           font.family: Style.font.family
           font.pixelSize: Style.font.body
-          maximumLength: 240
+          maximumLength: DashboardModel.MAX_TEXT_LENGTH
           onAccepted: root.accept()
           Keys.onEscapePressed: root.rejected()
         }
@@ -86,7 +83,7 @@ Item {
           onClicked: root.rejected()
         }
         DashboardActionButton {
-          text: root.acceptText
+          text: "Add"
           accent: true
           enabled: String(input.text || "").trim().length > 0
           onClicked: root.accept()
