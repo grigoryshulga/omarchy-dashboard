@@ -97,4 +97,6 @@ disk. See [saved data and optional CLI cleanup](docs/guides/troubleshooting.md#s
 | Understand supported plugins and popout sizing | [Plugin compatibility](docs/guides/plugins.md) |
 | Fix a problem or find saved data | [Troubleshooting](docs/guides/troubleshooting.md) |
 | See more themes and layouts | [Gallery](docs/guides/gallery.md) |
+| See what changed | [Changelog](CHANGELOG.md) |
+| Prepare a release | [Release guide](docs/guides/releases.md) |
 | Work on the code | [Development](docs/guides/development.md) · [Architecture](ARCHITECTURE.md) |

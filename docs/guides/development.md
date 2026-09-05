@@ -2,6 +2,9 @@
 
 [← README](../../README.md) · [Architecture](../../ARCHITECTURE.md) · [Diagnostics](troubleshooting.md)
 
+Develop on `dev`; prepare stable updates through a PR into `main`. See the
+[release guide](releases.md) for versioning, testing and publishing.
+
 ## Run the checks
 
 From the repository root:
