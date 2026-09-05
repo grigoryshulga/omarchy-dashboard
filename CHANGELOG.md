@@ -3,7 +3,7 @@
 User-visible changes are grouped by release. A version marked **Unreleased**
 is being tested on `dev`; `main` is the stable installation branch.
 
-## [1.8.1] — Unreleased
+## [1.8.1] — 2026-09-05
 
 ### Fixed
 
@@ -69,5 +69,5 @@ The repository already reported version 1.7.0 before release tracking began.
 There was no corresponding GitHub Release or tag. This entry records that
 baseline without assigning a retrospective release date.
 
-[1.8.1]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.0...dev
+[1.8.1]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/grigoryshulga/omarchy-dashboard/compare/dfb7f4c...v1.8.0
