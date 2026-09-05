@@ -108,6 +108,7 @@ behavior they exercise:
 | `tst_DashboardSession.qml` | Background preloading, retained state, errors, edits and teardown |
 | `tst_PluginLoadQueue.qml` | Foreground priority, bounded background admission and queue lifetime |
 | `tst_TilePointer.qml` | Mouse selection, interaction, focus and Escape |
+| `tst_ElementStyleControls.qml` | Contextual alignment/thickness controls, rendering and persisted styles |
 | `tst_PlacementActions.qml` | Silhouette actions, compact controls, tooltips and drag handling |
 | `tst_DashboardPopout.qml` | Dismissal, resizing and initialization recovery |
 

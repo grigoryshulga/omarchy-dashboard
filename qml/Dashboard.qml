@@ -591,6 +591,16 @@ Item {
     ensureSelection()
   }
 
+  function setTextAlignment(elementId, alignment) {
+    commit({ type: "setTextAlignment", spaceId: activeSpace.id,
+      elementId: elementId, alignment: alignment })
+  }
+
+  function setDividerThickness(elementId, thickness) {
+    commit({ type: "setDividerThickness", spaceId: activeSpace.id,
+      elementId: elementId, thickness: thickness })
+  }
+
   function updateText(elementId, text) {
     if (!elementId || !String(text || "").trim()) return false
     commit({

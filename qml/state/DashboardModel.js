@@ -16,6 +16,8 @@ var MIN_GRID_SPACING = 5
 var MAX_GRID_SPACING = 80
 var MIN_TEXT_WIDTH = 40
 var MIN_TEXT_HEIGHT = 20
+var MIN_DIVIDER_THICKNESS = 1
+var MAX_DIVIDER_THICKNESS = 16
 var RESERVED_MAP_KEYS = ["__proto__", "prototype", "constructor"]
 
 function stringBounded(value, maximum) {
@@ -62,6 +64,16 @@ function defaultState() {
   }
 }
 
+function normalizeTextAlignment(value) {
+  return ["left", "center", "right"].indexOf(value) >= 0 ? value : "left"
+}
+
+function normalizeDividerThickness(value) {
+  var number = Number(value)
+  if (value === undefined || value === null || !isFinite(number)) return 2
+  return Math.max(MIN_DIVIDER_THICKNESS, Math.min(MAX_DIVIDER_THICKNESS, Math.round(number)))
+}
+
 function normalizeElement(raw, usedElementIds) {
   var source = raw || ({})
   var id = safeId(source.id)
@@ -80,7 +92,8 @@ function normalizeElement(raw, usedElementIds) {
     y2 = Math.max(0, Math.min(GridEngine.MAX_HEIGHT, y2))
     if ((x1 !== x2 && y1 !== y2) || (x1 === x2 && y1 === y2)) return null
     usedElementIds[id] = true
-    return { id: id, kind: kind, x1: x1, y1: y1, x2: x2, y2: y2 }
+    return { id: id, kind: kind, x1: x1, y1: y1, x2: x2, y2: y2,
+      thickness: normalizeDividerThickness(source.thickness) }
   }
 
   var text = stringBounded(source.text, MAX_TEXT_LENGTH).trim()
@@ -89,7 +102,7 @@ function normalizeElement(raw, usedElementIds) {
                                       GridEngine.MAX_WIDTH, GridEngine.MAX_HEIGHT)
   usedElementIds[id] = true
   return {
-    id: id, kind: kind, text: text,
+    id: id, kind: kind, text: text, alignment: normalizeTextAlignment(source.alignment),
     x: rect.x, y: rect.y, w: rect.w, h: rect.h
   }
 }
@@ -493,7 +506,7 @@ function apply(state, command, boundWidth, boundHeight) {
     for (var dividerSpace = 0; dividerSpace < next.spaces.length; dividerSpace++)
       dividerCount += next.spaces[dividerSpace].elements.length
     var divider = normalizeElement({
-      id: action.id, kind: "divider",
+      id: action.id, kind: "divider", thickness: action.thickness,
       x1: action.x1, y1: action.y1, x2: action.x2, y2: action.y2
     }, ({}))
     if (dividerCount < MAX_TOTAL_ELEMENTS && divider
@@ -506,7 +519,7 @@ function apply(state, command, boundWidth, boundHeight) {
     for (var textSpace = 0; textSpace < next.spaces.length; textSpace++)
       textCount += next.spaces[textSpace].elements.length
     var textElement = normalizeElement({
-      id: action.id, kind: "text", text: action.text,
+      id: action.id, kind: "text", text: action.text, alignment: action.alignment,
       x: action.rect && action.rect.x, y: action.rect && action.rect.y,
       w: action.rect && action.rect.w, h: action.rect && action.rect.h
     }, ({}))
@@ -514,6 +527,13 @@ function apply(state, command, boundWidth, boundHeight) {
         && !elementExists(next, textElement.id)
         && elementInBounds(textElement, boundWidth, boundHeight))
       next.spaces[index].elements.push(textElement)
+  } else if (["setTextAlignment", "setDividerThickness"].indexOf(action.type) >= 0 && index >= 0) {
+    var styleIndex = elementIndex(next.spaces[index], String(action.elementId || ""))
+    var styledElement = styleIndex >= 0 ? next.spaces[index].elements[styleIndex] : null
+    if (styledElement && styledElement.kind === "text" && action.type === "setTextAlignment")
+      styledElement.alignment = normalizeTextAlignment(action.alignment)
+    else if (styledElement && styledElement.kind === "divider" && action.type === "setDividerThickness")
+      styledElement.thickness = normalizeDividerThickness(action.thickness)
   } else if (action.type === "updateText" && index >= 0) {
     var textElementIndex = elementIndex(next.spaces[index], String(action.elementId || ""))
     var nextText = stringBounded(action.text, MAX_TEXT_LENGTH).trim()
@@ -528,7 +548,7 @@ function apply(state, command, boundWidth, boundHeight) {
       var currentElement = next.spaces[index].elements[placeElementIndex]
       var replacement = null
       if (currentElement.kind === "divider") replacement = normalizeElement({
-        id: currentElement.id, kind: currentElement.kind,
+        id: currentElement.id, kind: currentElement.kind, thickness: currentElement.thickness,
         x1: action.geometry && action.geometry.x1,
         y1: action.geometry && action.geometry.y1,
         x2: action.geometry && action.geometry.x2,
@@ -536,6 +556,7 @@ function apply(state, command, boundWidth, boundHeight) {
       }, ({}))
       else replacement = normalizeElement({
         id: currentElement.id, kind: currentElement.kind, text: currentElement.text,
+        alignment: currentElement.alignment,
         x: action.geometry && action.geometry.x,
         y: action.geometry && action.geometry.y,
         w: action.geometry && action.geometry.w,

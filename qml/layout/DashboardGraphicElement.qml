@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 import "GridEngine.js" as GridEngine
+import "../state/DashboardModel.js" as DashboardModel
 
 Item {
   id: root
@@ -24,6 +25,7 @@ Item {
   readonly property bool editing: dashboard.mode === "edit"
   readonly property bool selected: dashboard.selectedElementId === element.id
   readonly property var shown: previewGeometry || element
+  readonly property real dividerThickness: Style.space(DashboardModel.normalizeDividerThickness(element.thickness))
   readonly property bool horizontalDivider: element.kind === "divider"
     && shown.y1 === shown.y2
 
@@ -147,14 +149,15 @@ Item {
   Item {
     id: textFrame
     visible: root.element.kind === "text"
-    x: visible ? root.shown.x : 0
-    y: visible ? root.shown.y : 0
-    width: visible ? root.shown.w : 0
-    height: visible ? root.shown.h : 0
+    x: visible ? (root.shown.x || 0) : 0
+    y: visible ? (root.shown.y || 0) : 0
+    width: visible ? (root.shown.w || 0) : 0
+    height: visible ? (root.shown.h || 0) : 0
 
     Text {
       textFormat: Text.PlainText
       anchors.fill: parent
+      objectName: "graphicText"
       text: String(root.element.text || "")
       color: Color.popups.text
       font.family: Style.font.family
@@ -162,7 +165,8 @@ Item {
       font.pixelSize: Math.max(Style.font.title, Math.min(Style.space(180), height * 0.78))
       fontSizeMode: Text.Fit
       minimumPixelSize: Math.max(8, Style.font.caption)
-      horizontalAlignment: Text.AlignLeft
+      horizontalAlignment: root.element.alignment === "right" ? Text.AlignRight
+        : (root.element.alignment === "center" ? Text.AlignHCenter : Text.AlignLeft)
       verticalAlignment: Text.AlignVCenter
       elide: Text.ElideRight
     }
@@ -260,13 +264,14 @@ Item {
       ? Math.abs(root.shown.x2 - root.shown.x1) : hitPadding * 2) : 0
     height: visible ? (root.horizontalDivider
       ? hitPadding * 2 : Math.abs(root.shown.y2 - root.shown.y1)) : 0
-    readonly property real hitPadding: Math.max(8, Style.space(8))
+    readonly property real hitPadding: Math.max(8, Style.space(8), root.dividerThickness / 2)
 
     Rectangle {
+      objectName: "graphicDivider"
       x: root.horizontalDivider ? 0 : Math.round((parent.width - width) / 2)
       y: root.horizontalDivider ? Math.round((parent.height - height) / 2) : 0
-      width: root.horizontalDivider ? parent.width : Math.max(2, Style.space(2))
-      height: root.horizontalDivider ? Math.max(2, Style.space(2)) : parent.height
+      width: root.horizontalDivider ? parent.width : root.dividerThickness
+      height: root.horizontalDivider ? root.dividerThickness : parent.height
       radius: Math.min(width, height) / 2
       color: root.selected ? Color.accent : Color.popups.text
       opacity: root.selected ? 1 : 0.48

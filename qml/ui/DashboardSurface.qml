@@ -552,7 +552,7 @@ PanelWindow {
             anchors.left: parent.left
             anchors.leftMargin: 30
             anchors.verticalCenter: parent.verticalCenter
-            visible: toolbar.controlsVisible && dashboard.mode === "edit"
+            visible: toolbar.controlsVisible && dashboard.mode === "edit" && !elementStyleControls.element
             spacing: Style.spacing.xs
 
             Text {
@@ -577,6 +577,22 @@ PanelWindow {
               alwaysExpanded: true
               active: dashboard.surfaceMode === "glass"
               onClicked: dashboard.setSurfaceMode("Glass")
+            }
+          }
+
+          ElementStyleControls {
+            id: elementStyleControls
+            anchors.left: parent.left
+            anchors.leftMargin: 30
+            anchors.verticalCenter: parent.verticalCenter
+            element: dashboard.selectedElement()
+            visible: toolbar.controlsVisible && dashboard.mode === "edit" && element !== null
+            enabled: dashboard.overlay === ""
+            onAlignmentRequested: function(alignment) {
+              if (element) dashboard.setTextAlignment(element.id, alignment)
+            }
+            onThicknessRequested: function(thickness) {
+              if (element) dashboard.setDividerThickness(element.id, thickness)
             }
           }
 

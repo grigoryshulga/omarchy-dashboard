@@ -99,9 +99,14 @@ tiles do not receive input. Closing Dashboard releases these instances.
 In edit mode:
 
 - **Add Text** creates a label. Resize its frame to change the fitted font size;
-  double-click to edit the text.
+  double-click to edit the text. Select it to show **left / center / right**
+  alignment icons in the top bar. Alignment applies inside its existing frame.
 - **Draw Divider** lets you drag a horizontal or vertical line between grid
-  points. Move the whole line or stretch its round ends.
+  points. Move the whole line or stretch its round ends. Select it to show the
+  **Thickness** slider in the top bar (1–16 logical pixels, default 2).
+
+These controls replace Appearance while an element is selected. Changes appear
+immediately and are saved with the element, including after moving or resizing.
 
 Labels and dividers may overlap tiles and each other. Select one and press
 Delete to remove it.
