@@ -101,13 +101,11 @@ TestCase {
     compare(fakeDashboard.mode, "interact")
     tryVerify(function() { return tile.loadedPage.activeFocus })
     compare(tile.loadedPage.clicks, 0)
-    verify(findChild(tile, "interactionIndicator").visible)
     compare(tile.frameWidth, 3)
     mouseClick(tile, 100, 100)
     compare(tile.loadedPage.clicks, 1)
     keyClick(Qt.Key_Escape)
     compare(fakeDashboard.mode, "browse")
-    verify(!findChild(tile, "interactionIndicator").visible)
     compare(tile.frameWidth, 1)
   }
 

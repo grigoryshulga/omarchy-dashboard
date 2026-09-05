@@ -570,34 +570,6 @@ Item {
     }
 
     Rectangle {
-      objectName: "interactionIndicator"
-      visible: root.interacting
-      anchors.top: parent.top
-      anchors.right: parent.right
-      anchors.margins: root.frameWidth
-      width: Math.min(parent.width - root.frameWidth * 2, interactionText.implicitWidth + Style.spacing.md * 2)
-      height: Style.space(22)
-      radius: Style.cornerRadius
-      color: Color.accent
-      z: 15
-      Text {
-        textFormat: Text.PlainText
-        id: interactionText
-        anchors.fill: parent
-        anchors.leftMargin: Style.spacing.sm
-        anchors.rightMargin: Style.spacing.sm
-        text: "Interacting · Esc"
-        color: Color.background
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-        font.bold: true
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
-      }
-    }
-
-    Rectangle {
       visible: root.keyboardShortcutVisible
       anchors.centerIn: parent
       width: Math.max(height, shortcutText.implicitWidth + Style.space(32))

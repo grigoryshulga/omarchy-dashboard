@@ -222,8 +222,8 @@ fall on the nearest active grid lines and do not shift an object's origin from
 the grid step; an axis incompatible with the object's current size is not
 activated. Hover a tile to select it, then click once to enter `interact`.
 That first click gives the plugin focus; subsequent clicks operate its controls.
-A thicker accent frame and an `Interacting · Esc` badge distinguish interaction
-from selection. Hovering another tile leaves the previous plugin's interaction
+A thicker accent frame distinguishes interaction from selection.
+Hovering another tile leaves the previous plugin's interaction
 and selects the next tile without activating it. Mouse drags, edit mode, and
 open overlays do not change selection through hover. `Escape` returns to
 `browse` without closing the inner panel. Launcher and service-control tiles
