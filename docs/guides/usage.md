@@ -33,7 +33,8 @@ your Hyprland configuration.
 | `Shift+arrow keys` / `Shift+H J K L` | Resize the selected tile or graphic element |
 | `arrow keys` / `H J K L` | Move a new-tile preview |
 | `Shift+arrow keys` / `Shift+H J K L` | Resize a new-tile preview |
-| `Enter` / `Esc` | Place / cancel a new tile |
+| `Enter` | Add the preview tile and keep editing |
+| `Delete` / `Esc` (while placing) | Discard the preview and keep editing |
 | `Alt+C` / `Alt+R` | Create / rename a Space |
 | `Alt+X` | Delete the current Space, with confirmation |
 | `Delete` | Delete the selected tile or graphic element |
@@ -53,16 +54,19 @@ mouse drags, edit mode and open overlays.
 
 **Add:** in edit mode, open the catalog with Alt++. Choose a plugin, then move
 and resize its preview. Green means a valid position; red means a collision.
-You can move existing tiles to make room. Press Enter or **Place** to save,
-or Esc to cancel.
+You can move existing tiles to make room. Press Enter or click the **+** icon
+on the preview to add it. Delete, Esc or the trash icon discards the preview.
+Adding or deleting a tile keeps Dashboard in edit mode.
 
 **Move or resize:** in edit mode, drag any area of a tile or its bottom-right
 handle. A preview follows the pointer while live content stays dimmed in its
 original position. Tiles cannot overlap one another.
 
-**Change presentation:** the small button at the top-left of a tile in edit
-mode cycles through its available options: automatic, Embedded, Widget or
-Launcher. See [compatibility](plugins.md) for how these are selected.
+**Edit actions:** the center of each tile shows a trash icon and a display-mode
+icon over lightly dimmed content. Hover for a tooltip. The display icon cycles
+through the plugin's available options; the tooltip shows the current choice.
+The preview has the same actions plus **+** for adding. Its display choice is
+kept when you add it. See [compatibility](plugins.md) for the available modes.
 
 **Popouts:** drag the bottom-right corner to set a size for that plugin.
 **Auto size** restores its preferences. Closing a popout or clicking outside it

@@ -4,6 +4,8 @@ import QtQuick
 import qs.Commons
 import "../layout/GridEngine.js" as GridEngine
 import "../layout" as Layout
+import "../ui" as Ui
+import "PluginPresentation.js" as PluginPresentation
 
 Item {
   id: root
@@ -191,21 +193,9 @@ Item {
   }
 
   function cyclePresentation() {
-    var options = ["auto"]
-    var available = Array.isArray(presentation.available) ? presentation.available : []
-    for (var index = 0; index < available.length; index++)
-      if (options.indexOf(available[index]) < 0) options.push(available[index])
-    var current = options.indexOf(String(tile.embedding || "auto"))
-    dashboard.setTileEmbedding(tile.id, options[(current + 1 + options.length) % options.length])
-  }
-
-  function presentationIcon() {
-    var preference = String(tile.embedding || "auto")
-    if (preference === "embedded") return "󰖲"
-    if (preference === "widget") return "󰍉"
-    if (preference === "launcher") return "󰐊"
-    if (preference === "control") return "󰐥"
-    return "󰒠"
+    dashboard.selectTileId(tile.id)
+    dashboard.setTileEmbedding(tile.id,
+      PluginPresentation.nextPreference(tile.embedding, presentation.available))
   }
 
   function restorePlugin() {
@@ -715,61 +705,14 @@ Item {
       resizeRight: true
     }
 
-    Rectangle {
+    Ui.TileEditActions {
+      anchors.fill: parent
       visible: root.editing
-      anchors.left: parent.left
-      anchors.top: parent.top
-      anchors.margins: Style.spacing.xs
-      width: Style.space(26)
-      height: width
-      radius: Style.cornerRadius > 0 ? height / 2 : 0
       z: 30
-      color: presentationMouse.containsMouse
-        ? Color.accent
-        : Qt.rgba(Color.popups.background.r, Color.popups.background.g, Color.popups.background.b, 0.88)
-      Text {
-        textFormat: Text.PlainText
-        anchors.centerIn: parent
-        text: root.presentationIcon()
-        color: Color.popups.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-      }
-      MouseArea {
-        id: presentationMouse
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.cyclePresentation()
-      }
-    }
-
-    Rectangle {
-      visible: root.editing
-      anchors.right: parent.right
-      anchors.top: parent.top
-      anchors.margins: Style.spacing.xs
-      width: Style.space(26)
-      height: width
-      radius: Style.cornerRadius > 0 ? height / 2 : 0
-      z: 30
-      color: removeMouse.containsMouse ? Color.accent
-        : Qt.rgba(Color.popups.background.r, Color.popups.background.g, Color.popups.background.b, 0.88)
-      Text {
-        textFormat: Text.PlainText
-        anchors.centerIn: parent
-        text: "\uf1f8"
-        color: Color.popups.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
-      }
-      MouseArea {
-        id: removeMouse
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.dashboard.removeTile(root.tile.id)
-      }
+      edgeInset: root.resizeHandleWidth
+      presentationLabel: PluginPresentation.preferenceLabel(root.tile.embedding)
+      onRemoveRequested: root.dashboard.removeTile(root.tile.id)
+      onPresentationRequested: root.cyclePresentation()
     }
 
   }

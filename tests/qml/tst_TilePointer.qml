@@ -37,6 +37,8 @@ TestCase {
     property var dashboardState: ({ gridSpacing: 30 })
     property var activeTiles: []
     property int activations: 0
+    property string removedTileId: ""
+    property string requestedEmbedding: ""
     function keyboardShortcutForTile(id) { return "1" }
     function selectTileId(id) { selectedTileId = id }
     function activateTile(tile) {
@@ -46,6 +48,8 @@ TestCase {
       return true
     }
     function placeTile(id, rect) {}
+    function removeTile(id) { removedTileId = id }
+    function setTileEmbedding(id, embedding) { requestedEmbedding = embedding }
   }
 
   Component {
@@ -81,6 +85,8 @@ TestCase {
     fakeDashboard.placingPlugin = false
     fakeDashboard.placingDivider = false
     fakeDashboard.activations = 0
+    fakeDashboard.removedTileId = ""
+    fakeDashboard.requestedEmbedding = ""
     mouseMove(test, 880, 580)
   }
 
@@ -107,6 +113,25 @@ TestCase {
     keyClick(Qt.Key_Escape)
     compare(fakeDashboard.mode, "browse")
     compare(tile.frameWidth, 1)
+  }
+
+  function test_centered_edit_actions_do_not_drag_or_operate_plugin_content() {
+    fakeDashboard.mode = "edit"
+    var tile = createTile()
+    var actions = findChild(tile, "tileEditActions")
+    var center = actions.mapToItem(tile, actions.width / 2, actions.height / 2)
+    compare(center.x, tile.width / 2)
+    compare(center.y, tile.height / 2)
+    verify(findChild(tile, "editScrim").visible)
+    mouseClick(findChild(tile, "tilePresentationButton"))
+    compare(fakeDashboard.requestedEmbedding, "embedded")
+    compare(fakeDashboard.selectedTileId, "one")
+    verify(!tile.dragging)
+    compare(tile.loadedPage.clicks, 0)
+    mouseClick(findChild(tile, "deleteTileButton"))
+    compare(fakeDashboard.removedTileId, "one")
+    compare(fakeDashboard.mode, "edit")
+    verify(!tile.dragging)
   }
 
   function test_hover_another_tile_exits_previous_interaction_without_activating_next() {

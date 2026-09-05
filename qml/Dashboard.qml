@@ -8,6 +8,7 @@ import "appearance/DashboardAppearance.js" as DashboardAppearance
 import "state/DashboardModel.js" as DashboardModel
 import "layout/GridEngine.js" as GridEngine
 import "navigation/SpatialNavigation.js" as SpatialNavigation
+import "plugins/PluginPresentation.js" as PluginPresentation
 import "appearance" as Appearance
 import "plugins" as Plugins
 import "state" as State
@@ -728,20 +729,20 @@ Item {
 
   function updatePlacementRect(rect) {
     if (!placingPlugin || !rect) return
-    var next = placementDraft
-    placementDraft = {
-      pluginId: next.pluginId,
-      instanceId: next.instanceId,
-      label: next.label,
-      embedding: next.embedding,
-      manifest: next.manifest,
-      minW: next.minW,
-      minH: next.minH,
-      preferredW: next.preferredW,
-      preferredH: next.preferredH,
-      previousTileId: next.previousTileId,
-      rect: rect
-    }
+    updatePlacementDraft({ rect: rect })
+  }
+
+  function updatePlacementDraft(changes) {
+    if (!placingPlugin) return
+    var next = Object.assign({}, placementDraft, changes)
+    placementDraft = next
+  }
+
+  function cyclePlacementPresentation() {
+    if (!placingPlugin) return
+    var presentation = plugins.presentation(placementDraft)
+    updatePlacementDraft({ embedding: PluginPresentation.nextPreference(
+      placementDraft.embedding, presentation.available) })
   }
 
   function movePlacementByGrid(dx, dy) {

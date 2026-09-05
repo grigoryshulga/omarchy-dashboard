@@ -660,12 +660,11 @@ PanelWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             width: placementControls.implicitWidth + Style.spacing.lg * 2
             height: Style.space(42)
-            visible: dashboard.placingPlugin || dashboard.placingDivider
+            visible: dashboard.placingDivider
             radius: Style.cornerRadius > 0 ? height / 2 : 0
             color: Color.popups.background
             border.width: 1
-            border.color: dashboard.placingDivider || dashboard.placementValid
-              ? Color.accent : Qt.rgba(0.95, 0.25, 0.30, 1)
+            border.color: Color.accent
             z: 60
 
             Row {
@@ -676,29 +675,14 @@ PanelWindow {
               Text {
                 textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
-                text: dashboard.placingDivider
-                  ? "Drag between two grid points; the axis locks automatically"
-                  : (dashboard.placementValid
-                    ? "Move or resize, then place"
-                    : "No room here — resize it or move another tile")
-                color: dashboard.placingDivider || dashboard.placementValid
-                  ? Color.popups.text : Qt.rgba(0.95, 0.45, 0.48, 1)
+                text: "Drag between two grid points; the axis locks automatically"
+                color: Color.popups.text
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
               }
               DashboardActionButton {
-                visible: dashboard.placingPlugin
-                text: "Place"
-                accent: true
-                enabled: dashboard.placementValid
-                onClicked: dashboard.confirmPluginPlacement()
-              }
-              DashboardActionButton {
                 text: "Cancel"
-                onClicked: {
-                  if (dashboard.placingDivider) dashboard.cancelDividerPlacement()
-                  else dashboard.cancelPluginPlacement()
-                }
+                onClicked: dashboard.cancelDividerPlacement()
               }
             }
           }

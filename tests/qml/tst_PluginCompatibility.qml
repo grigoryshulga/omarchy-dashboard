@@ -11,6 +11,15 @@ TestCase {
   name: "PluginCompatibility"
   when: windowShown
 
+  function test_display_cycle_uses_only_available_presentations() {
+    compare(PluginPresentation.nextPreference("auto", ["embedded", "launcher"]), "embedded")
+    compare(PluginPresentation.nextPreference("embedded", ["embedded", "launcher"]), "launcher")
+    compare(PluginPresentation.nextPreference("launcher", ["embedded", "launcher"]), "auto")
+    compare(PluginPresentation.nextPreference("auto", ["control", "launcher"]), "control")
+    compare(PluginPresentation.nextPreference("widget", ["launcher"]), "auto")
+    compare(PluginPresentation.nextPreference("auto", []), "auto")
+  }
+
   function tile(id, x, y, w, h) {
     return { id: id, pluginId: "plugin." + id, x: x, y: y, w: w, h: h }
   }

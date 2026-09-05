@@ -13,6 +13,21 @@ function normalizePreference(value) {
   return [AUTO, EMBEDDED, WIDGET, LAUNCHER, CONTROL].indexOf(requested) >= 0 ? requested : AUTO
 }
 
+function nextPreference(current, available) {
+  var options = [AUTO]
+  var candidates = Array.isArray(available) ? available : []
+  candidates.forEach(function(value) {
+    var preference = normalizePreference(value)
+    if (options.indexOf(preference) < 0) options.push(preference)
+  })
+  return options[(options.indexOf(normalizePreference(current)) + 1) % options.length]
+}
+
+function preferenceLabel(value) {
+  var labels = { auto: "Auto", embedded: "Embedded", widget: "Widget", launcher: "Launcher", control: "Control" }
+  return labels[normalizePreference(value)]
+}
+
 function adaptationEntryPoints(manifest) {
   var entries = (manifest || {}).entryPoints || {}
   var result = []

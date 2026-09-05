@@ -39,7 +39,8 @@ omarchy plugin update gshulga.dashboard
 
 1. Press **Alt+E** to enter edit mode.
 2. Press **Alt++** to open the catalog and choose an installed plugin.
-3. Move the tile preview, resize it if needed, then press **Enter** to place it.
+3. Move the preview, then press **Enter** or its **+** icon to add it.
+   **Del** or the trash icon removes it; you stay in edit mode.
 4. Drag tiles to move them; use the bottom-right handle to resize. Adjust
    **Grid step** at the bottom-right of the canvas for finer or coarser placement.
 5. Press **Alt+C** to create another Space, or double-click its name to rename it.

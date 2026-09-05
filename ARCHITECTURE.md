@@ -99,6 +99,7 @@ behavior they exercise:
 | `tst_PluginCompatibility.qml` | Capabilities, controls, icons, size hints and collection identity |
 | `tst_DashboardSession.qml` | Lazy loading, retained state, edits and teardown |
 | `tst_TilePointer.qml` | Mouse selection, interaction, focus and Escape |
+| `tst_PlacementActions.qml` | Silhouette actions, compact controls, tooltips and drag handling |
 | `tst_DashboardPopout.qml` | Dismissal, resizing and initialization recovery |
 
 Python tests cover CLI behavior, adaptation, icons and secure helpers.

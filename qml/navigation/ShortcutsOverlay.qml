@@ -23,10 +23,10 @@ Item {
     { key: "Alt+arrows / Alt+H J K L", action: "Move the selected tile, text, or divider" },
     { key: "Shift+arrows / Shift+H J K L", action: "Resize the selected tile, text, or divider" },
     { key: "Edit toolbar", action: "Draw a divider or add scalable text" },
-    { key: "Placement", action: "Arrows or H J K L move; Shift resizes; Enter places; Esc cancels" },
+    { key: "Placement", action: "Arrows or H J K L move; Shift resizes; Enter adds; Del or Esc discards" },
     { key: "Alt+C / Alt+R", action: "Create or rename a Space" },
     { key: "Alt+X", action: "Remove a Space (confirmation required)" },
-    { key: "Delete", action: "Remove the selected tile or graphic element" },
+    { key: "Delete", action: "Remove the tile, preview or graphic element; keep editing" },
     { key: "?", action: "Show or hide this guide" }
   ]
 

@@ -42,11 +42,18 @@ TestCase {
     property bool placingDivider: false
     property string selectedTileId: "tile"
     property string selectedElementId: ""
+    property bool placementValid: true
+    property int addedTiles: 0
+    property int discardedDrafts: 0
+    property int removedTiles: 0
     property int moveCalls: 0
     property int resizeCalls: 0
     function moveSelectedItemByGrid(dx, dy) { moveCalls += 1 }
     function resizeSelectedItemByGrid(dw, dh) { resizeCalls += 1 }
     function moveSpace(delta) { moveCalls += 1 }
+    function confirmPluginPlacement() { addedTiles += 1; placingPlugin = false; selectedTileId = "added" }
+    function cancelPluginPlacement() { discardedDrafts += 1; placingPlugin = false }
+    function removeTile(id) { removedTiles += 1; selectedTileId = "" }
   }
 
   QtObject {
@@ -115,6 +122,49 @@ TestCase {
     compare(globalShortcutDashboard.moveCalls, 2)
     compare(globalShortcutDashboard.resizeCalls, 2)
     compare(globalShortcutSurface.focusRequests, 4)
+  }
+
+  function test_enter_places_and_delete_removes_without_leaving_edit_mode() {
+    globalShortcutDashboard.mode = "edit"
+    globalShortcutDashboard.placingPlugin = true
+    globalShortcutDashboard.placementValid = true
+    globalShortcutDashboard.addedTiles = 0
+    globalShortcutDashboard.removedTiles = 0
+    shortcutFocusSink.forceActiveFocus()
+    keyClick(Qt.Key_Return)
+    compare(globalShortcutDashboard.addedTiles, 1)
+    verify(!globalShortcutDashboard.placingPlugin)
+    compare(globalShortcutDashboard.mode, "edit")
+    keyClick(Qt.Key_Delete)
+    compare(globalShortcutDashboard.removedTiles, 1)
+    compare(globalShortcutDashboard.mode, "edit")
+    globalShortcutDashboard.selectedTileId = "tile"
+  }
+
+  function test_delete_discards_draft_and_enter_rejects_collisions_and_dialogs() {
+    globalShortcutDashboard.mode = "edit"
+    globalShortcutDashboard.placingPlugin = true
+    globalShortcutDashboard.placementValid = false
+    globalShortcutDashboard.addedTiles = 0
+    globalShortcutDashboard.discardedDrafts = 0
+    globalShortcutDashboard.removedTiles = 0
+    shortcutFocusSink.forceActiveFocus()
+    keyClick(Qt.Key_Return)
+    compare(globalShortcutDashboard.addedTiles, 0)
+    verify(globalShortcutDashboard.placingPlugin)
+    globalShortcutDashboard.overlay = "text-editor"
+    keyClick(Qt.Key_Delete)
+    compare(globalShortcutDashboard.discardedDrafts, 0)
+    globalShortcutDashboard.overlay = ""
+    keyClick(Qt.Key_Delete)
+    compare(globalShortcutDashboard.discardedDrafts, 1)
+    compare(globalShortcutDashboard.removedTiles, 0)
+    compare(globalShortcutDashboard.mode, "edit")
+    globalShortcutDashboard.placementValid = true
+    globalShortcutDashboard.placingPlugin = true
+    keyClick(Qt.Key_Enter)
+    compare(globalShortcutDashboard.addedTiles, 1)
+    compare(globalShortcutDashboard.mode, "edit")
   }
 
   function test_space_shortcut_is_suspended_while_an_overlay_is_open() {

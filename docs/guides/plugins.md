@@ -99,9 +99,10 @@ a literal `icon`/`heroGlyph` in an entry point, or a semantic Nerd Font fallback
 Discovery reads only a bounded amount of data and never imports or executes
 another plugin's QML.
 
-In `edit`, a small button at the top-left of a tile cycles automatic selection,
-`Embedded`, `Widget`, and `Launcher`, retaining only options that are actually
-available. An arbitrary `barWidget` is not loaded automatically as a compact
+In `edit`, the display-mode icon in the center of a tile or placement preview
+cycles automatic selection, `Embedded`, `Widget`, and `Launcher`, retaining only
+options that are actually available. Hover it to see the current choice.
+An arbitrary `barWidget` is not loaded automatically as a compact
 Widget: it can create its own Wayland surfaces. Dashboard either adapts its
 standard panel or honestly keeps the native/information fallback.
 

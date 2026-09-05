@@ -41,6 +41,22 @@ Item {
     surface.retainKeyboardFocus()
   }
 
+  function removeSelected() {
+    if (!available() || dashboard.mode !== "edit") return
+    if (dashboard.placingPlugin) dashboard.cancelPluginPlacement()
+    else if (dashboard.selectedElementId) dashboard.removeElement(dashboard.selectedElementId)
+    else if (dashboard.selectedTileId) dashboard.removeTile(dashboard.selectedTileId)
+    surface.retainKeyboardFocus()
+  }
+
+  function accept() {
+    if (!available()) return
+    if (dashboard.placingPlugin && dashboard.mode === "edit") {
+      if (dashboard.placementValid) dashboard.confirmPluginPlacement()
+      surface.retainKeyboardFocus()
+    } else if (!dashboard.placingPlugin && dashboard.mode === "browse") surface.enterInteract()
+  }
+
   component DirectionShortcut: Shortcut {
     required property string direction
     required property string modifier
@@ -143,19 +159,22 @@ Item {
   }
   Shortcut {
     sequence: "Delete"; context: Qt.WindowShortcut
-    enabled: root.available() && !root.dashboard.placingPlugin && root.dashboard.mode === "edit"
-      && (root.dashboard.selectedTileId || root.dashboard.selectedElementId)
-    onActivated: {
-      if (root.dashboard.selectedElementId) root.dashboard.removeElement(root.dashboard.selectedElementId)
-      else root.dashboard.removeTile(root.dashboard.selectedTileId)
-      root.surface.retainKeyboardFocus()
-    }
+    enabled: root.available() && root.dashboard.mode === "edit"
+      && (root.dashboard.placingPlugin || root.dashboard.selectedTileId || root.dashboard.selectedElementId)
+    autoRepeat: false
+    onActivated: root.removeSelected()
+    onActivatedAmbiguously: root.removeSelected()
   }
-  Shortcut {
-    sequence: "Return"; context: Qt.WindowShortcut
-    enabled: root.available() && !root.dashboard.placingPlugin && root.dashboard.mode === "browse"
-    onActivated: root.surface.enterInteract()
+  component AcceptShortcut: Shortcut {
+    context: Qt.WindowShortcut
+    enabled: root.available() && (root.dashboard.placingPlugin
+      ? root.dashboard.mode === "edit" : root.dashboard.mode === "browse")
+    autoRepeat: false
+    onActivated: root.accept()
+    onActivatedAmbiguously: root.accept()
   }
+  AcceptShortcut { sequence: "Return" }
+  AcceptShortcut { sequence: "Enter" }
   Shortcut {
     sequence: "Ctrl+Tab"; context: Qt.WindowShortcut
     enabled: root.available() && !root.dashboard.placingPlugin

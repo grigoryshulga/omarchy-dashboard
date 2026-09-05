@@ -3,6 +3,8 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 import "GridEngine.js" as GridEngine
+import "../plugins/PluginPresentation.js" as PluginPresentation
+import "../ui" as Ui
 
 Item {
   id: root
@@ -141,8 +143,6 @@ Item {
   TileSilhouette {
     anchors.fill: parent
     valid: root.valid
-    title: root.draft ? root.draft.label : ""
-    detail: root.width + " × " + root.height
   }
 
   MouseArea {
@@ -155,6 +155,21 @@ Item {
     onPositionChanged: function(mouse) { root.updatePointer(moveArea, mouse) }
     onReleased: root.finishPointer()
     onCanceled: root.finishPointer()
+  }
+
+  Ui.TileEditActions {
+    anchors.fill: parent
+    z: 3
+    adding: true
+    edgeInset: root.resizeHandleWidth
+    canAdd: root.valid
+    dimContent: false
+    title: root.draft ? root.draft.label : ""
+    detail: root.valid ? root.width + " × " + root.height : "Move or resize to fit"
+    presentationLabel: PluginPresentation.preferenceLabel(root.draft ? root.draft.embedding : "auto")
+    onRemoveRequested: root.dashboard.cancelPluginPlacement()
+    onPresentationRequested: root.dashboard.cyclePlacementPresentation()
+    onAddRequested: root.dashboard.confirmPluginPlacement()
   }
 
   ResizeHandle {
