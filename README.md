@@ -5,7 +5,7 @@ Spaces, and work with the mouse or keyboard.
 
 **[Install](#install) · [Configure](#configure) · [Uninstall](#uninstall) · [Guides](#guides)**
 
-![Dashboard in Glass mode with the Tokyo Night theme](preview.png)
+![Omarchy Dashboard — Your plugins. Your space.](preview.png)
 
 ## Install
 
