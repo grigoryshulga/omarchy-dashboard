@@ -95,7 +95,7 @@ Item {
         anchors.centerIn: parent
         width: Math.max(0, parent.width - Style.spacing.lg * 2)
         spacing: Style.spacing.md
-        visible: root.sourceUrl === "" || pageLoader.status === Loader.Error
+        visible: root.sourceUrl === "" || root.pageError !== "" || pageLoader.status === Loader.Error
 
         Text {
           textFormat: Text.PlainText

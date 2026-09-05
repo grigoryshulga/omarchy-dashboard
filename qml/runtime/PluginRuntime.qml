@@ -30,6 +30,7 @@ Item {
   property var adaptations: ({})
   property var adaptationErrors: ({})
   property string adaptingPluginId: ""
+  property int adaptingEpoch: -1
   property int pluginEpoch: 0
   property var scannedIcons: ({})
   property bool iconScanTimedOut: false
@@ -299,7 +300,8 @@ Item {
     var icon = control ? { kind: "glyph", value: control.icon } : pluginIcon(entry.manifest)
     resolved.icon = icon.value
     resolved.iconKind = icon.kind
-    resolved.contentLayout = String(prepared.layout || "padded")
+    resolved.contentLayout = resolved.source === versionedUrl(String(prepared.url || ""))
+      ? String(prepared.layout || "padded") : "padded"
     return resolved
   }
 
@@ -377,6 +379,8 @@ Item {
 
   function injectInto(page, tile, host) {
     if (!page || !tile) return false
+    var entry = descriptor(tile.pluginId)
+    if (!entry) return false
     var targetHost = host || dashboardHost
     var service = pluginService(tile.pluginId)
     var context = {
@@ -384,6 +388,10 @@ Item {
       tile: tile,
       pluginId: tile.pluginId,
       settings: pluginSettings(tile.pluginId),
+      manifest: entry.manifest,
+      pluginRegistry: registry,
+      barWidgetRegistry: shell ? shell.barWidgetRegistry : null,
+      omarchyPath: shell ? shell.omarchyPath : "",
       service: service,
       shell: shell,
       bar: adaptations[tile.pluginId] ? dashboardBar : (shell ? shell.bar : null)
@@ -403,6 +411,10 @@ Item {
         assignProperty(page, "sidePanelItem", tile)
         assignProperty(page, "pluginId", tile.pluginId)
         assignProperty(page, "settings", context.settings)
+        assignProperty(page, "manifest", context.manifest)
+        assignProperty(page, "pluginRegistry", registry)
+        assignProperty(page, "barWidgetRegistry", context.barWidgetRegistry)
+        assignProperty(page, "omarchyPath", context.omarchyPath)
         assignProperty(page, "service", service)
         assignProperty(page, "shell", shell)
         assignProperty(page, "bar", context.bar)
@@ -469,22 +481,29 @@ Item {
 
   function requestAdaptation(pluginId) {
     if (!pluginId || explicitPageUrl(pluginId) || adaptations[pluginId]
-        || adaptationErrors[pluginId] !== undefined || adaptingPluginId) return
+        || adaptationErrors[pluginId] !== undefined || adaptingPluginId || adapter.running) return
     var entry = descriptor(pluginId)
     var entryPoint = adaptationEntryPoint(pluginId)
     if (!entry || !entryPoint) return
     adaptingPluginId = pluginId
-    adapter.command = [
+    adaptingEpoch = pluginEpoch
+    var command = [
       "/usr/bin/python3", "-I", pluginDirectory + "/bin/omarchy-dashboard-run-helper",
       "--max-bytes", String(maxHelperOutputLength), "--timeout-seconds", "15", "--",
       "/usr/bin/python3", "-I", pluginDirectory + "/lib/omarchy_dashboard_adapter.py",
-      "--json-output", "--",
+      "--json-output"
+    ]
+    var candidates = PluginPresentation.adaptationEntryPoints(entry.manifest)
+    for (var index = 1; index < candidates.length; index++)
+      command.push("--fallback-entry-point", candidates[index])
+    adapter.command = command.concat([
+      "--",
       String(entry.manifest.__sourceDir || ""),
       String(entryPoint),
       cacheRoot,
       pluginId,
       pluginDirectory + "/qml/adapters"
-    ]
+    ])
     adapter.running = true
   }
 
@@ -496,7 +515,9 @@ Item {
       var entry = descriptor(id)
       var preference = PluginPresentation.normalizePreference(visibleTiles[index].embedding)
       if (!id || preference === "widget" || preference === "control"
+          || (preference === "auto" && PluginControls.profile(id))
           || (preference === "launcher" && nativeAvailable(id))
+          || (preference === "launcher" && widgetPageUrl(id))
           || (preference === "auto" && widgetPageUrl(id))
           || explicitPageUrl(id) || adaptations[id] || adaptationErrors[id] !== undefined
           || !entry || !adaptationEntryPoint(id)) continue
@@ -544,6 +565,9 @@ Item {
       adapterKillTimer.stop()
       var id = root.adaptingPluginId
       root.adaptingPluginId = ""
+      Qt.callLater(root.prepareVisiblePanels)
+      // A registry refresh can happen while the helper copies old sources.
+      if (root.adaptingEpoch !== root.pluginEpoch) return
       if (!id) return
       if (exitCode !== 0) {
         root.setAdaptationError(id, String(adapterErrors.text || "Standard panel embedding is unavailable.").trim())
@@ -616,7 +640,8 @@ Item {
       if (!root.adaptingPluginId) return
       var id = root.adaptingPluginId
       root.adaptingPluginId = ""
-      root.setAdaptationError(id, "Preparing this plugin timed out.")
+      if (root.adaptingEpoch === root.pluginEpoch)
+        root.setAdaptationError(id, "Preparing this plugin timed out.")
       if (adapter.running) {
         adapter.running = false
         adapterKillTimer.restart()

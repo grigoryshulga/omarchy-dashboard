@@ -284,7 +284,8 @@ Dashboard selects the first available option:
 2. `entryPoints.dashboardPage` or a compatible `sidePanelPage`;
 3. `entryPoints.dashboardWidget` — a compact, safe Widget;
 4. local adaptation of the standard `KeyboardPanel`;
-5. conservative `panel`/`overlay` adaptation containing one nested `PanelWindow`;
+5. conservative window adaptation containing one directly nested `PanelWindow`
+   or `FloatingWindow`;
 6. a Launcher that opens a native surface or independent Dashboard popout;
 7. an information tile when no safe action is available.
 
@@ -298,6 +299,21 @@ For a `bar-widget`, the launcher first uses the live instance in the bar. If the
 plugin is absent from the bar but its QML can be adapted safely, the UI opens in
 a Dashboard popout. Bluetooth can therefore function as a button without a
 separate bar configuration.
+
+Adaptation tries distinct `panel`, `overlay`, `barWidget`, and `menu` entry
+points in that order, using one validated copy of the plugin for all attempts.
+A compatible declared page wins over sibling discovery; bar wrappers may use
+`Panel.qml` or one unambiguous `*Panel.qml`, including a compatible window.
+Regular expressions in plugin JavaScript are preserved during adaptation.
+Multiple mapped windows and `PopupWindow` still require a native launcher.
+
+Declared `dashboardPage`, `sidePanelPage`, and `dashboardWidget` entries can
+also open in a Dashboard popout when the tile is set to `Launcher`, even without
+a bar instance. Hosted pages receive the shell's `manifest`, `pluginRegistry`,
+`barWidgetRegistry`, and `omarchyPath` as well as settings and service context
+when they declare these properties. The same values are available to
+`initializeDashboard(context)`. Initialization failures are displayed in the
+tile or popout.
 
 The Launcher is a self-contained button tile: icon, name, and no implementation
 details. A regular click immediately runs its action. The icon comes from an
@@ -326,7 +342,12 @@ contract is maintained locally in `docs/PLUGIN_CONTRACT.md`.
 Source plugin directories are never changed. The cache is content-fingerprint
 addressed, created through a staging directory, and validated before reuse.
 Version-control metadata directories (`.git`, `.hg`, `.svn`) are not copied into
-the runtime cache. State is limited to 256 KiB, read without following symlinks,
+the runtime cache. Plugin assets may be up to 8 MiB per file, with a 16 MiB
+limit for the entire tree; the entry point remains limited to 1 MiB. This
+includes larger preview images without omitting assets a plugin may use.
+Adaptation runs serially for visible tiles, skips Dashboard service controls,
+and discards results from an obsolete registry generation after a plugin update.
+State is limited to 256 KiB, read without following symlinks,
 and saved atomically.
 
 ## IPC and diagnostics

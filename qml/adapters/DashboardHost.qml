@@ -21,6 +21,9 @@ Item {
   // Compatibility properties used by PanelWindow-based plugins after their
   // mapped surface is replaced with this in-process host.
   property color color: "transparent"
+  property string title: ""
+  property size minimumSize: Qt.size(0, 0)
+  property size maximumSize: Qt.size(0, 0)
   property var exclusionMode: null
   property var mask: null
   property int contentWidth: width
@@ -72,5 +75,6 @@ Item {
     }
   }
 
+  Rectangle { anchors.fill: parent; color: root.color; z: -1 }
   Item { id: contentHolder; anchors.fill: parent }
 }

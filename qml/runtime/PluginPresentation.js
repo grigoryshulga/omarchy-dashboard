@@ -13,6 +13,19 @@ function normalizePreference(value) {
   return [AUTO, EMBEDDED, WIDGET, LAUNCHER, CONTROL].indexOf(requested) >= 0 ? requested : AUTO
 }
 
+function adaptationEntryPoints(manifest) {
+  var entries = (manifest || {}).entryPoints || {}
+  var result = []
+  // Prefer declared surfaces to the bar wrapper; try every distinct option.
+  var names = ["panel", "overlay", "barWidget", "menu"]
+  names.forEach(function(name) {
+    var value = entries[name]
+    if (typeof value === "string" && value.length > 0 && result.indexOf(value) < 0)
+      result.push(value)
+  })
+  return result
+}
+
 function capabilities(manifest, options) {
   var source = manifest || ({})
   var entryPoints = source.entryPoints || ({})
@@ -20,7 +33,8 @@ function capabilities(manifest, options) {
   var hasControl = runtime.hasControl === true
   var hasExplicitPage = !!(entryPoints.dashboardPage || entryPoints.sidePanelPage)
   var hasWidget = !!entryPoints.dashboardWidget
-  var adaptationEntryPoint = String(entryPoints.barWidget || entryPoints.panel || entryPoints.overlay || "")
+  var candidates = adaptationEntryPoints(source)
+  var adaptationEntryPoint = candidates.length ? candidates[0] : ""
   var canAdapt = !!(adaptationEntryPoint && source.__sourceDir)
   var hasNativeSurface = !!(entryPoints.panel || entryPoints.overlay || entryPoints.menu)
   var available = []
@@ -34,8 +48,9 @@ function capabilities(manifest, options) {
     hasWidget: hasWidget,
     canAdapt: canAdapt,
     adaptationEntryPoint: adaptationEntryPoint,
+    adaptationEntryPoints: candidates,
     hasNativeSurface: hasNativeSurface,
-    canLaunch: hasNativeSurface || canAdapt,
+    canLaunch: hasNativeSurface || canAdapt || hasExplicitPage || hasWidget,
     available: available,
     preferred: hasControl ? CONTROL
       : (hasExplicitPage ? EMBEDDED : (hasWidget ? WIDGET : (canAdapt ? EMBEDDED : LAUNCHER)))
@@ -126,7 +141,7 @@ function resolve(manifest, preference, sources, options) {
     }
   }
 
-  if (requested === LAUNCHER) return launcher(caps, runtime, adaptedSource)
+  if (requested === LAUNCHER) return launcher(caps, runtime, explicitSource || adaptedSource || widgetSource)
   if (requested === CONTROL) {
     if (caps.hasControl) return controlResult()
     return launcher(caps, runtime, adaptedSource, "fallback", "This plugin has no Dashboard control adapter.")

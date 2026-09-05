@@ -1,5 +1,7 @@
 import importlib.util
+import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -94,6 +96,148 @@ class AdapterTests(unittest.TestCase):
 
         self.assertIn("sequence: root.dashboardHost ? \"\" : 'Escape'", transformed)
         self.assertIn('// Shortcut { sequence: "Escape" }', transformed)
+
+    def test_regex_literals_do_not_create_fake_surfaces_or_break_quoting(self):
+        expressions = [
+            r'''var match = lines[i].match(/^\s*green\s*=\s*["']?(#[0-9A-Fa-f]{6})/)''',
+            r'''var pattern = /PanelWindow { ["'{}\/] }/gi''',
+            r'''return /[/*]/.test(value)''',
+            r'''var ratio = width / 2; var re = /x{2}/; var remainder = height / 3''',
+        ]
+        for expression in expressions:
+            with self.subTest(expression=expression):
+                source = PANEL.replace('  id: root', '  id: root\n  function parse() { ' + expression + ' }')
+                transformed = adapter.transform_qml(source)
+                self.assertIn(expression, transformed)
+                self.assertIn('DashboardHost {', transformed)
+        with self.assertRaisesRegex(adapter.AdaptationError, "mapped surface"):
+            adapter.transform_qml(PANEL.replace('  id: root', '  id: root\n  PanelWindow {}'))
+
+    def test_adapts_a_floating_window_and_preserves_its_local_lifecycle(self):
+        source = MAPPED_PANEL.replace('PanelWindow {', 'FloatingWindow {').replace(
+            '    visible: root.opened',
+            '    title: "Settings"\n    minimumSize: Qt.size(400, 300)\n    visible: root.opened',
+        )
+        transformed, layout = adapter.adapt_qml(source)
+        self.assertEqual(layout, adapter.EDGE_TO_EDGE_LAYOUT)
+        self.assertNotIn('FloatingWindow {', transformed)
+        self.assertIn('minimumSize: Qt.size(400, 300)', transformed)
+        self.assertIn('function close() { root.opened = false }', transformed)
+        self.assertIn('root.dashboardHost.handleEscape(); return', transformed)
+        with self.assertRaisesRegex(adapter.AdaptationError, 'exactly one'):
+            adapter.adapt_qml(source.replace('FloatingWindow {', 'PopupWindow {}\n  FloatingWindow {'))
+
+    def test_does_not_replace_a_declared_mapped_page_with_an_unrelated_sibling(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = self.write_source(Path(temporary))
+            (source / 'Overlay.qml').write_text(MAPPED_PANEL)
+            self.assertEqual(adapter.choose_source(source, 'Overlay.qml').name, 'Overlay.qml')
+
+    def test_named_sibling_discovery_includes_mapped_panels_and_ignores_broken_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = self.write_source(Path(temporary), 'Item {}')
+            (source / 'Bar.qml').write_text('Item {}')
+            (source / 'BrokenPanel.qml').write_text('Item { "')
+            (source / 'SettingsPanel.qml').write_text(MAPPED_PANEL.replace('PanelWindow {', 'FloatingWindow {'))
+            self.assertEqual(adapter.choose_source(source, 'Bar.qml').name, 'SettingsPanel.qml')
+
+    def test_fallback_entry_points_share_one_validated_source_snapshot(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.write_source(root, 'Item {}')
+            (source / 'Overlay.qml').write_text(MAPPED_PANEL)
+            with mock.patch.object(adapter, 'copy_tree', wraps=adapter.copy_tree) as copy:
+                output = adapter.build(source, ['Missing.qml', 'Panel.qml', 'Overlay.qml'],
+                                       root / 'cache', 'example.plugin', ADAPTER_DIR)
+            self.assertEqual(output.name, 'Overlay.qml')
+            self.assertIn('DashboardHost {', output.read_text())
+            self.assertEqual(copy.call_count, 1)
+            self.assertEqual((source / 'Overlay.qml').read_text(), MAPPED_PANEL)
+
+    def test_fallback_failure_reports_each_attempt_without_publishing_an_artifact(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.write_source(root, 'Item {}')
+            with self.assertRaises(adapter.AdaptationError) as failure:
+                adapter.build(source, ['Panel.qml', 'Missing.qml'], root / 'cache',
+                              'example.plugin', ADAPTER_DIR)
+            self.assertIn('Panel.qml:', str(failure.exception))
+            self.assertIn('Missing.qml:', str(failure.exception))
+            self.assertEqual(list((root / 'cache').rglob(adapter.MARKER_NAME)), [])
+
+    def test_generated_floating_panel_loads_resizes_and_returns_escape_to_host(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.write_source(root, '''import QtQuick
+Item {
+  id: root
+  function open() { surface.visible = true }
+  function close() { surface.visible = false }
+  FloatingWindow {
+    id: surface
+    objectName: "surface"
+    title: "Settings"
+    minimumSize: Qt.size(400, 300)
+    maximumSize: Qt.size(1200, 900)
+    color: "red"
+    visible: false
+    Rectangle { objectName: "content"; anchors.fill: parent; color: "blue" }
+  }
+}
+''')
+            output = adapter.build(source, 'Panel.qml', root / 'cache', 'example.plugin', ADAPTER_DIR)
+            suite = root / 'tst_Embedded.qml'
+            suite.write_text('''import QtQuick
+import QtTest
+TestCase {
+  id: test
+  name: "AdaptedFloatingPanel"
+  when: windowShown
+  visible: true
+  width: 640
+  height: 480
+  property string mode: "interact"
+  property int escapes: 0
+  function handleEscape() { escapes += 1 }
+  function test_lifecycle() {
+    var component = Qt.createComponent(''' + json.dumps(output.as_uri()) + ''')
+    compare(component.status, Component.Ready, component.errorString())
+    var page = createTemporaryObject(component, test, { width: 640, height: 480, dashboardHost: test })
+    verify(page !== null)
+    var surface = findChild(page, "surface")
+    var content = findChild(page, "content")
+    verify(surface !== null)
+    verify(content !== null)
+    compare(surface.parent, page)
+    verify(!surface.visible)
+    page.open()
+    verify(surface.visible)
+    compare(content.width, 640)
+    compare(content.height, 480)
+    page.width = 800
+    compare(content.width, 800)
+    content.forceActiveFocus()
+    keyClick(Qt.Key_Escape)
+    compare(test.escapes, 1)
+    page.close()
+    verify(!surface.visible)
+  }
+}
+''')
+            runner = os.environ.get('QMLTESTRUNNER', '/usr/lib/qt6/bin/qmltestrunner')
+            result = subprocess.run([runner, '-input', str(suite), '-o', '-,txt'],
+                                    env={**os.environ, 'QT_QPA_PLATFORM': 'offscreen'},
+                                    capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_large_preview_assets_are_preserved_in_the_validated_copy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.write_source(root)
+            preview = b'x' * (3 * 1024 * 1024)
+            (source / 'preview.png').write_bytes(preview)
+            output = adapter.build(source, 'Panel.qml', root / 'cache', 'example.plugin', ADAPTER_DIR)
+            self.assertEqual((output.parent / 'preview.png').read_bytes(), preview)
 
     def test_comment_only_host_falls_back_to_sibling_panel(self):
         with tempfile.TemporaryDirectory() as temporary:

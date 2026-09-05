@@ -545,6 +545,31 @@ TestCase {
     compare(resolved.source, "file:///DashboardPage.qml")
   }
 
+  function test_adaptation_tries_all_distinct_declared_surfaces_before_the_bar() {
+    var manifest = { entryPoints: {
+      panel: "Panel.qml", overlay: "Overlay.qml", barWidget: "Bar.qml", menu: "Panel.qml"
+    }, __sourceDir: "/plugin" }
+    compare(PluginPresentation.adaptationEntryPoints(manifest), ["Panel.qml", "Overlay.qml", "Bar.qml"])
+    compare(PluginPresentation.adaptationEntryPoints({ entryPoints: { panel: {}, menu: "Menu.qml" } }),
+      ["Menu.qml"])
+    compare(PluginPresentation.capabilities(manifest).adaptationEntryPoint, "Panel.qml")
+    verify(PluginPresentation.capabilities({ entryPoints: { menu: "Menu.qml" }, __sourceDir: "/plugin" }).canAdapt)
+  }
+
+  function test_declared_pages_and_widgets_can_launch_without_a_bar_widget() {
+    var manifest = { entryPoints: { dashboardPage: "Page.qml", dashboardWidget: "Widget.qml" } }
+    var result = PluginPresentation.resolve(manifest, "launcher", { explicit: "file:///Page.qml" })
+    verify(result.canLaunch)
+    compare(result.launchTarget, "popout")
+    compare(result.source, "file:///Page.qml")
+    result = PluginPresentation.resolve(manifest, "launcher", { widget: "file:///Widget.qml" })
+    verify(result.canLaunch)
+    compare(result.source, "file:///Widget.qml")
+    result = PluginPresentation.resolve(manifest, "launcher", { explicit: "file:///Page.qml" },
+      { nativeAvailable: true })
+    compare(result.launchTarget, "native")
+  }
+
   function test_universal_presentation_adapts_then_falls_back_to_launcher() {
     var standard = {
       entryPoints: { barWidget: "BarWidget.qml" },

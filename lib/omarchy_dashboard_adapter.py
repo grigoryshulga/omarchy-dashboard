@@ -23,14 +23,14 @@ class AdaptationError(Exception):
     """The source does not satisfy Dashboard's deliberately narrow contract."""
 
 
-ADAPTER_VERSION = "dashboard-adapter-v8"
+ADAPTER_VERSION = "dashboard-adapter-v9"
 PADDED_LAYOUT = "padded"
 EDGE_TO_EDGE_LAYOUT = "edge-to-edge"
 CONTENT_LAYOUTS = frozenset((PADDED_LAYOUT, EDGE_TO_EDGE_LAYOUT))
 MAX_ENTRY_POINT_BYTES = 1024 * 1024
 MAX_SOURCE_ENTRIES = 1024
 MAX_SOURCE_FILES = 1024
-MAX_SOURCE_FILE_BYTES = 2 * 1024 * 1024
+MAX_SOURCE_FILE_BYTES = 8 * 1024 * 1024
 MAX_SOURCE_TREE_BYTES = 16 * 1024 * 1024
 MAX_SOURCE_DEPTH = 128
 MAX_MARKER_BYTES = 256 * 1024
@@ -81,6 +81,34 @@ def tokens(source: str) -> list[Token]:
             if end < 0:
                 raise AdaptationError("unterminated block comment")
             index = end + 2
+        elif current == "/" and (not result or result[-1].value in (
+            "(", "[", "{", "=", ":", ",", ";", "!", "?", "&", "|",
+            "return", "case", "throw",
+        )):
+            # Regex literals may contain quotes, braces and comment markers.
+            # Consume the whole literal so none can become QML syntax.
+            start = index
+            index += 1
+            character_class = False
+            while index < size:
+                if source[index] in "\r\n":
+                    raise AdaptationError("unterminated regular expression")
+                if source[index] == "\\":
+                    index += 2
+                    continue
+                if source[index] == "[":
+                    character_class = True
+                elif source[index] == "]":
+                    character_class = False
+                elif source[index] == "/" and not character_class:
+                    index += 1
+                    while index < size and source[index].isalpha():
+                        index += 1
+                    break
+                index += 1
+            else:
+                raise AdaptationError("unterminated regular expression")
+            result.append(Token(source[start:index], start, index))
         elif current in "\"'`":
             start = index
             quote = current
@@ -410,7 +438,7 @@ def dismiss_guard(token_list: list[Token], root: ObjectNode, root_id: str) -> tu
 def transform_mapped_panel(
     source: str, token_list: list[Token], nodes: list[ObjectNode], root: ObjectNode
 ) -> str:
-    """Replace one nested PanelWindow with a non-mapped DashboardHost."""
+    """Replace one nested PanelWindow or FloatingWindow with an Item host."""
     if root.type_name != "Item":
         raise AdaptationError("a mapped panel must use an Item root")
     root_id = direct_id(token_list, root)
@@ -418,9 +446,11 @@ def transform_mapped_panel(
         node for node in nodes
         if node.type_name in ("PanelWindow", "PopupWindow", "FloatingWindow") and contains(root, node)
     ]
-    if len(surfaces) != 1 or surfaces[0].type_name != "PanelWindow":
-        raise AdaptationError("expected exactly one nested PanelWindow")
+    if len(surfaces) != 1 or surfaces[0].type_name not in ("PanelWindow", "FloatingWindow"):
+        raise AdaptationError("expected exactly one nested PanelWindow or FloatingWindow")
     host = surfaces[0]
+    if not direct_child(root, host, nodes):
+        raise AdaptationError("mapped window must be a direct child of the root Item")
     if direct_property(token_list, root, "dashboardHost"):
         raise AdaptationError("root Item already declares dashboardHost")
 
@@ -639,37 +669,51 @@ def read_entry_point(source: Path) -> str:
         raise AdaptationError("entry point is not valid UTF-8") from error
 
 
-def choose_source(source_dir: Path, entry_point: str) -> Path:
+def choose_source(
+    source_dir: Path, entry_point: str, transforms: dict[Path, tuple[str, str]] | None = None
+) -> Path:
     entry = Path(entry_point)
     if entry.is_absolute() or ".." in entry.parts:
         raise AdaptationError("entry point is outside its plugin directory")
     candidate = (source_dir / entry).resolve()
     if not candidate.is_file() or source_dir not in candidate.parents:
         raise AdaptationError("entry point is outside its plugin directory")
-    source = candidate
-    if not has_standard_host(read_entry_point(source)):
-        sibling = (candidate.parent / "Panel.qml").resolve()
-        if sibling.is_file() and source_dir in sibling.parents:
-            source = sibling
-        else:
-            source = discover_sibling_panel(candidate, source_dir) or source
-    return source
+    # Respect a usable declared entry point before looking for bar siblings.
+    if can_adapt_source(candidate, transforms):
+        return candidate
+    sibling = (candidate.parent / "Panel.qml").resolve()
+    if sibling != candidate and sibling.is_file() and source_dir in sibling.parents \
+            and can_adapt_source(sibling, transforms):
+        return sibling
+    return discover_sibling_panel(candidate, source_dir, transforms) or candidate
+
+
+def can_adapt_source(path: Path, transforms: dict[Path, tuple[str, str]] | None = None) -> bool:
+    if transforms is not None and path in transforms:
+        return True
+    try:
+        result = adapt_qml(read_entry_point(path))
+        if transforms is not None:
+            transforms[path] = result
+        return True
+    except AdaptationError:
+        return False
 
 
 def has_standard_host(source: str) -> bool:
     return any(node.type_name == "KeyboardPanel" for node in object_nodes(tokens(source)))
 
 
-def discover_sibling_panel(entry_source: Path, source_dir: Path) -> Path | None:
-    """Find one unambiguous standard panel beside a bar-widget entry point."""
+def discover_sibling_panel(
+    entry_source: Path, source_dir: Path, transforms: dict[Path, tuple[str, str]] | None = None
+) -> Path | None:
+    """Find one unambiguous compatible panel beside a bar-widget entry point."""
     candidates: list[Path] = []
     for sibling in sorted(entry_source.parent.glob("*Panel.qml")):
         candidate = sibling.resolve()
         if candidate == entry_source or not candidate.is_file() or source_dir not in candidate.parents:
             continue
-        nodes = object_nodes(tokens(read_entry_point(candidate)))
-        if nodes and nodes[0].type_name == "Panel" \
-                and sum(node.type_name == "KeyboardPanel" for node in nodes) == 1:
+        if can_adapt_source(candidate, transforms):
             candidates.append(candidate)
     if len(candidates) > 1:
         raise AdaptationError("plugin has ambiguous sibling panel candidates")
@@ -913,7 +957,7 @@ def completed_artifact(destination: Path, generated_source: Path, fingerprint: s
         return False
 
 
-def build(source_dir: Path, entry_point: str, cache_root: Path, plugin_id: str, adapter_dir: Path) -> Path:
+def build(source_dir: Path, entry_point: str | list[str], cache_root: Path, plugin_id: str, adapter_dir: Path) -> Path:
     source_dir = source_dir.resolve()
     adapter_dir = adapter_dir.resolve()
     cache_root = Path(cache_root)
@@ -944,11 +988,25 @@ def build(source_dir: Path, entry_point: str, cache_root: Path, plugin_id: str, 
     try:
         output = staging / "output"
         copy_tree(source_dir, output)
-        entry_source = choose_source(output, entry_point)
+        entry_points = [entry_point] if isinstance(entry_point, str) else entry_point
+        if not entry_points or len(entry_points) > 4:
+            raise AdaptationError("expected between one and four entry points")
+        failures = []
+        transforms: dict[Path, tuple[str, str]] = {}
+        for candidate in dict.fromkeys(entry_points):
+            try:
+                entry_source = choose_source(output, candidate, transforms)
+                if entry_source not in transforms:
+                    transforms[entry_source] = adapt_qml(read_entry_point(entry_source))
+                break
+            except AdaptationError as error:
+                failures.append(f"{candidate}: {error}")
+        else:
+            raise AdaptationError("; ".join(failures))
         entry_relative = entry_source.relative_to(output)
         original_entry_source = source_dir / entry_relative
-        source = rebase_external_relative_imports(read_entry_point(entry_source), source_dir, original_entry_source)
-        transformed_source, layout = adapt_qml(source)
+        transformed_source, layout = transforms[entry_source]
+        transformed_source = rebase_external_relative_imports(transformed_source, source_dir, original_entry_source)
         transformed = transformed_source.encode("utf-8")
         entry_source.chmod(0o600 | (entry_source.stat().st_mode & 0o111))
         entry_source.write_bytes(transformed)
@@ -1022,6 +1080,7 @@ def artifact_layout(generated_source: Path, cache_root: Path) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json-output", action="store_true")
+    parser.add_argument("--fallback-entry-point", action="append", default=[])
     parser.add_argument("source_dir")
     parser.add_argument("entry_point")
     parser.add_argument("cache_root")
@@ -1031,7 +1090,7 @@ def main() -> int:
     try:
         output = build(
             Path(arguments.source_dir),
-            arguments.entry_point,
+            [arguments.entry_point, *arguments.fallback_entry_point],
             Path(arguments.cache_root),
             arguments.plugin_id,
             Path(arguments.adapter_dir),

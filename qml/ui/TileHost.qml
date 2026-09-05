@@ -342,6 +342,7 @@ Item {
         visible: root.presentation.kind !== "launcher"
           && root.presentation.kind !== "control"
           && (root.presentation.state === "preparing"
+          || root.pageError !== ""
           || pageLoader.status === Loader.Error
           )
 
