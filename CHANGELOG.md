@@ -3,6 +3,23 @@
 User-visible changes are grouped by release. A version marked **Unreleased**
 is being tested on `dev`; `main` is the stable installation branch.
 
+## [1.8.1] — Unreleased
+
+### Fixed
+
+- Stop repeatedly saving an unchanged layout after a successful write. New edits
+  made during a write still save, and failed writes retain their retry behavior.
+
+### Changed
+
+- Remove obsolete text-editor state and unused persistence configuration without
+  changing the text creation or inline editing controls.
+
+### Development
+
+- Add real Quickshell regression checks for idle saves, edits during writes and
+  recovery after a failed write. Install Quickshell in GitHub Actions to run them.
+
 ## [1.8.0] — 2026-09-05
 
 ### Added
@@ -52,4 +69,5 @@ The repository already reported version 1.7.0 before release tracking began.
 There was no corresponding GitHub Release or tag. This entry records that
 baseline without assigning a retrospective release date.
 
+[1.8.1]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.0...dev
 [1.8.0]: https://github.com/grigoryshulga/omarchy-dashboard/compare/dfb7f4c...v1.8.0

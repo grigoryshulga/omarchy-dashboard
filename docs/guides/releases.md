@@ -15,9 +15,9 @@ for the release PR so `dev` and `main` retain shared history.
 ## Prepare a candidate
 
 1. Choose a version. Use a patch for fixes, a minor version for compatible
-   features, and a major version for breaking changes. The current candidate is **1.8.0**.
+   features, and a major version for breaking changes. The current candidate is **1.8.1**.
 2. Update `manifest.json`, the pending section in `CHANGELOG.md`, and
-   `docs/releases/1.8.0.md`. While the PR is a draft, keep the changelog marked
+   `docs/releases/1.8.1.md`. While the PR is a draft, keep the changelog marked
    Unreleased and the notes marked as a draft.
 3. Run the complete local checks on Omarchy:
 
@@ -51,7 +51,7 @@ in the PR. Treat known limitations explicitly rather than claiming universal com
 These are release actions, performed only after deciding to publish:
 
 1. Set the actual release date in the changelog, remove the draft sentence from
-   the release notes, and change its compare link to end at `v1.8.0`.
+   the release notes, and change its compare link to end at `v1.8.1`.
 2. Run the checks again, commit the final metadata to `dev`, push, and wait for green CI.
 3. Mark the PR ready, review the diff, and merge it into `main` using a merge commit.
 4. Fetch the merged branch and tag that exact commit:
@@ -59,13 +59,13 @@ These are release actions, performed only after deciding to publish:
    ```bash
    git fetch origin
    git show origin/main:manifest.json
-   git tag -a v1.8.0 origin/main -m "Dashboard 1.8.0"
-   git push origin v1.8.0
-   gh release create v1.8.0 --verify-tag --title "Dashboard 1.8.0" \
-     --notes-file docs/releases/1.8.0.md
+   git tag -a v1.8.1 origin/main -m "Dashboard 1.8.1"
+   git push origin v1.8.1
+   gh release create v1.8.1 --verify-tag --title "Dashboard 1.8.1" \
+     --notes-file docs/releases/1.8.1.md
    ```
 
-   The manifest version must be `1.8.0`. Never move or overwrite a published tag.
+   The manifest version must be `1.8.1`. Never move or overwrite a published tag.
    The notes file must contain the final reviewed text.
 5. Bring `dev` forward to include the merge commit:
 
