@@ -64,7 +64,8 @@ Item {
     && dashboard.mode === "interact" && selected
   readonly property bool canInteract: (presentation.kind === "embedded" || presentation.kind === "widget")
     && loadedPage !== null && pageError === ""
-  readonly property real frameWidth: editing || interacting ? Style.space(3) : 1
+  readonly property real frameWidth: !tileBackground && !selected ? 0
+    : (editing || interacting ? Style.space(3) : 1)
   readonly property string keyboardShortcut: dashboard.keyboardShortcutForTile(tile.id)
   readonly property bool keyboardShortcutVisible: dashboard.shortcutHintsVisible
     && keyboardShortcut !== "" && !interacting

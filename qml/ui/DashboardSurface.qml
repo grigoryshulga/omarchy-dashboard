@@ -72,7 +72,7 @@ PanelWindow {
   function beginTextEdit(elementId, value) {
     textEditorElementId = String(elementId || "")
     textEditorValue = String(value || "")
-    dashboard.overlay = "text-editor"
+    dashboard.overlay = "inline-text"
   }
 
   function finishTextEditor(value) {
@@ -122,7 +122,7 @@ PanelWindow {
       keyCatcher.forceActiveFocus()
     } else if (dashboard.overlay !== "") {
       if (dashboard.overlay === "plugin") dashboard.closePluginPopout()
-      else if (dashboard.overlay === "text-editor") cancelTextEditor()
+      else if (dashboard.overlay === "text-editor" || dashboard.overlay === "inline-text") cancelTextEditor()
       else dashboard.overlay = ""
       keyCatcher.forceActiveFocus()
     } else {
@@ -178,7 +178,7 @@ PanelWindow {
     if (dashboard.overlay === "remove-space") {
       return
     }
-    if (dashboard.overlay === "text-editor") {
+    if (dashboard.overlay === "text-editor" || dashboard.overlay === "inline-text") {
       return
     }
 
@@ -226,7 +226,7 @@ PanelWindow {
   Shortcut {
     sequence: "Escape"
     context: Qt.WindowShortcut
-    enabled: root.visible && root.dashboard.overlay !== "tile-options"
+    enabled: root.visible && root.dashboard.overlay !== "tile-options" && root.dashboard.overlay !== "inline-text"
     onActivated: root.handleEscape()
     onActivatedAmbiguously: root.handleEscape()
   }
@@ -967,6 +967,19 @@ PanelWindow {
       confirmText: "Remove"
       onAccepted: root.confirmSpaceRemoval()
       onRejected: root.cancelSpaceRemoval()
+    }
+
+    DashboardInlineTextEditor {
+      id: inlineTextEditor
+      anchors.fill: parent
+      z: 24
+      canvas: gridCanvas
+      element: dashboard.activeElements.filter(function(entry) {
+        return entry.id === root.textEditorElementId && entry.kind === "text"
+      })[0] || null
+      visible: dashboard.overlay === "inline-text" && element !== null
+      onAccepted: function(value) { root.finishTextEditor(value) }
+      onRejected: root.cancelTextEditor()
     }
 
     DashboardTextEditor {

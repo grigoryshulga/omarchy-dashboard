@@ -160,6 +160,25 @@ TestCase {
     compare(findChild(tile, "tileFrame").color.a, 0)
   }
 
+  function test_transparent_tile_only_draws_a_frame_while_selected() {
+    var tile = createTile({ tileBackground: false })
+    compare(tile.frameWidth, 0)
+    compare(findChild(tile, "tileFrame").border.width, 0)
+    mouseMove(tile, 100, 100)
+    compare(fakeDashboard.selectedTileId, "one")
+    compare(tile.frameWidth, 1)
+    mouseClick(tile, 100, 100)
+    compare(tile.frameWidth, 3)
+    fakeDashboard.mode = "edit"
+    fakeDashboard.selectedTileId = ""
+    compare(tile.frameWidth, 0)
+    fakeDashboard.selectedTileId = "one"
+    compare(tile.frameWidth, 3)
+    fakeDashboard.selectedTileId = ""
+    tile.tileBackground = true
+    compare(tile.frameWidth, 3)
+  }
+
   function test_small_tile_menu_keeps_actions_readable_and_closes_with_editing() {
     fakeDashboard.mode = "edit"
     fakePlugins.kind = "launcher"

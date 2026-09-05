@@ -71,7 +71,8 @@ The preview offers mode, delete and **+** actions.
 
 **Tile background:** the square icon hides or restores Dashboard's tile fill.
 The choice is saved for each tile; selection and interaction frames remain
-visible. A background drawn inside the plugin itself is unchanged. See
+visible while the tile is selected; an unfocused transparent tile has no
+outline. A background drawn inside the plugin itself is unchanged. See
 [compatibility](plugins.md) for the available display modes.
 
 **Popouts:** drag the bottom-right corner to set a size for that plugin.
@@ -99,7 +100,8 @@ tiles do not receive input. Closing Dashboard releases these instances.
 In edit mode:
 
 - **Add Text** creates a label. Resize its frame to change the fitted font size;
-  double-click to edit the text. Select it to show **left / center / right**
+  double-click to edit directly inside its frame. Enter saves, Esc cancels,
+  and clicking outside saves nonempty text. Select it to show **left / center / right**
   alignment icons in the top bar. Alignment applies inside its existing frame.
 - **Draw Divider** lets you drag a horizontal or vertical line between grid
   points. Move the whole line or stretch its round ends. Select it to show the
