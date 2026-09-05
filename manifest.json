@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "gshulga.dashboard",
   "name": "Dashboard",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "author": "gshulga",
   "description": "A keyboard-first grid for embedded, popout, and control tiles from unchanged Omarchy plugins.",
   "license": "MIT",

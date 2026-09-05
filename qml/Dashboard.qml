@@ -4,12 +4,16 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import qs.Commons
-import "core/DashboardAppearance.js" as DashboardAppearance
-import "core/DashboardModel.js" as DashboardModel
-import "core/GridEngine.js" as GridEngine
-import "core/SpatialNavigation.js" as SpatialNavigation
-import "runtime" as Runtime
+import "appearance/DashboardAppearance.js" as DashboardAppearance
+import "state/DashboardModel.js" as DashboardModel
+import "layout/GridEngine.js" as GridEngine
+import "navigation/SpatialNavigation.js" as SpatialNavigation
+import "plugins/PluginPresentation.js" as PluginPresentation
+import "appearance" as Appearance
+import "plugins" as Plugins
+import "state" as State
 import "ui" as Ui
+import "commands" as Commands
 
 Item {
   id: root
@@ -171,6 +175,7 @@ Item {
       selectedTileId: selectedTileId,
       selectedElementId: selectedElementId,
       adaptingPluginId: plugins.adaptingPluginId,
+      preload: dashboardSurface.preloadStatus,
       cornerRadius: Style.cornerRadius,
       surfaceMode: surfaceMode,
       blurBackground: blurBackground,
@@ -215,6 +220,9 @@ Item {
       ok: true, hostId: pluginId, placements: plugins.hostEntries
     })
     if (type === "managePlugins") return JSON.stringify(managePlugins(command.request || ({})))
+    if (type === "setPopoutSize") return JSON.stringify({
+      ok: plugins.setPopoutSize(String(command.pluginId || ""), command.size)
+    })
     if (type === "open") open(JSON.stringify({ screenName: command.screenName || "" }))
     else if (type === "close") close()
     else if (type === "toggle") toggle(JSON.stringify({ screenName: command.screenName || "" }))
@@ -258,285 +266,8 @@ Item {
     return JSON.stringify({ ok: true, status: JSON.parse(status()) })
   }
 
-  function resolveSpace(selector) {
-    var wanted = String(selector || "")
-    var spaces = dashboardState && Array.isArray(dashboardState.spaces) ? dashboardState.spaces : []
-    for (var index = 0; index < spaces.length; index++)
-      if (String(spaces[index].id) === wanted) return { ok: true, space: spaces[index] }
-    var matches = []
-    for (var nameIndex = 0; nameIndex < spaces.length; nameIndex++)
-      if (String(spaces[nameIndex].name || "").toLowerCase() === wanted.toLowerCase()) matches.push(spaces[nameIndex])
-    if (matches.length === 1) return { ok: true, space: matches[0] }
-    return { ok: false, code: matches.length > 1 ? "space-name-ambiguous" : "space-not-found" }
-  }
-
-  function graphicElements() {
-    var entries = []
-    var spaces = dashboardState && Array.isArray(dashboardState.spaces) ? dashboardState.spaces : []
-    for (var spaceIndex = 0; spaceIndex < spaces.length; spaceIndex++) {
-      var elements = Array.isArray(spaces[spaceIndex].elements) ? spaces[spaceIndex].elements : []
-      for (var elementIndex = 0; elementIndex < elements.length; elementIndex++) {
-        var element = elements[elementIndex]
-        var entry = {
-          id: element.id, kind: element.kind,
-          spaceId: spaces[spaceIndex].id, spaceName: spaces[spaceIndex].name
-        }
-        if (element.kind === "text") {
-          entry.text = element.text
-          entry.rect = { x: element.x, y: element.y, w: element.w, h: element.h }
-        } else entry.line = { x1: element.x1, y1: element.y1, x2: element.x2, y2: element.y2 }
-        entries.push(entry)
-      }
-    }
-    return entries
-  }
-
-  function resolveGraphicElement(selector) {
-    var wanted = String(selector || "")
-    var entries = graphicElements()
-    for (var index = 0; index < entries.length; index++)
-      if (entries[index].id === wanted) return entries[index]
-    return null
-  }
-
   function managePlugins(request) {
-    if (!stateStore.ready)
-      return { schemaVersion: 1, ok: false, code: "dashboard-loading" }
-    if (!request || typeof request !== "object" || Array.isArray(request))
-      return { schemaVersion: 1, ok: false, code: "invalid-request" }
-    if (Number(request.schemaVersion || 1) !== 1)
-      return { schemaVersion: 1, ok: false, code: "unsupported-schema-version" }
-    var operation = String(request.operation || "")
-    if (operation === "list") return {
-      schemaVersion: 1, ok: true, revision: dashboardState.revision,
-      grid: {
-        spacing: dashboardState.gridSpacing,
-        width: dashboardState.canvasWidth,
-        height: dashboardState.canvasHeight
-      },
-      placements: DashboardModel.placements(dashboardState)
-    }
-    if (operation === "spaces") return {
-      schemaVersion: 1, ok: true, revision: dashboardState.revision,
-      spaces: dashboardState.spaces.map(function(space) {
-        return { id: space.id, name: space.name, active: space.id === dashboardState.activeSpaceId }
-      })
-    }
-    if (operation === "grid") return {
-      schemaVersion: 1, ok: true, revision: dashboardState.revision,
-      grid: {
-        spacing: dashboardState.gridSpacing,
-        width: dashboardState.canvasWidth,
-        height: dashboardState.canvasHeight
-      }
-    }
-    if (operation === "grid-set") {
-      var requestedSpacing = Number(request.spacing)
-      if (!isFinite(requestedSpacing))
-        return { schemaVersion: 1, ok: false, code: "invalid-grid-spacing" }
-      var gridState = DashboardModel.apply(dashboardState, {
-        type: "setGridSpacing", value: requestedSpacing
-      }, gridWidth, gridHeight)
-      stateStore.replaceDocument(gridState)
-      stateStore.flush()
-      return {
-        schemaVersion: 1, ok: true, changed: true, revision: dashboardState.revision,
-        grid: {
-          spacing: dashboardState.gridSpacing,
-          width: dashboardState.canvasWidth,
-          height: dashboardState.canvasHeight
-        }
-      }
-    }
-    if (operation === "space-create") {
-      var newName = String(request.name || "").trim()
-      if (!newName) return { schemaVersion: 1, ok: false, code: "invalid-space-name" }
-      if (resolveSpace(newName).ok)
-        return { schemaVersion: 1, ok: false, code: "space-name-conflict" }
-      var newSpaceId = String(request.id || ("space-" + Date.now() + "-" + dashboardState.spaces.length)).trim()
-      if (!newSpaceId || resolveSpace(newSpaceId).ok)
-        return { schemaVersion: 1, ok: false, code: "space-id-conflict" }
-      var createdState = DashboardModel.apply(dashboardState, {
-        type: "addSpace", id: newSpaceId, name: newName
-      }, gridWidth, gridHeight)
-      if (createdState.spaces.length !== dashboardState.spaces.length + 1) return {
-        schemaVersion: 1, ok: false,
-        code: dashboardState.spaces.length >= DashboardModel.MAX_SPACES
-          ? "space-capacity-exceeded" : "invalid-space-id"
-      }
-      stateStore.replaceDocument(createdState)
-      stateStore.flush()
-      return {
-        schemaVersion: 1, ok: true, changed: true, revision: dashboardState.revision,
-        space: { id: newSpaceId, name: newName }
-      }
-    }
-    if (operation === "space-rename") {
-      var renameResolution = resolveSpace(request.spaceId || request.space)
-      if (!renameResolution.ok)
-        return { schemaVersion: 1, ok: false, code: renameResolution.code }
-      var renamedName = String(request.name || "").trim()
-      if (!renamedName) return { schemaVersion: 1, ok: false, code: "invalid-space-name" }
-      var duplicateResolution = resolveSpace(renamedName)
-      if (duplicateResolution.ok && duplicateResolution.space.id !== renameResolution.space.id)
-        return { schemaVersion: 1, ok: false, code: "space-name-conflict" }
-      if (renameResolution.space.name === renamedName) return {
-        schemaVersion: 1, ok: true, changed: false, revision: dashboardState.revision,
-        space: { id: renameResolution.space.id, name: renameResolution.space.name }
-      }
-      var renamedState = DashboardModel.apply(dashboardState, {
-        type: "renameSpace", spaceId: renameResolution.space.id, name: renamedName
-      }, gridWidth, gridHeight)
-      stateStore.replaceDocument(renamedState)
-      stateStore.flush()
-      return {
-        schemaVersion: 1, ok: true, changed: true, revision: dashboardState.revision,
-        space: { id: renameResolution.space.id, name: renamedName }
-      }
-    }
-    if (operation === "space-remove") {
-      var removeResolution = resolveSpace(request.spaceId || request.space)
-      if (!removeResolution.ok)
-        return { schemaVersion: 1, ok: false, code: removeResolution.code }
-      if (dashboardState.spaces.length <= 1)
-        return { schemaVersion: 1, ok: false, code: "last-space" }
-      var removedSpace = { id: removeResolution.space.id, name: removeResolution.space.name }
-      var removedState = DashboardModel.apply(dashboardState, {
-        type: "removeSpace", spaceId: removeResolution.space.id
-      }, gridWidth, gridHeight)
-      stateStore.replaceDocument(removedState)
-      plugins.syncHostPlacements(dashboardState)
-      stateStore.flush()
-      return {
-        schemaVersion: 1, ok: true, changed: true, revision: dashboardState.revision,
-        removedSpace: removedSpace
-      }
-    }
-    if (operation === "space-select") {
-      var selectResolution = resolveSpace(request.spaceId || request.space)
-      if (!selectResolution.ok)
-        return { schemaVersion: 1, ok: false, code: selectResolution.code }
-      if (dashboardState.activeSpaceId === selectResolution.space.id) return {
-        schemaVersion: 1, ok: true, changed: false, revision: dashboardState.revision,
-        space: { id: selectResolution.space.id, name: selectResolution.space.name }
-      }
-      var selectedState = DashboardModel.apply(dashboardState, {
-        type: "selectSpace", spaceId: selectResolution.space.id
-      }, gridWidth, gridHeight)
-      stateStore.replaceDocument(selectedState)
-      stateStore.flush()
-      return {
-        schemaVersion: 1, ok: true, changed: true, revision: dashboardState.revision,
-        space: { id: selectResolution.space.id, name: selectResolution.space.name }
-      }
-    }
-    if (operation === "elements") return {
-      schemaVersion: 1, ok: true, revision: dashboardState.revision,
-      elements: graphicElements()
-    }
-    if (operation === "element-add-text" || operation === "element-add-divider") {
-      var elementSpaceResolution = resolveSpace(request.spaceId || request.space)
-      if (!elementSpaceResolution.ok)
-        return { schemaVersion: 1, ok: false, code: elementSpaceResolution.code }
-      var elementKind = operation === "element-add-text" ? "text" : "divider"
-      var elementId = String(request.id || (
-        "element-" + elementKind + "-" + Date.now() + "-" + graphicElements().length)).trim()
-      if (!elementId || resolveGraphicElement(elementId))
-        return { schemaVersion: 1, ok: false, code: "element-id-conflict" }
-      var elementAction = {
-        type: elementKind === "text" ? "addText" : "addDivider",
-        spaceId: elementSpaceResolution.space.id,
-        id: elementId
-      }
-      if (elementKind === "text") {
-        elementAction.text = String(request.text || "")
-        elementAction.rect = request.rect || null
-      } else {
-        var line = request.line || ({})
-        elementAction.x1 = line.x1
-        elementAction.y1 = line.y1
-        elementAction.x2 = line.x2
-        elementAction.y2 = line.y2
-      }
-      var elementState = DashboardModel.apply(
-        dashboardState, elementAction, dashboardState.canvasWidth, dashboardState.canvasHeight)
-      var addedElement = null
-      var targetElements = elementState.spaces.filter(function(space) {
-        return space.id === elementSpaceResolution.space.id
-      })[0].elements
-      for (var addedIndex = 0; addedIndex < targetElements.length; addedIndex++)
-        if (targetElements[addedIndex].id === elementId) addedElement = targetElements[addedIndex]
-      if (!addedElement)
-        return { schemaVersion: 1, ok: false, code: "invalid-element-geometry-or-capacity" }
-      stateStore.replaceDocument(elementState)
-      stateStore.flush()
-      return {
-        schemaVersion: 1, ok: true, changed: true, revision: dashboardState.revision,
-        element: resolveGraphicElement(elementId)
-      }
-    }
-    if (operation === "element-remove") {
-      var removedElement = resolveGraphicElement(request.id || request.elementId)
-      if (!removedElement) return {
-        schemaVersion: 1, ok: true, changed: false, revision: dashboardState.revision,
-        removedElement: null
-      }
-      var removedElementState = DashboardModel.apply(dashboardState, {
-        type: "removeElement", spaceId: removedElement.spaceId, elementId: removedElement.id
-      }, dashboardState.canvasWidth, dashboardState.canvasHeight)
-      stateStore.replaceDocument(removedElementState)
-      stateStore.flush()
-      return {
-        schemaVersion: 1, ok: true, changed: true, revision: dashboardState.revision,
-        removedElement: removedElement
-      }
-    }
-
-    var selector = String(request.selector || request.pluginId || "")
-    var existing = DashboardModel.placement(dashboardState, selector)
-    var requestedPluginId = String(request.pluginId || (existing ? existing.pluginId : selector))
-    var descriptor = plugins.descriptor(requestedPluginId)
-    if (!descriptor && !(operation === "remove" && existing))
-      return { schemaVersion: 1, ok: false, code: "plugin-not-installed" }
-
-    var target = String(request.target || "pending")
-    var resolvedSpace = null
-    if (["place", "move"].indexOf(operation) >= 0 || (operation === "ensure" && target === "placed")) {
-      var resolution = resolveSpace(request.spaceId || request.space)
-      if (!resolution.ok) return { schemaVersion: 1, ok: false, code: resolution.code }
-      resolvedSpace = resolution.space
-    }
-    var canvasWidth = Number(dashboardState.canvasWidth) || gridWidth
-    var canvasHeight = Number(dashboardState.canvasHeight) || gridHeight
-    var hints = descriptor ? plugins.sizeHints(requestedPluginId, canvasWidth, canvasHeight) : ({})
-    var result = DashboardModel.managePlacement(dashboardState, {
-      operation: operation,
-      pluginId: requestedPluginId,
-      selector: selector,
-      instanceId: existing ? existing.id : "placement-" + Date.now() + "-" + pendingPlacements.length,
-      label: descriptor ? descriptor.name : (existing ? existing.label : requestedPluginId),
-      embedding: request.embedding || "auto",
-      target: target,
-      spaceId: resolvedSpace ? resolvedSpace.id : "",
-      strategy: request.strategy || (request.rect ? "exact" : "auto"),
-      rect: request.rect || null,
-      hints: hints
-    }, canvasWidth, canvasHeight)
-    if (!result.ok) return {
-      schemaVersion: 1, ok: false, code: result.code,
-      placement: result.placement || null, revision: dashboardState.revision
-    }
-    if (result.changed) {
-      stateStore.replaceDocument(result.state)
-      if (result.placement && !plugins.enable(requestedPluginId, descriptor.manifest))
-        return { schemaVersion: 1, ok: false, code: "host-sync-failed", revision: dashboardState.revision }
-      plugins.syncHostPlacements(dashboardState)
-      stateStore.flush()
-    }
-    return {
-      schemaVersion: 1, ok: true, changed: result.changed,
-      revision: dashboardState.revision, placement: result.placement || null
-    }
+    return management.execute(request)
   }
 
   function handleEscape() {
@@ -677,6 +408,25 @@ Item {
     ensureSelection()
   }
 
+  // Host references are the one part of Dashboard state mirrored in
+  // shell.json. Build the candidate first, publish the Shell side in one
+  // transaction, and only then make the Dashboard document observable.
+  function commitHostMutation(command, enablingId, pluginManifest) {
+    if (!stateStore.ready) return false
+    var nextDocument = DashboardModel.apply(dashboardState, command, gridWidth, gridHeight)
+    if (!plugins.applyHostPlacementTransaction(nextDocument, enablingId || "", pluginManifest || null)) {
+      console.warn("Dashboard: host placement transaction failed; state was not changed")
+      return false
+    }
+    if (!stateStore.replaceDocument(nextDocument)) {
+      console.warn("Dashboard: Shell placement committed but Dashboard state could not be staged")
+      return false
+    }
+    stateStore.flush()
+    ensureSelection()
+    return true
+  }
+
   function updateGridBounds(width, height) {
     if (Number(width) < GridEngine.STEP || Number(height) < GridEngine.STEP) return
     var current = GridEngine.bounds(width, height)
@@ -731,8 +481,7 @@ Item {
   }
 
   function removeSpace(spaceId) {
-    commit({ type: "removeSpace", spaceId: spaceId })
-    plugins.syncHostPlacements(dashboardState)
+    commitHostMutation({ type: "removeSpace", spaceId: spaceId })
   }
 
   function placeTile(tileId, rect) {
@@ -812,19 +561,27 @@ Item {
     resizeSelectedTileWith("resizeTileByGrid", dw, dh)
   }
 
+  function tileMinimumSize(tileValue) {
+    if (!tileValue) return { minW: GridEngine.MIN_WIDTH, minH: GridEngine.MIN_HEIGHT }
+    var kind = plugins.presentation(tileValue).kind
+    if (kind === "launcher" || kind === "control")
+      return { minW: GridEngine.MIN_WIDTH, minH: GridEngine.MIN_HEIGHT }
+    var hints = plugins.sizeHints(tileValue.pluginId, gridWidth, gridHeight)
+    return { minW: hints.minW, minH: hints.minH }
+  }
+
   function resizeSelectedTileWith(commandType, dw, dh) {
     if (!selectedTileId) return
     var tile = selectedTile()
-    var hints = plugins.sizeHints(tile ? tile.pluginId : "", gridWidth, gridHeight)
+    var minimum = tileMinimumSize(tile)
     commit({
       type: commandType, spaceId: activeSpace.id, tileId: selectedTileId,
-      dw: dw, dh: dh, minW: hints.minW, minH: hints.minH
+      dw: dw, dh: dh, minW: minimum.minW, minH: minimum.minH
     })
   }
 
   function removeTile(tileId) {
-    commit({ type: "removeTile", spaceId: activeSpace.id, tileId: tileId })
-    plugins.syncHostPlacements(dashboardState)
+    commitHostMutation({ type: "removeTile", spaceId: activeSpace.id, tileId: tileId })
   }
 
   function removeElement(elementId) {
@@ -832,6 +589,16 @@ Item {
     commit({ type: "removeElement", spaceId: activeSpace.id, elementId: elementId })
     if (selectedElementId === elementId) selectedElementId = ""
     ensureSelection()
+  }
+
+  function setTextAlignment(elementId, alignment) {
+    commit({ type: "setTextAlignment", spaceId: activeSpace.id,
+      elementId: elementId, alignment: alignment })
+  }
+
+  function setDividerThickness(elementId, thickness) {
+    commit({ type: "setDividerThickness", spaceId: activeSpace.id,
+      elementId: elementId, thickness: thickness })
   }
 
   function updateText(elementId, text) {
@@ -915,6 +682,12 @@ Item {
     return addDivider(draft.x1, draft.y1, draft.x2, draft.y2)
   }
 
+  function setTileBackground(tileId, background) {
+    if (!tileId) return
+    commit({ type: "setTileBackground", spaceId: activeSpace.id,
+      tileId: tileId, background: background })
+  }
+
   function setTileEmbedding(tileId, embedding) {
     if (!tileId) return
     commit({
@@ -956,6 +729,7 @@ Item {
       instanceId: pending ? String(pending.id) : "",
       label: descriptor.name,
       embedding: embedding || "auto",
+      background: pending ? pending.background !== false : true,
       manifest: descriptor.manifest,
       minW: hints.minW,
       minH: hints.minH,
@@ -973,20 +747,20 @@ Item {
 
   function updatePlacementRect(rect) {
     if (!placingPlugin || !rect) return
-    var next = placementDraft
-    placementDraft = {
-      pluginId: next.pluginId,
-      instanceId: next.instanceId,
-      label: next.label,
-      embedding: next.embedding,
-      manifest: next.manifest,
-      minW: next.minW,
-      minH: next.minH,
-      preferredW: next.preferredW,
-      preferredH: next.preferredH,
-      previousTileId: next.previousTileId,
-      rect: rect
-    }
+    updatePlacementDraft({ rect: rect })
+  }
+
+  function updatePlacementDraft(changes) {
+    if (!placingPlugin) return
+    var next = Object.assign({}, placementDraft, changes)
+    placementDraft = next
+  }
+
+  function cyclePlacementPresentation() {
+    if (!placingPlugin) return
+    var presentation = plugins.presentation(placementDraft)
+    updatePlacementDraft({ embedding: PluginPresentation.nextPreference(
+      placementDraft.embedding, presentation.available) })
   }
 
   function movePlacementByGrid(dx, dy) {
@@ -1029,17 +803,20 @@ Item {
     if (!placementValid) return false
     var draft = placementDraft
     var tileId = String(draft.instanceId || "") || "tile-" + Date.now() + "-" + activeTiles.length
-    commit({
+    var placementCommand = {
       type: "addTile", spaceId: activeSpace.id, id: tileId,
       pluginId: draft.pluginId, label: draft.label, rect: draft.rect,
-      embedding: draft.embedding
-    })
-    var added = false
-    for (var index = 0; index < activeTiles.length; index++)
-      if (activeTiles[index].id === tileId) added = true
-    if (!added) return false
-    plugins.enable(draft.pluginId, draft.manifest)
-    plugins.syncHostPlacements(dashboardState)
+      embedding: draft.embedding, background: draft.background
+    }
+    var nextDocument = DashboardModel.apply(dashboardState, placementCommand, gridWidth, gridHeight)
+    var added = DashboardModel.placement(nextDocument, tileId)
+    if (!added || !plugins.applyHostPlacementTransaction(nextDocument, draft.pluginId, draft.manifest))
+      return false
+    if (!stateStore.replaceDocument(nextDocument)) {
+      console.warn("Dashboard: Shell placement committed but Dashboard state could not be staged")
+      return false
+    }
+    stateStore.flush()
     selectedTileId = tileId
     placementDraft = null
     return true
@@ -1069,11 +846,20 @@ Item {
     }
   }
 
-  Runtime.DashboardStore {
+  Commands.DashboardManagement {
+    id: management
+    stateStore: stateStore
+    plugins: root.plugins
+    gridWidth: root.gridWidth
+    gridHeight: root.gridHeight
+  }
+
+  State.DashboardStore {
     id: stateStore
     directoryPath: root.stateDirectory
     statePath: root.statePath
     readerPath: root.pluginDirectory + "/bin/omarchy-dashboard-read-state"
+    writerPath: root.pluginDirectory + "/bin/omarchy-dashboard-write-state"
     onLoaded: {
       root.gridWidth = Number(root.dashboardState.canvasWidth) || GridEngine.DEFAULT_WIDTH
       root.gridHeight = Number(root.dashboardState.canvasHeight) || GridEngine.DEFAULT_HEIGHT
@@ -1082,12 +868,12 @@ Item {
     }
   }
 
-  Runtime.DashboardBlurSettings {
+  Appearance.DashboardBlurSettings {
     id: blurSettings
     active: root.blurBackground
   }
 
-  Runtime.PluginRuntime {
+  Plugins.PluginRuntime {
     id: pluginRuntime
     dashboardHost: root
     shell: root.shell
@@ -1096,21 +882,23 @@ Item {
     pluginDirectory: root.pluginDirectory
     cacheRoot: root.cacheRoot
     active: root.opened
-    tiles: root.activeTiles
+    activeSpaceId: root.activeSpace.id
     spaces: root.dashboardState.spaces
     pendingPlacements: root.pendingPlacements
   }
 
-  Variants {
-    model: Quickshell.screens
-    delegate: Component {
-      Ui.DashboardSurface {
-        required property var modelData
-        dashboard: root
-        screen: modelData
-        visible: root.opened && String(modelData.name || "") === root.activeScreenName
-      }
+  // One surface owns the session's plugin instances, even when summoned on
+  // another monitor. Moving its screen does not recreate the QML page tree.
+  Ui.DashboardSurface {
+    id: dashboardSurface
+    dashboard: root
+    screen: {
+      var screens = Quickshell.screens || []
+      for (var index = 0; index < screens.length; index++)
+        if (String(screens[index].name || "") === root.activeScreenName) return screens[index]
+      return screens.length > 0 ? screens[0] : null
     }
+    visible: root.opened && root.activeScreenName !== ""
   }
 
 }

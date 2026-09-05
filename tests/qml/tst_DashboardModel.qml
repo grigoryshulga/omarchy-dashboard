@@ -1,162 +1,43 @@
 import QtQuick
 import QtTest
-import "../../qml/ui" as DashboardUi
-import "../../qml/core/DashboardAppearance.js" as DashboardAppearance
-import "../../qml/core/DashboardModel.js" as DashboardModel
-import "../../qml/core/GridEngine.js" as GridEngine
-import "../../qml/core/HostPlacements.js" as HostPlacements
-import "../../qml/core/HyprlandBlur.js" as HyprlandBlur
-import "../../qml/runtime/PluginControls.js" as PluginControls
-import "../../qml/runtime/PluginIconResolver.js" as PluginIconResolver
-import "../../qml/runtime/PluginPresentation.js" as PluginPresentation
-import "../../qml/core/SpatialNavigation.js" as SpatialNavigation
-import "../../qml/core/SpaceSwipe.js" as SpaceSwipe
+import "../../qml/state/DashboardModel.js" as DashboardModel
+import "../../qml/layout/GridEngine.js" as GridEngine
+import "../../qml/plugins/HostPlacements.js" as HostPlacements
 
 TestCase {
   name: "DashboardModel"
   when: windowShown
 
-  QtObject {
-    id: shortcutDashboard
-    property string overlay: ""
-    property string selectedSpaceId: ""
-    property var dashboardState: ({ spaces: [
-      { id: "one", name: "One" },
-      { id: "two", name: "Two" },
-      { id: "three", name: "Three" }
-    ] })
-    function selectSpace(id) { selectedSpaceId = id }
-  }
-
-  QtObject {
-    id: tileShortcutDashboard
-    property string overlay: ""
-    property string mode: "browse"
-    property bool placingPlugin: false
-    property bool placingDivider: false
-    property string selectedDirection: ""
-    function selectTile(direction) { selectedDirection = direction }
-  }
-
-  QtObject {
-    id: globalShortcutDashboard
-    property string overlay: ""
-    property string mode: "edit"
-    property bool placingPlugin: false
-    property bool placingDivider: false
-    property string selectedTileId: "tile"
-    property string selectedElementId: ""
-    property int moveCalls: 0
-    property int resizeCalls: 0
-    function moveSelectedItemByGrid(dx, dy) { moveCalls += 1 }
-    function resizeSelectedItemByGrid(dw, dh) { resizeCalls += 1 }
-    function moveSpace(delta) { moveCalls += 1 }
-  }
-
-  QtObject {
-    id: globalShortcutSurface
-    property int focusRequests: 0
-    function retainKeyboardFocus() { focusRequests += 1 }
-    function beginCreate() {}
-    function beginRename() {}
-    function requestSpaceRemoval() {}
-  }
-
-  DashboardUi.DashboardSpaceShortcuts {
-    id: spaceShortcuts
-    dashboard: shortcutDashboard
-    active: true
-  }
-
-  DashboardUi.DashboardTileNavigationShortcuts {
-    id: tileNavigationShortcuts
-    dashboard: tileShortcutDashboard
-    active: true
-  }
-
-  DashboardUi.DashboardGlobalShortcuts {
-    id: globalShortcuts
-    dashboard: globalShortcutDashboard
-    surface: globalShortcutSurface
-    active: true
-  }
-
-  DashboardUi.DashboardTileCollection {
-    id: tileCollection
-  }
-
-  Repeater {
-    id: tileCollectionRepeater
-    model: tileCollection.model
-    delegate: Item {
-      required property string tileId
-      required property real tileW
-    }
-  }
-
-  Item {
-    id: shortcutFocusSink
-    focus: true
-    Keys.onPressed: function(event) { event.accepted = true }
-  }
-
   function tile(id, x, y, w, h) {
     return { id: id, pluginId: "plugin." + id, x: x, y: y, w: w, h: h }
   }
 
-  function test_surface_modes_normalize_legacy_push_to_glass() {
-    compare(DashboardAppearance.surfaceMode("Framed"), "framed")
-    compare(DashboardAppearance.surfaceMode("glass"), "glass")
-    compare(DashboardAppearance.surfaceMode("Push"), "glass")
-    compare(DashboardAppearance.surfaceMode("unknown"), "glass")
-    verify(!DashboardAppearance.usesGlass("Framed"))
-    verify(DashboardAppearance.usesGlass("Glass"))
-    verify(DashboardAppearance.usesGlass("Push"))
-  }
-
-  function test_space_swipe_requires_a_deliberate_horizontal_motion() {
-    compare(SpaceSwipe.directionForTranslation(95, 0), 0)
-    compare(SpaceSwipe.directionForTranslation(96, 96), 0)
-    compare(SpaceSwipe.directionForTranslation(160, 170), 0)
-    compare(SpaceSwipe.directionForTranslation(-140, 20), 1)
-    compare(SpaceSwipe.directionForTranslation(140, 20), -1)
-  }
-
-  function test_host_placements_follow_dashboard_tiles_and_preserve_settings() {
-    var config = { hosts: { "gshulga.dashboard": { placements: [{
-      id: "example.weather", instanceId: "old-tile", slot: "old",
-      settings: { units: "metric" }
-    }] } } }
-    var document = { spaces: [
-      { id: "work", tiles: [
-        { id: "weather-tile", pluginId: "example.weather" },
-        { id: "mail-tile", pluginId: "example.mail" }
-      ] }
-    ] }
-
-    var references = HostPlacements.references(document)
-    compare(references.length, 2)
-    verify(HostPlacements.synchronize(config, "gshulga.dashboard", references))
-    var entries = HostPlacements.entries(config, "gshulga.dashboard")
-    compare(entries.length, 2)
-    compare(entries[0].instanceId, "weather-tile")
-    compare(entries[0].slot, "work")
-    compare(entries[0].settings.units, "metric")
-    compare(HostPlacements.settingsFor(
-      config, "gshulga.dashboard", "example.weather", "").units, "metric")
-  }
-
-  function test_host_placements_remove_stale_references_and_reject_duplicates() {
-    var config = ({})
-    var desired = [
-      { id: "example.one", instanceId: "one", slot: "main" },
-      { id: "example.one", instanceId: "duplicate", slot: "other" },
-      { id: "example.two", instanceId: "one", slot: "other" }
-    ]
-    verify(HostPlacements.synchronize(config, "gshulga.dashboard", desired))
-    compare(HostPlacements.entries(config, "gshulga.dashboard").length, 1)
-    verify(HostPlacements.synchronize(config, "gshulga.dashboard", []))
-    verify(config.hosts === undefined)
+  function test_tile_background_defaults_on_and_survives_storage_and_placement_changes() {
+    var state = DashboardModel.apply(DashboardModel.defaultState(), {
+      type: "addTile", id: "one", pluginId: "plugin.one",
+      rect: { x: 0, y: 0, w: 120, h: 100 }
+    }, 800, 600)
+    compare(state.spaces[0].tiles[0].background, true)
+    state = DashboardModel.apply(state, {
+      type: "setTileBackground", tileId: "one", background: false
+    }, 800, 600)
+    state = DashboardModel.normalize(JSON.parse(DashboardModel.serialize(state)))
+    compare(state.spaces[0].tiles[0].background, false)
+    var pending = DashboardModel.managePlacement(state, {
+      operation: "pending", pluginId: "plugin.one"
+    }, 800, 600)
+    verify(pending.ok)
+    compare(pending.placement.background, false)
+    var placed = DashboardModel.managePlacement(pending.state, {
+      operation: "place", pluginId: "plugin.one", spaceId: "space-main",
+      rect: { x: 150, y: 0, w: 120, h: 100 }
+    }, 800, 600)
+    verify(placed.ok)
+    compare(placed.placement.background, false)
+    state = DashboardModel.apply(placed.state, {
+      type: "setTileBackground", tileId: "one", background: true
+    }, 800, 600)
+    compare(state.spaces[0].tiles[0].background, true)
   }
 
   function test_reserved_and_structurally_unsafe_ids_are_rejected() {
@@ -275,136 +156,6 @@ TestCase {
     compare(moved.state.spaces[1].tiles.length, 1)
     compare(moved.placement.spaceId, "work")
     compare(moved.placement.rect.x, 400)
-  }
-
-  function test_space_shortcut_dispatcher_selects_the_requested_space() {
-    shortcutDashboard.overlay = ""
-    shortcutDashboard.selectedSpaceId = ""
-    spaceShortcuts.activateSpace(1)
-    compare(shortcutDashboard.selectedSpaceId, "two")
-  }
-
-  function test_tile_navigation_shortcut_dispatches_in_browse_mode() {
-    tileShortcutDashboard.selectedDirection = ""
-    tileNavigationShortcuts.select("left")
-    compare(tileShortcutDashboard.selectedDirection, "left")
-  }
-
-  function test_global_shortcuts_dispatch_repeated_edit_commands_without_item_focus() {
-    globalShortcutDashboard.moveCalls = 0
-    globalShortcutDashboard.resizeCalls = 0
-    globalShortcutSurface.focusRequests = 0
-    globalShortcuts.move("left")
-    globalShortcuts.move("left")
-    globalShortcuts.resize("right")
-    globalShortcuts.resize("right")
-    compare(globalShortcutDashboard.moveCalls, 2)
-    compare(globalShortcutDashboard.resizeCalls, 2)
-    compare(globalShortcutSurface.focusRequests, 4)
-  }
-
-  function test_tile_collection_keeps_unchanged_delegate_instances() {
-    tileCollection.synchronize([
-      tile("one", 0, 0, 100, 100), tile("two", 100, 0, 100, 100)
-    ])
-    var first = tileCollectionRepeater.itemAt(0)
-    var second = tileCollectionRepeater.itemAt(1)
-    compare(first.tileId, "one")
-    compare(second.tileId, "two")
-
-    tileCollection.synchronize([
-      tile("one", 0, 0, 100, 100), tile("two", 100, 0, 130, 100)
-    ])
-    compare(tileCollectionRepeater.itemAt(0), first)
-    compare(tileCollectionRepeater.itemAt(1), second)
-    compare(tileCollectionRepeater.itemAt(1).tileW, 130)
-  }
-
-  function test_space_shortcut_is_suspended_while_an_overlay_is_open() {
-    shortcutDashboard.overlay = "catalog"
-    shortcutDashboard.selectedSpaceId = ""
-    shortcutFocusSink.forceActiveFocus()
-    keyClick(Qt.Key_3, Qt.AltModifier)
-    wait(20)
-    compare(shortcutDashboard.selectedSpaceId, "")
-    shortcutDashboard.overlay = ""
-  }
-
-  function test_hyprland_blur_rule_targets_the_dashboard_layer() {
-    var enabled = HyprlandBlur.ruleExpression(true)
-    verify(enabled.indexOf("hl.layer_rule") >= 0)
-    verify(enabled.indexOf('name = "gshulga-dashboard-blur"') >= 0)
-    verify(enabled.indexOf('namespace = "gshulga-dashboard"') >= 0)
-    verify(enabled.indexOf("blur = true") >= 0)
-    verify(enabled.indexOf("xray = true") >= 0)
-    verify(enabled.indexOf("gshulga_dashboard_blur_rule_version ~= 2") >= 0)
-    verify(enabled.indexOf(":set_enabled(false)") >= 0)
-    verify(enabled.indexOf(":set_enabled(true)") >= 0)
-    verify(enabled.indexOf("decoration:blur") < 0)
-
-    var disabled = HyprlandBlur.ruleExpression(false)
-    verify(disabled.indexOf(":set_enabled(false)") >= 0)
-  }
-
-  function test_grid_uses_five_pixel_snap() {
-    compare(GridEngine.snap(0), 0)
-    compare(GridEngine.snap(7), 5)
-    compare(GridEngine.snap(8), 10)
-    var normalized = GridEngine.normalizeRect({ x: 13, y: 18, w: 203, h: 197 }, 100, 100, 800, 600)
-    compare(normalized.x, 15)
-    compare(normalized.y, 20)
-    compare(normalized.w, 205)
-    compare(normalized.h, 195)
-  }
-
-  function test_grid_rejects_collisions_bounds_and_unsnapped_values() {
-    var tiles = [tile("a", 0, 0, 300, 200)]
-    verify(!GridEngine.canPlace({ x: 295, y: 195, w: 100, h: 100 }, tiles, "", 800, 600))
-    verify(GridEngine.canPlace({ x: 300, y: 0, w: 100, h: 100 }, tiles, "", 800, 600))
-    verify(!GridEngine.canPlace({ x: 750, y: 0, w: 100, h: 100 }, tiles, "", 800, 600))
-    verify(!GridEngine.canPlace({ x: 302, y: 0, w: 100, h: 100 }, tiles, "", 800, 600))
-    verify(!GridEngine.canPlace({ x: "300", y: 0, w: 100, h: 100 }, tiles, "", 800, 600))
-  }
-
-  function test_first_free_is_deterministic() {
-    var rect = GridEngine.firstFree(300, 200, [tile("a", 0, 0, 300, 200)], 800, 600)
-    compare(rect.x, 300)
-    compare(rect.y, 0)
-  }
-
-  function test_best_free_keeps_preferred_size_when_it_fits() {
-    var rect = GridEngine.bestFree(360, 260, 160, 120,
-                                   [tile("a", 0, 0, 360, 260)], 800, 600, 20)
-    compare(rect.x, 360)
-    compare(rect.y, 0)
-    compare(rect.w, 360)
-    compare(rect.h, 260)
-  }
-
-  function test_best_free_shrinks_to_use_a_narrow_gap() {
-    var rect = GridEngine.bestFree(360, 260, 160, 120,
-                                   [tile("a", 0, 0, 600, 600)], 800, 600, 20)
-    verify(rect !== null)
-    compare(rect.x, 600)
-    compare(rect.y, 0)
-    compare(rect.w, 200)
-    compare(rect.h, 260)
-    verify(GridEngine.canPlace(rect, [tile("a", 0, 0, 600, 600)], "", 800, 600))
-  }
-
-  function test_best_free_can_use_minimum_size_between_coarse_grid_lines() {
-    var rect = GridEngine.bestFree(360, 260, 160, 120,
-                                   [tile("a", 0, 0, 630, 600)], 800, 600, 30)
-    verify(rect !== null)
-    compare(rect.x, 630)
-    compare(rect.w, 170)
-    compare(rect.h, 260)
-  }
-
-  function test_best_free_returns_null_when_minimum_size_does_not_fit() {
-    var rect = GridEngine.bestFree(360, 260, 160, 120,
-                                   [tile("a", 0, 0, 800, 600)], 800, 600, 20)
-    verify(rect === null)
   }
 
   function test_model_normalizes_duplicate_plugins_and_overlaps() {
@@ -528,97 +279,6 @@ TestCase {
     compare(DashboardModel.normalize(state).spaces[0].tiles[0].embedding, "control")
   }
 
-  function test_universal_presentation_prefers_safe_declared_surfaces() {
-    var explicit = {
-      entryPoints: { dashboardPage: "DashboardPage.qml", dashboardWidget: "Widget.qml", barWidget: "Bar.qml" },
-      __sourceDir: "/plugin"
-    }
-    var capabilities = PluginPresentation.capabilities(explicit)
-    compare(capabilities.preferred, "embedded")
-    compare(capabilities.available.join(","), "embedded,widget,launcher")
-
-    var resolved = PluginPresentation.resolve(explicit, "auto", {
-      explicit: "file:///DashboardPage.qml", widget: "file:///Widget.qml"
-    })
-    compare(resolved.kind, "embedded")
-    compare(resolved.state, "ready")
-    compare(resolved.source, "file:///DashboardPage.qml")
-  }
-
-  function test_universal_presentation_adapts_then_falls_back_to_launcher() {
-    var standard = {
-      entryPoints: { barWidget: "BarWidget.qml" },
-      __sourceDir: "/plugin"
-    }
-    var preparing = PluginPresentation.resolve(standard, "auto", {})
-    compare(preparing.kind, "embedded")
-    compare(preparing.state, "preparing")
-
-    var adapted = PluginPresentation.resolve(standard, "auto", { adapted: "file:///Panel.qml" })
-    compare(adapted.kind, "embedded")
-    compare(adapted.state, "ready")
-
-    var fallback = PluginPresentation.resolve(standard, "auto", { adaptationError: "unsafe panel" })
-    compare(fallback.kind, "launcher")
-    compare(fallback.state, "fallback")
-    verify(!fallback.canLaunch)
-
-    var popout = PluginPresentation.resolve(standard, "launcher", { adapted: "file:///Panel.qml" })
-    verify(popout.canLaunch)
-    compare(popout.launchTarget, "popout")
-    compare(popout.source, "file:///Panel.qml")
-
-    var nativeLauncher = PluginPresentation.resolve(standard, "launcher", {}, { nativeAvailable: true })
-    verify(nativeLauncher.canLaunch)
-    compare(nativeLauncher.launchTarget, "native")
-  }
-
-  function test_dashboard_owned_service_controls_are_explicit_and_toggle_safely() {
-    var idle = { stayAwakeStateLoaded: true, stayAwake: false, requested: null }
-    idle.setIdleEnabled = function(value) { idle.requested = value }
-    var snapshot = PluginControls.snapshot("omarchy.idle", idle)
-    verify(snapshot.ready)
-    verify(!snapshot.active)
-    verify(PluginControls.activate("omarchy.idle", idle))
-    compare(idle.requested, false)
-
-    var serviceManifest = { id: "omarchy.idle", entryPoints: { service: "Service.qml" }, kinds: ["service"] }
-    var resolved = PluginPresentation.resolve(serviceManifest, "auto", {}, {
-      hasControl: true,
-      control: snapshot
-    })
-    compare(resolved.kind, "control")
-    compare(resolved.statusText, "Off")
-    compare(resolved.available.join(","), "control,launcher")
-    compare(PluginPresentation.capabilityLabel(serviceManifest, { hasControl: true }), "Dashboard control")
-  }
-
-  function test_plugin_icon_resolver_prefers_explicit_sources_and_has_semantic_fallbacks() {
-    var manifest = { id: "omarchy.bluetooth", name: "Bluetooth", kinds: ["bar-widget"] }
-    var scanned = { kind: "image", value: "file:///plugin/icon.png" }
-    var result = PluginIconResolver.resolve(manifest, scanned, null)
-    compare(result.kind, "image")
-    compare(result.value, "file:///plugin/icon.png")
-
-    result = PluginIconResolver.resolve({
-      id: "custom.plugin", dashboard: { icon: "󰍹" }
-    }, scanned, null)
-    compare(result.kind, "glyph")
-    compare(result.value, "󰍹")
-
-    result = PluginIconResolver.resolve(manifest, null, null)
-    compare(result.kind, "glyph")
-    compare(result.value, "󰂯")
-  }
-
-  function test_service_only_plugin_becomes_information_launcher() {
-    var service = { entryPoints: { service: "Service.qml" }, kinds: ["service"] }
-    compare(PluginPresentation.capabilityLabel(service), "Information tile")
-    var resolved = PluginPresentation.resolve(service, "auto", {})
-    compare(resolved.kind, "launcher")
-    verify(!resolved.canLaunch)
-  }
-
   function test_invalid_moves_and_resizes_are_atomic() {
     var state = DashboardModel.normalize({
       version: DashboardModel.VERSION,
@@ -640,6 +300,50 @@ TestCase {
     }, 800, 600)
     compare(state.spaces[0].tiles[0].w, 160)
     compare(state.spaces[0].tiles[0].h, 120)
+  }
+
+  function test_tile_can_resize_from_left_and_top_edges() {
+    var state = DashboardModel.normalize({
+      version: DashboardModel.VERSION,
+      activeSpaceId: "main",
+      spaces: [{ id: "main", name: "Main", tiles: [tile("resizable", 100, 100, 200, 200)] }]
+    })
+    state = DashboardModel.apply(state, {
+      type: "placeTile", spaceId: "main", tileId: "resizable",
+      rect: { x: 50, y: 70, w: 250, h: 230 }
+    }, 800, 600)
+    compare(state.spaces[0].tiles[0].x, 50)
+    compare(state.spaces[0].tiles[0].y, 70)
+    compare(state.spaces[0].tiles[0].w, 250)
+    compare(state.spaces[0].tiles[0].h, 230)
+  }
+
+  function test_launcher_tiles_can_resize_to_the_grid_minimum() {
+    var state = DashboardModel.normalize({
+      version: DashboardModel.VERSION,
+      activeSpaceId: "main",
+      spaces: [{ id: "main", name: "Main", tiles: [tile("launcher", 0, 0, 120, 120)] }]
+    })
+    state = DashboardModel.apply(state, {
+      type: "resizeTile", spaceId: "main", tileId: "launcher", dw: -1000, dh: -1000,
+      minW: GridEngine.MIN_WIDTH, minH: GridEngine.MIN_HEIGHT
+    }, 800, 600)
+    compare(state.spaces[0].tiles[0].w, GridEngine.MIN_WIDTH)
+    compare(state.spaces[0].tiles[0].h, GridEngine.MIN_HEIGHT)
+  }
+
+  function test_control_tiles_can_resize_to_the_grid_minimum() {
+    var state = DashboardModel.normalize({
+      version: DashboardModel.VERSION,
+      activeSpaceId: "main",
+      spaces: [{ id: "main", name: "Main", tiles: [tile("control", 0, 0, 120, 120)] }]
+    })
+    state = DashboardModel.apply(state, {
+      type: "resizeTile", spaceId: "main", tileId: "control", dw: -1000, dh: -1000,
+      minW: GridEngine.MIN_WIDTH, minH: GridEngine.MIN_HEIGHT
+    }, 800, 600)
+    compare(state.spaces[0].tiles[0].w, GridEngine.MIN_WIDTH)
+    compare(state.spaces[0].tiles[0].h, GridEngine.MIN_HEIGHT)
   }
 
   function test_plugins_are_unique_across_spaces() {
@@ -767,86 +471,6 @@ TestCase {
     compare(placed.x, 120)
   }
 
-  function test_centered_canvas_uses_dotted_bounds_without_clipping_layout() {
-    var spaces = [{ tiles: [
-      { x: 0, y: 0, w: 2010, h: 1050 }
-    ] }]
-    var fitted = GridEngine.centeredBounds(2020, 1065, 30, spaces)
-    compare(fitted.width, 2010)
-    compare(fitted.height, 1050)
-
-    var fallback = GridEngine.centeredBounds(2020, 1065, 80, spaces)
-    compare(fallback.width, 2020)
-    compare(fallback.height, 1065)
-
-    var empty = GridEngine.centeredBounds(2020, 1065, 80, [])
-    compare(empty.width, 2000)
-    compare(empty.height, 1040)
-
-    var decorated = GridEngine.centeredBounds(800, 600, 40, [{
-      tiles: [], elements: [
-        { kind: "divider", x1: 0, y1: 560, x2: 760, y2: 560 },
-        { kind: "text", x: 600, y: 400, w: 200, h: 160 }
-      ]
-    }])
-    compare(decorated.width, 800)
-    compare(decorated.height, 600)
-  }
-
-  function test_rect_snaps_to_canvas_center_axes_within_threshold() {
-    var vertical = GridEngine.snapRectToCenter(
-      { x: 344, y: 40, w: 300, h: 200 }, 1000, 600, 12)
-    compare(vertical.rect.x, 350)
-    compare(vertical.rect.y, 40)
-    verify(vertical.vertical)
-    verify(!vertical.horizontal)
-
-    var both = GridEngine.snapRectToCenter(
-      { x: 345, y: 205, w: 300, h: 200 }, 1000, 600, 12)
-    compare(both.rect.x, 350)
-    compare(both.rect.y, 200)
-    verify(both.vertical)
-    verify(both.horizontal)
-
-    var outside = GridEngine.snapRectToCenter(
-      { x: 330, y: 180, w: 300, h: 200 }, 1000, 600, 12)
-    compare(outside.rect.x, 330)
-    compare(outside.rect.y, 180)
-    verify(!outside.vertical)
-    verify(!outside.horizontal)
-  }
-
-  function test_center_snap_keeps_origin_on_five_pixel_lattice() {
-    var aligned = GridEngine.snapRectToCenter(
-      { x: 300, y: 200, w: 200, h: 100 }, 805, 505, 5)
-    compare(aligned.rect.x, 305)
-    compare(aligned.rect.y, 205)
-    compare(aligned.rect.x % GridEngine.STEP, 0)
-    compare(aligned.rect.y % GridEngine.STEP, 0)
-    verify(aligned.vertical)
-    verify(aligned.horizontal)
-  }
-
-  function test_center_snap_keeps_origin_on_active_grid() {
-    var aligned = GridEngine.snapRectToCenter(
-      { x: 870, y: 390, w: 300, h: 300 }, 2010, 1050, 15, 30)
-    verify(aligned.vertical)
-    verify(aligned.horizontal)
-    compare(aligned.rect.x % 30, 0)
-    compare(aligned.rect.y % 30, 0)
-    compare(aligned.verticalPosition, 1020)
-    compare(aligned.horizontalPosition, 540)
-  }
-
-  function test_center_snap_skips_axis_when_size_cannot_stay_on_grid() {
-    var aligned = GridEngine.snapRectToCenter(
-      { x: 810, y: 0, w: 390, h: 300 }, 2010, 1050, 15, 30)
-    verify(!aligned.vertical)
-    compare(aligned.rect.x, 810)
-    compare(aligned.rect.x % 30, 0)
-    compare(aligned.verticalPosition % 30, 0)
-  }
-
   function test_first_grid_operation_aligns_existing_geometry() {
     compare(GridEngine.snapFrom(395, 1, 50), 400)
     compare(GridEngine.snapFrom(395, -1, 50), 395)
@@ -903,49 +527,5 @@ TestCase {
     verify(parsed !== null)
     compare(parsed.spaces[0].tiles[0].pluginId, "omarchy.network")
     compare(DashboardModel.serialize(parsed), DashboardModel.serialize(state))
-  }
-
-  function test_spatial_navigation_uses_geometry() {
-    var tiles = [
-      tile("center", 400, 300, 100, 100), tile("left", 0, 300, 100, 100),
-      tile("right", 800, 300, 100, 100), tile("up", 400, 0, 100, 100),
-      tile("down", 400, 600, 100, 100)
-    ]
-    compare(SpatialNavigation.next(tiles, "center", "left"), "left")
-    compare(SpatialNavigation.next(tiles, "center", "right"), "right")
-    compare(SpatialNavigation.next(tiles, "center", "up"), "up")
-    compare(SpatialNavigation.next(tiles, "center", "down"), "down")
-    compare(SpatialNavigation.sequential(tiles, "down", 1), "up")
-    compare(SpatialNavigation.next(tiles, "left", "left"), "left")
-    compare(SpatialNavigation.sequential([], "", 1), "")
-  }
-
-  function test_spatial_navigation_prefers_an_actual_neighbour_in_the_direction() {
-    var tiles = [
-      tile("current", 400, 300, 100, 100),
-      tile("direct-left", 0, 300, 100, 100),
-      tile("nearby-diagonal", 350, 0, 100, 100),
-      tile("direct-right", 800, 300, 100, 100),
-      tile("nearby-right-diagonal", 450, 650, 100, 100)
-    ]
-    compare(SpatialNavigation.next(tiles, "current", "left"), "direct-left")
-    compare(SpatialNavigation.next(tiles, "current", "right"), "direct-right")
-  }
-
-  function test_keyboard_shortcuts_follow_reading_order() {
-    var tiles = [
-      tile("second", 400, 0, 100, 100),
-      tile("fourth", 400, 200, 100, 100),
-      tile("first", 0, 0, 100, 100),
-      tile("third", 0, 200, 100, 100)
-    ]
-    var ordered = SpatialNavigation.readingOrder(tiles)
-    compare(ordered.map(function(entry) { return entry.id }).join(","), "first,second,third,fourth")
-    compare(SpatialNavigation.shortcutLabel(0), "1")
-    compare(SpatialNavigation.shortcutLabel(8), "9")
-    compare(SpatialNavigation.shortcutLabel(9), "A")
-    compare(SpatialNavigation.shortcutLabel(34), "Z")
-    compare(SpatialNavigation.shortcutIndexForKey("3".charCodeAt(0)), 2)
-    compare(SpatialNavigation.shortcutIndexForKey("C".charCodeAt(0)), 11)
   }
 }

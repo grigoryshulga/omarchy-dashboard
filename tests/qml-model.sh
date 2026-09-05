@@ -12,7 +12,8 @@ if [[ ! -x "$runner" ]]; then
 fi
 
 XDG_CONFIG_HOME="$qml_config_dir" "$runner" \
-  -input "$project_dir/tests/qml/tst_DashboardModel.qml" \
+  -input "$project_dir/tests/qml" \
   -import "$project_dir/qml" \
+  -import "$project_dir/tests/fixtures/qml" \
   -o -,txt \
   "$@"

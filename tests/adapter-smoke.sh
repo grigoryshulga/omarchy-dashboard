@@ -10,7 +10,7 @@ adapt() {
   local entry_point=$2
   local plugin_id=$3
   /usr/bin/python3 -I "$project_dir/lib/omarchy_dashboard_adapter.py" -- \
-    "$source_dir" "$entry_point" "$cache_dir" "$plugin_id" "$project_dir/qml/adapters"
+    "$source_dir" "$entry_point" "$cache_dir" "$plugin_id" "$project_dir/qml/plugins/adapters"
 }
 
 bluetooth_output=$(adapt /usr/share/omarchy/shell/plugins/panels/bluetooth Panel.qml omarchy.bluetooth)
@@ -29,7 +29,7 @@ grep -q 'DashboardHiddenBarButton {' "$bluetooth_panel"
 
 bluetooth_json=$(/usr/bin/python3 -I "$project_dir/lib/omarchy_dashboard_adapter.py" \
   --json-output -- /usr/share/omarchy/shell/plugins/panels/bluetooth Panel.qml \
-  "$cache_dir" omarchy.bluetooth "$project_dir/qml/adapters")
+  "$cache_dir" omarchy.bluetooth "$project_dir/qml/plugins/adapters")
 /usr/bin/python3 -c 'import json, sys; result=json.loads(sys.argv[1]); assert result["layout"] == "padded"; assert result["url"].startswith("file://")' \
   "$bluetooth_json"
 

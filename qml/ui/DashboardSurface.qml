@@ -5,8 +5,11 @@ import Quickshell
 import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
-import "../core/GridEngine.js" as GridEngine
-import "../core/SpaceSwipe.js" as SpaceSwipe
+import "../layout/GridEngine.js" as GridEngine
+import "../navigation/SpaceSwipe.js" as SpaceSwipe
+import "../layout" as Layout
+import "../navigation" as Navigation
+import "../plugins" as Plugins
 
 PanelWindow {
   id: root
@@ -18,6 +21,11 @@ PanelWindow {
   property string pendingRemovalSpaceId: ""
   readonly property int surfaceInset: Math.max(Style.spacing.panelGap, Style.gapsOut)
   readonly property int cardInset: dashboard.glassBackground ? 0 : Style.gapsOut
+  readonly property var preloadStatus: ({
+    residentTiles: sessionTiles.tiles.length,
+    queuedTiles: sessionTiles.queuedCount,
+    loadingTiles: sessionTiles.loadingCount
+  })
 
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
@@ -64,7 +72,7 @@ PanelWindow {
   function beginTextEdit(elementId, value) {
     textEditorElementId = String(elementId || "")
     textEditorValue = String(value || "")
-    dashboard.overlay = "text-editor"
+    dashboard.overlay = "inline-text"
   }
 
   function finishTextEditor(value) {
@@ -114,7 +122,7 @@ PanelWindow {
       keyCatcher.forceActiveFocus()
     } else if (dashboard.overlay !== "") {
       if (dashboard.overlay === "plugin") dashboard.closePluginPopout()
-      else if (dashboard.overlay === "text-editor") cancelTextEditor()
+      else if (dashboard.overlay === "text-editor" || dashboard.overlay === "inline-text") cancelTextEditor()
       else dashboard.overlay = ""
       keyCatcher.forceActiveFocus()
     } else {
@@ -170,7 +178,7 @@ PanelWindow {
     if (dashboard.overlay === "remove-space") {
       return
     }
-    if (dashboard.overlay === "text-editor") {
+    if (dashboard.overlay === "text-editor" || dashboard.overlay === "inline-text") {
       return
     }
 
@@ -195,36 +203,60 @@ PanelWindow {
     if (visible) {
       dashboard.updateGridBounds(gridCanvas.width, gridCanvas.height)
       Qt.callLater(function() { if (root.visible) keyCatcher.forceActiveFocus() })
+      initialFocusRetry.remaining = 10
+      initialFocusRetry.restart()
+    }
+  }
+
+  Timer {
+    id: initialFocusRetry
+    interval: 100
+    repeat: true
+    property int remaining: 0
+    onTriggered: {
+      if (!root.visible || dashboard.mode !== "browse" || dashboard.overlay !== "" || remaining <= 0) {
+        stop()
+        return
+      }
+      keyCatcher.forceActiveFocus()
+      remaining -= 1
     }
   }
 
   Shortcut {
     sequence: "Escape"
     context: Qt.WindowShortcut
-    enabled: root.visible
+    enabled: root.visible && root.dashboard.overlay !== "tile-options" && root.dashboard.overlay !== "inline-text"
     onActivated: root.handleEscape()
     onActivatedAmbiguously: root.handleEscape()
   }
 
-  DashboardSpaceShortcuts {
+  Navigation.DashboardSpaceShortcuts {
     dashboard: root.dashboard
     active: root.visible
   }
 
-  DashboardTileNavigationShortcuts {
+  Navigation.DashboardTileNavigationShortcuts {
     dashboard: root.dashboard
     active: root.visible
   }
 
-  DashboardGlobalShortcuts {
+  Navigation.DashboardGlobalShortcuts {
     dashboard: root.dashboard
     surface: root
     active: root.visible
   }
 
-  DashboardTileCollection {
+  Plugins.DashboardSessionTiles {
+    id: sessionTiles
+    opened: dashboard.opened
+    spaces: dashboard.dashboardState.spaces
+    activeSpaceId: dashboard.activeSpace.id
+  }
+
+  Plugins.DashboardTileCollection {
     id: tileCollection
-    tiles: dashboard.activeTiles
+    tiles: sessionTiles.tiles
   }
 
   Connections {
@@ -235,7 +267,9 @@ PanelWindow {
     }
     function onModeChanged() {
       if (root.visible && dashboard.mode !== "interact")
-        Qt.callLater(function() { if (root.visible) keyCatcher.forceActiveFocus() })
+        Qt.callLater(function() {
+          if (root.visible && dashboard.mode !== "interact") keyCatcher.forceActiveFocus()
+        })
     }
   }
 
@@ -489,6 +523,7 @@ PanelWindow {
             }
 
             DashboardActionButton {
+              id: addSpaceButton
               x: spaceSwitcher.tabX(spaceSwitcher.spaceCount - 1)
                 + spaceSwitcher.tabWidthAt(spaceSwitcher.spaceCount - 1)
                 + spaceSwitcher.tabGap
@@ -504,7 +539,7 @@ PanelWindow {
           }
 
           DashboardActionButton {
-            x: appearanceControls.x - width - Style.spacing.sm
+            x: addSpaceButton.x + addSpaceButton.width + Style.spacing.sm
             anchors.verticalCenter: parent.verticalCenter
             visible: dashboard.mode === "edit" && dashboard.dashboardState.spaces.length > 1
             icon: "\uf1f8"
@@ -514,9 +549,10 @@ PanelWindow {
 
           Row {
             id: appearanceControls
-            x: Math.max(0, spaceSwitcher.tabX(0) - width - Style.spacing.lg)
+            anchors.left: parent.left
+            anchors.leftMargin: 30
             anchors.verticalCenter: parent.verticalCenter
-            visible: toolbar.controlsVisible && dashboard.mode === "edit"
+            visible: toolbar.controlsVisible && dashboard.mode === "edit" && !elementStyleControls.element
             spacing: Style.spacing.xs
 
             Text {
@@ -531,14 +567,32 @@ PanelWindow {
             DashboardActionButton {
               icon: "\uf2d0"
               text: "Framed"
+              alwaysExpanded: true
               active: dashboard.surfaceMode === "framed"
               onClicked: dashboard.setSurfaceMode("Framed")
             }
             DashboardActionButton {
               icon: "\uf065"
               text: "Glass"
+              alwaysExpanded: true
               active: dashboard.surfaceMode === "glass"
               onClicked: dashboard.setSurfaceMode("Glass")
+            }
+          }
+
+          ElementStyleControls {
+            id: elementStyleControls
+            anchors.left: parent.left
+            anchors.leftMargin: 30
+            anchors.verticalCenter: parent.verticalCenter
+            element: dashboard.selectedElement()
+            visible: toolbar.controlsVisible && dashboard.mode === "edit" && element !== null
+            enabled: dashboard.overlay === ""
+            onAlignmentRequested: function(alignment) {
+              if (element) dashboard.setTextAlignment(element.id, alignment)
+            }
+            onThicknessRequested: function(thickness) {
+              if (element) dashboard.setDividerThickness(element.id, thickness)
             }
           }
 
@@ -551,21 +605,34 @@ PanelWindow {
             visible: toolbar.controlsVisible && dashboard.mode === "edit"
             spacing: Style.spacing.xs
 
+            Text {
+              textFormat: Text.PlainText
+              anchors.verticalCenter: parent.verticalCenter
+              text: "Add"
+              color: Color.popups.text
+              opacity: 0.62
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+            }
+
             DashboardActionButton {
               icon: "\uf12e"
               text: "Add Plugin"
+              alwaysExpanded: true
               enabled: !dashboard.placingPlugin && !dashboard.placingDivider
               onClicked: dashboard.overlay = "catalog"
             }
             DashboardActionButton {
               icon: "\uf068"
               text: "Draw Divider"
+              alwaysExpanded: true
               enabled: !dashboard.placingPlugin && !dashboard.placingDivider
               onClicked: dashboard.beginDividerPlacement()
             }
             DashboardActionButton {
               icon: "T"
               text: "Add Text"
+              alwaysExpanded: true
               enabled: !dashboard.placingPlugin && !dashboard.placingDivider
               onClicked: root.beginNewText()
             }
@@ -614,12 +681,11 @@ PanelWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             width: placementControls.implicitWidth + Style.spacing.lg * 2
             height: Style.space(42)
-            visible: dashboard.placingPlugin || dashboard.placingDivider
+            visible: dashboard.placingDivider
             radius: Style.cornerRadius > 0 ? height / 2 : 0
             color: Color.popups.background
             border.width: 1
-            border.color: dashboard.placingDivider || dashboard.placementValid
-              ? Color.accent : Qt.rgba(0.95, 0.25, 0.30, 1)
+            border.color: Color.accent
             z: 60
 
             Row {
@@ -630,29 +696,14 @@ PanelWindow {
               Text {
                 textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
-                text: dashboard.placingDivider
-                  ? "Drag between two grid points; the axis locks automatically"
-                  : (dashboard.placementValid
-                    ? "Move or resize, then place"
-                    : "No room here — resize it or move another tile")
-                color: dashboard.placingDivider || dashboard.placementValid
-                  ? Color.popups.text : Qt.rgba(0.95, 0.45, 0.48, 1)
+                text: "Drag between two grid points; the axis locks automatically"
+                color: Color.popups.text
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
               }
               DashboardActionButton {
-                visible: dashboard.placingPlugin
-                text: "Place"
-                accent: true
-                enabled: dashboard.placementValid
-                onClicked: dashboard.confirmPluginPlacement()
-              }
-              DashboardActionButton {
                 text: "Cancel"
-                onClicked: {
-                  if (dashboard.placingDivider) dashboard.cancelDividerPlacement()
-                  else dashboard.cancelPluginPlacement()
-                }
+                onClicked: dashboard.cancelDividerPlacement()
               }
             }
           }
@@ -713,19 +764,26 @@ PanelWindow {
             Repeater {
               id: tileRepeater
               model: tileCollection.model
-              delegate: TileHost {
+              delegate: Plugins.TileHost {
+                required property var model
+                tileBackground: model.tileBackground
+                required property string tileSpaceId
                 dashboard: root.dashboard
                 canvas: gridCanvas
                 gridWidth: gridCanvas.width
                 gridHeight: gridCanvas.height
-                surfaceActive: root.visible
+                visible: tileSpaceId === root.dashboard.activeSpace.id
+                surfaceActive: root.visible && visible
+                keepLoaded: root.dashboard.opened
+                onLoadSettledChanged: sessionTiles.reportSettled(tileId, loadSettled)
+                Component.onCompleted: sessionTiles.reportSettled(tileId, loadSettled)
               }
             }
 
             Repeater {
               id: graphicElementRepeater
               model: dashboard.activeElements
-              delegate: DashboardGraphicElement {
+              delegate: Layout.DashboardGraphicElement {
                 required property var modelData
                 dashboard: root.dashboard
                 element: modelData
@@ -800,7 +858,7 @@ PanelWindow {
               onCanceled: dashboard.cancelDividerPlacement()
             }
 
-            PlacementGhost {
+            Layout.PlacementGhost {
               dashboard: root.dashboard
               canvas: gridCanvas
             }
@@ -911,6 +969,19 @@ PanelWindow {
       onRejected: root.cancelSpaceRemoval()
     }
 
+    DashboardInlineTextEditor {
+      id: inlineTextEditor
+      anchors.fill: parent
+      z: 24
+      canvas: gridCanvas
+      element: dashboard.activeElements.filter(function(entry) {
+        return entry.id === root.textEditorElementId && entry.kind === "text"
+      })[0] || null
+      visible: dashboard.overlay === "inline-text" && element !== null
+      onAccepted: function(value) { root.finishTextEditor(value) }
+      onRejected: root.cancelTextEditor()
+    }
+
     DashboardTextEditor {
       anchors.fill: parent
       visible: dashboard.overlay === "text-editor"
@@ -922,7 +993,7 @@ PanelWindow {
       onRejected: root.cancelTextEditor()
     }
 
-    PluginCatalog {
+    Plugins.PluginCatalog {
       anchors.fill: parent
       visible: dashboard.overlay === "catalog"
       z: 20
@@ -937,7 +1008,7 @@ PanelWindow {
       }
     }
 
-    ShortcutsOverlay {
+    Navigation.ShortcutsOverlay {
       anchors.fill: parent
       visible: dashboard.overlay === "help"
       z: 25
@@ -947,7 +1018,7 @@ PanelWindow {
       }
     }
 
-    DashboardPopout {
+    Plugins.DashboardPopout {
       anchors.fill: parent
       visible: dashboard.overlay === "plugin"
       z: 30

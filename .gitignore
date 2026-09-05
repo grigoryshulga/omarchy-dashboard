@@ -16,8 +16,10 @@ Thumbs.db
 *.swp
 *.swo
 
-# Local documentation
+# Local working notes; published guides are versioned
 docs/*
+!docs/guides/
+!docs/releases/
 
 # Local AI coding-agent state and workspace metadata
 AGENTS.md

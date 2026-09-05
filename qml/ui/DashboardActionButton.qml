@@ -10,11 +10,13 @@ Rectangle {
   property bool accent: false
   property bool active: false
   property bool expandOnHover: true
+  property bool alwaysExpanded: false
   property color foreground: Color.popups.text
   signal clicked()
 
   readonly property bool hasIcon: icon.length > 0
-  readonly property bool expanded: hasIcon && text.length > 0 && expandOnHover && mouse.containsMouse
+  readonly property bool expanded: hasIcon && text.length > 0
+    && (alwaysExpanded || (expandOnHover && mouse.containsMouse))
   readonly property real compactWidth: Style.space(28)
   readonly property real expandedWidth: content.implicitWidth + Style.space(20)
 
