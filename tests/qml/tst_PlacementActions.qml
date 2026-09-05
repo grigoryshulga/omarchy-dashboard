@@ -16,6 +16,7 @@ TestCase {
     property bool placingPlugin: placementDraft !== null
     property bool placementValid: true
     property string mode: "edit"
+    property string overlay: ""
     property var dashboardState: ({ gridSpacing: 10 })
     property int added: 0
     property int removed: 0
@@ -48,8 +49,9 @@ TestCase {
   }
 
   function clickAction(name) {
-    waitForPolish(findChild(ghost, "tileEditActions"))
-    var button = findChild(ghost, name)
+    waitForPolish(ghost)
+    var popup = findChild(ghost, "tileOptionsPopup")
+    var button = findChild(popup.opened ? popup.contentItem : ghost, name)
     verify(button !== null)
     mouseClick(button, button.width / 2, button.height / 2)
   }
@@ -98,20 +100,21 @@ TestCase {
     compare(dashboard.removed, 1)
   }
 
-  function test_actions_fit_compact_silhouettes_and_keep_resize_edges_free() {
-    dashboard.updatePlacementRect({ x: 40, y: 40, w: 100, h: 100 })
-    waitForPolish(findChild(ghost, "tileEditActions"))
-    var names = ["deleteTileButton", "tilePresentationButton", "addTileButton"]
-    for (var index = 0; index < names.length; index++) {
-      var button = findChild(ghost, names[index])
-      var position = button.mapToItem(ghost, 0, 0)
-      verify(position.x >= ghost.resizeHandleWidth)
-      verify(position.x + button.width <= ghost.width - ghost.resizeHandleWidth)
-      verify(position.y >= ghost.resizeHandleWidth)
-      verify(position.y + button.height <= ghost.height - ghost.resizeHandleWidth)
-    }
+  function test_compact_silhouette_opens_actions_without_starting_a_drag() {
+    dashboard.updatePlacementRect({ x: 40, y: 40, w: 60, h: 60 })
+    var button = findChild(ghost, "tileOptionsButton")
+    verify(button.visible)
+    verify(button.width >= 24)
+    var position = button.mapToItem(ghost, 0, 0)
+    verify(position.x >= ghost.resizeHandleWidth)
+    verify(position.y >= ghost.resizeHandleWidth)
+    mouseClick(button)
+    var popup = findChild(ghost, "tileOptionsPopup")
+    tryCompare(popup, "opened", true)
+    compare(ghost.startRect, null)
     clickAction("addTileButton")
     compare(dashboard.added, 1)
+    tryCompare(popup, "opened", false)
   }
 
   function test_draft_can_still_be_moved_by_its_background() {

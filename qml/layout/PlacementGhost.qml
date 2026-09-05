@@ -35,6 +35,13 @@ Item {
   visible: dashboard.placingPlugin
   z: 40
 
+  Connections {
+    target: root.dashboard
+    function onOverlayChanged() {
+      if (root.dashboard.overlay !== "tile-options") editActions.closeMenu()
+    }
+  }
+
   function pointInCanvas(mouseArea, mouse) {
     return mouseArea.mapToItem(canvas, mouse.x, mouse.y)
   }
@@ -158,6 +165,7 @@ Item {
   }
 
   Ui.TileEditActions {
+    id: editActions
     anchors.fill: parent
     z: 3
     adding: true
@@ -167,6 +175,10 @@ Item {
     title: root.draft ? root.draft.label : ""
     detail: root.valid ? root.width + " × " + root.height : "Move or resize to fit"
     presentationLabel: PluginPresentation.preferenceLabel(root.draft ? root.draft.embedding : "auto")
+    onMenuOpenChanged: {
+      if (menuOpen) root.dashboard.overlay = "tile-options"
+      else if (root.dashboard.overlay === "tile-options") root.dashboard.overlay = ""
+    }
     onRemoveRequested: root.dashboard.cancelPluginPlacement()
     onPresentationRequested: root.dashboard.cyclePlacementPresentation()
     onAddRequested: root.dashboard.confirmPluginPlacement()

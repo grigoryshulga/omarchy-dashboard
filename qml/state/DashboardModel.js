@@ -133,7 +133,8 @@ function normalizeTile(raw, usedTileIds, usedPluginIds, acceptedTiles) {
     y: rect.y,
     w: rect.w,
     h: rect.h,
-    embedding: normalizeEmbedding(source.embedding)
+    embedding: normalizeEmbedding(source.embedding),
+    background: source.background !== false
   }
 }
 
@@ -194,7 +195,8 @@ function normalize(raw) {
       id: pendingId,
       pluginId: pendingPluginId,
       label: stringBounded(pendingSourceEntry.label, MAX_NAME_LENGTH),
-      embedding: normalizeEmbedding(pendingSourceEntry.embedding)
+      embedding: normalizeEmbedding(pendingSourceEntry.embedding),
+      background: pendingSourceEntry.background !== false
     })
   }
   var activeSpaceId = stringBounded(source.activeSpaceId, MAX_ID_LENGTH)
@@ -274,7 +276,7 @@ function placement(state, selector) {
       id: tile.id, pluginId: tile.pluginId, state: "placed",
       spaceId: space.id, spaceName: space.name,
       rect: { x: tile.x, y: tile.y, w: tile.w, h: tile.h },
-      label: tile.label, embedding: tile.embedding
+      label: tile.label, embedding: tile.embedding, background: tile.background
     }
   }
   var index = pendingIndex(normalized, wanted)
@@ -283,7 +285,7 @@ function placement(state, selector) {
   return {
     id: pending.id, pluginId: pending.pluginId, state: "pending",
     spaceId: "", spaceName: "", rect: null,
-    label: pending.label, embedding: pending.embedding
+    label: pending.label, embedding: pending.embedding, background: pending.background
   }
 }
 
@@ -339,10 +341,11 @@ function managePlacement(state, command, boundWidth, boundHeight) {
       return { ok: false, code: "capacity-exceeded", state: currentState }
     var pendingEntry = current ? {
       id: current.id, pluginId: current.pluginId,
-      label: current.label, embedding: current.embedding
+      label: current.label, embedding: current.embedding, background: current.background
     } : {
       id: safeId(action.instanceId), pluginId: pluginId,
-      label: stringBounded(action.label, MAX_NAME_LENGTH), embedding: normalizeEmbedding(action.embedding)
+      label: stringBounded(action.label, MAX_NAME_LENGTH), embedding: normalizeEmbedding(action.embedding),
+      background: action.background !== false
     }
     if (!pendingEntry.id) return { ok: false, code: "invalid-instance-id", state: currentState }
     var oldLocation = placedLocation(currentState, pluginId)
@@ -382,11 +385,12 @@ function managePlacement(state, command, boundWidth, boundHeight) {
 
   var placedEntry = current ? {
     id: current.id, pluginId: current.pluginId,
-    label: current.label, embedding: current.embedding,
+    label: current.label, embedding: current.embedding, background: current.background,
     x: requestedRect.x, y: requestedRect.y, w: requestedRect.w, h: requestedRect.h
   } : {
     id: safeId(action.instanceId), pluginId: pluginId,
     label: stringBounded(action.label, MAX_NAME_LENGTH), embedding: normalizeEmbedding(action.embedding),
+      background: action.background !== false,
     x: requestedRect.x, y: requestedRect.y, w: requestedRect.w, h: requestedRect.h
   }
   if (!placedEntry.id) return { ok: false, code: "invalid-instance-id", state: currentState }
@@ -470,11 +474,15 @@ function apply(state, command, boundWidth, boundHeight) {
         pluginId: pluginId,
         label: stringBounded(action.label, MAX_NAME_LENGTH),
         x: rectangle.x, y: rectangle.y, w: rectangle.w, h: rectangle.h,
-        embedding: normalizeEmbedding(action.embedding)
+        embedding: normalizeEmbedding(action.embedding), background: action.background !== false
       })
       var consumedPendingIndex = pendingIndex(next, pluginId)
       if (consumedPendingIndex >= 0) next.pendingPlacements.splice(consumedPendingIndex, 1)
     }
+  } else if (action.type === "setTileBackground" && index >= 0) {
+    var backgroundIndex = tileIndex(next.spaces[index], String(action.tileId || ""))
+    if (backgroundIndex >= 0)
+      next.spaces[index].tiles[backgroundIndex].background = action.background !== false
   } else if (action.type === "setTileEmbedding" && index >= 0) {
     var embeddingIndex = tileIndex(next.spaces[index], String(action.tileId || ""))
     if (embeddingIndex >= 0)

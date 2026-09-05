@@ -12,6 +12,34 @@ TestCase {
     return { id: id, pluginId: "plugin." + id, x: x, y: y, w: w, h: h }
   }
 
+  function test_tile_background_defaults_on_and_survives_storage_and_placement_changes() {
+    var state = DashboardModel.apply(DashboardModel.defaultState(), {
+      type: "addTile", id: "one", pluginId: "plugin.one",
+      rect: { x: 0, y: 0, w: 120, h: 100 }
+    }, 800, 600)
+    compare(state.spaces[0].tiles[0].background, true)
+    state = DashboardModel.apply(state, {
+      type: "setTileBackground", tileId: "one", background: false
+    }, 800, 600)
+    state = DashboardModel.normalize(JSON.parse(DashboardModel.serialize(state)))
+    compare(state.spaces[0].tiles[0].background, false)
+    var pending = DashboardModel.managePlacement(state, {
+      operation: "pending", pluginId: "plugin.one"
+    }, 800, 600)
+    verify(pending.ok)
+    compare(pending.placement.background, false)
+    var placed = DashboardModel.managePlacement(pending.state, {
+      operation: "place", pluginId: "plugin.one", spaceId: "space-main",
+      rect: { x: 150, y: 0, w: 120, h: 100 }
+    }, 800, 600)
+    verify(placed.ok)
+    compare(placed.placement.background, false)
+    state = DashboardModel.apply(placed.state, {
+      type: "setTileBackground", tileId: "one", background: true
+    }, 800, 600)
+    compare(state.spaces[0].tiles[0].background, true)
+  }
+
   function test_reserved_and_structurally_unsafe_ids_are_rejected() {
     var state = DashboardModel.normalize({
       version: DashboardModel.VERSION,

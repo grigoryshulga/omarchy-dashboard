@@ -11,7 +11,7 @@ Item {
     return {
       tileId: String(source.id || ""), tilePluginId: String(source.pluginId || ""),
       tileLabel: String(source.label || ""), tileEmbedding: String(source.embedding || "auto"),
-      tileSpaceId: String(source.spaceId || ""),
+      tileSpaceId: String(source.spaceId || ""), tileBackground: source.background !== false,
       tileX: Number(source.x) || 0, tileY: Number(source.y) || 0,
       tileW: Number(source.w) || 0, tileH: Number(source.h) || 0
     }

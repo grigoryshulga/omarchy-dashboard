@@ -62,11 +62,17 @@ Adding or deleting a tile keeps Dashboard in edit mode.
 handle. A preview follows the pointer while live content stays dimmed in its
 original position. Tiles cannot overlap one another.
 
-**Edit actions:** the center of each tile shows a trash icon and a display-mode
-icon over lightly dimmed content. Hover for a tooltip. The display icon cycles
-through the plugin's available options; the tooltip shows the current choice.
-The preview has the same actions plus **+** for adding. Its display choice is
-kept when you add it. See [compatibility](plugins.md) for the available modes.
+**Edit actions:** a compact row at the center of each tile lets you change its
+mode, toggle its background, or delete it. Hover an icon for a tooltip. The
+current display mode appears above the row, alongside the navigation number
+when shortcuts are shown. **Auto** also shows the resolved mode. Small tiles
+use an **…** menu with the same actions; Esc closes the menu and keeps editing.
+The preview offers mode, delete and **+** actions.
+
+**Tile background:** the square icon hides or restores Dashboard's tile fill.
+The choice is saved for each tile; selection and interaction frames remain
+visible. A background drawn inside the plugin itself is unchanged. See
+[compatibility](plugins.md) for the available display modes.
 
 **Popouts:** drag the bottom-right corner to set a size for that plugin.
 **Auto size** restores its preferences. Closing a popout or clicking outside it

@@ -64,6 +64,8 @@ TestCase {
     id: tiles
     model: collection.model
     delegate: Plugins.TileHost {
+      required property var model
+      tileBackground: model.tileBackground
       required property string tileSpaceId
       dashboard: fakeDashboard
       canvas: test
@@ -225,6 +227,25 @@ TestCase {
     var added = loaded("new")
     verify(!added.visible)
     compare(session.queuedCount, 0)
+  }
+
+  function test_background_role_updates_without_recreating_the_page() {
+    fakeDashboard.opened = true
+    var host = loaded("a")
+    var page = host.loadedPage
+    compare(host.tileBackground, true)
+    test.spaces = [
+      { id: "one", tiles: [Object.assign(tile("a"), { background: false })] },
+      { id: "two", tiles: [tile("b")] }
+    ]
+    compare(host.tileBackground, false)
+    compare(host.loadedPage, page)
+    test.activeSpaceId = "two"
+    loaded("b")
+    test.activeSpaceId = "one"
+    compare(hosted("a"), host)
+    compare(host.tileBackground, false)
+    compare(host.loadedPage, page)
   }
 
   function test_close_during_async_load_leaves_no_resident_tiles() {

@@ -49,6 +49,8 @@ TestCase {
     }
     function placeTile(id, rect) {}
     function removeTile(id) { removedTileId = id }
+    function setTileBackground(id, background) { requestedBackground = background }
+    property bool requestedBackground: true
     function setTileEmbedding(id, embedding) { requestedEmbedding = embedding }
   }
 
@@ -87,6 +89,8 @@ TestCase {
     fakeDashboard.activations = 0
     fakeDashboard.removedTileId = ""
     fakeDashboard.requestedEmbedding = ""
+    fakeDashboard.requestedBackground = true
+    fakeDashboard.shortcutHintsVisible = false
     mouseMove(test, 880, 580)
   }
 
@@ -132,6 +136,54 @@ TestCase {
     compare(fakeDashboard.removedTileId, "one")
     compare(fakeDashboard.mode, "edit")
     verify(!tile.dragging)
+  }
+
+  function test_edit_mode_label_and_shortcut_do_not_cover_actions() {
+    fakeDashboard.mode = "edit"
+    fakeDashboard.shortcutHintsVisible = true
+    var tile = createTile()
+    var label = findChild(tile, "tileModeLabel")
+    compare(label.text, "1 · Auto · Embedded")
+    var actions = findChild(tile, "tileEditActions")
+    verify(label.mapToItem(tile, 0, label.height).y < actions.mapToItem(tile, 0, 0).y)
+    mouseClick(findChild(tile, "tileBackgroundButton"))
+    compare(fakeDashboard.requestedBackground, false)
+    compare(fakeDashboard.activations, 0)
+    verify(!tile.dragging)
+    var page = tile.loadedPage
+    tile.tileBackground = false
+    compare(findChild(tile, "tileFrame").color.a, 0)
+    compare(tile.loadedPage, page)
+    fakeDashboard.mode = "interact"
+    fakeDashboard.selectedTileId = "one"
+    compare(tile.frameWidth, 3)
+    compare(findChild(tile, "tileFrame").color.a, 0)
+  }
+
+  function test_small_tile_menu_keeps_actions_readable_and_closes_with_editing() {
+    fakeDashboard.mode = "edit"
+    fakePlugins.kind = "launcher"
+    var tile = createTile({ tileW: 60, tileH: 60 })
+    var button = findChild(tile, "tileOptionsButton")
+    verify(button.visible)
+    mouseClick(button)
+    var popup = findChild(tile, "tileOptionsPopup")
+    tryCompare(popup, "opened", true)
+    compare(fakeDashboard.overlay, "tile-options")
+    var background = findChild(popup.contentItem, "tileBackgroundButton")
+    compare(background.width, 28)
+    mouseClick(background)
+    compare(fakeDashboard.requestedBackground, false)
+    verify(!tile.dragging)
+    keyClick(Qt.Key_Escape)
+    tryCompare(popup, "opened", false)
+    compare(fakeDashboard.mode, "edit")
+    compare(fakeDashboard.overlay, "")
+    mouseClick(button)
+    tryCompare(popup, "opened", true)
+    fakeDashboard.mode = "browse"
+    tryCompare(popup, "opened", false)
+    compare(fakeDashboard.overlay, "")
   }
 
   function test_hover_another_tile_exits_previous_interaction_without_activating_next() {

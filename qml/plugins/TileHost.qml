@@ -14,6 +14,7 @@ Item {
   required property string tileId
   required property string tilePluginId
   required property string tileLabel
+  property bool tileBackground: true
   required property string tileEmbedding
   required property real tileX
   required property real tileY
@@ -26,6 +27,7 @@ Item {
     property string pluginId: root.tilePluginId
     property string label: root.tileLabel
     property string embedding: root.tileEmbedding
+    property bool background: root.tileBackground
     property real x: root.tileX
     property real y: root.tileY
     property real w: root.tileW
@@ -75,6 +77,9 @@ Item {
   // permanently hold the background queue.
   readonly property bool loadSettled: (presentation.kind !== "embedded" && presentation.kind !== "widget")
     || pageError !== "" || loadedPage !== null
+  readonly property string displayModeLabel: tileEmbedding === "auto"
+    ? "Auto · " + PluginPresentation.preferenceLabel(presentation.kind)
+    : PluginPresentation.preferenceLabel(presentation.kind)
   readonly property bool compactActionTile: (presentation.kind === "launcher" || presentation.kind === "control")
     && Math.min(width, height) < Style.space(96)
   readonly property real resizeHandleWidth: Math.max(Style.space(10), Style.spacing.sm * 2)
@@ -84,6 +89,13 @@ Item {
   width: tile.w
   height: tile.h
   z: selected ? 2 : 1
+
+  Connections {
+    target: root.dashboard
+    function onOverlayChanged() {
+      if (root.dashboard.overlay !== "tile-options") editActions.closeMenu()
+    }
+  }
 
   function pointInCanvas(mouseArea, mouse) {
     return mouseArea.mapToItem(canvas, mouse.x, mouse.y)
@@ -322,10 +334,12 @@ Item {
 
   Rectangle {
     id: frame
+    objectName: "tileFrame"
     anchors.fill: parent
     opacity: root.dragging || root.resizing ? 0.28 : 1
     radius: Style.cornerRadius
-    color: root.presentation.kind === "launcher" && actionMouse.containsMouse
+    color: !root.tileBackground ? "transparent"
+      : root.presentation.kind === "launcher" && actionMouse.containsMouse
       ? Style.hoverFillFor(Color.popups.text, Color.accent)
       : Color.popups.background
     border.width: root.frameWidth
@@ -547,7 +561,7 @@ Item {
 
     Rectangle {
       anchors.fill: parent
-      visible: root.keyboardShortcutVisible
+      visible: root.keyboardShortcutVisible && !root.editing
       radius: Style.cornerRadius
       color: Qt.rgba(0, 0, 0, 0.22)
       z: 5
@@ -566,7 +580,7 @@ Item {
     }
 
     Rectangle {
-      visible: root.keyboardShortcutVisible
+      visible: root.keyboardShortcutVisible && !root.editing
       anchors.centerIn: parent
       width: Math.max(height, shortcutText.implicitWidth + Style.space(32))
       height: Style.space(58)
@@ -711,11 +725,19 @@ Item {
     }
 
     Ui.TileEditActions {
+      id: editActions
       anchors.fill: parent
       visible: root.editing
       z: 30
       edgeInset: root.resizeHandleWidth
-      presentationLabel: PluginPresentation.preferenceLabel(root.tile.embedding)
+      presentationLabel: root.displayModeLabel
+      shortcut: root.keyboardShortcutVisible ? root.keyboardShortcut : ""
+      backgroundEnabled: root.tileBackground
+      onBackgroundRequested: root.dashboard.setTileBackground(root.tile.id, !root.tileBackground)
+      onMenuOpenChanged: {
+        if (menuOpen) root.dashboard.overlay = "tile-options"
+        else if (root.dashboard.overlay === "tile-options") root.dashboard.overlay = ""
+      }
       onRemoveRequested: root.dashboard.removeTile(root.tile.id)
       onPresentationRequested: root.cyclePresentation()
     }

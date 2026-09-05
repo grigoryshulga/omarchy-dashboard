@@ -226,7 +226,7 @@ PanelWindow {
   Shortcut {
     sequence: "Escape"
     context: Qt.WindowShortcut
-    enabled: root.visible
+    enabled: root.visible && root.dashboard.overlay !== "tile-options"
     onActivated: root.handleEscape()
     onActivatedAmbiguously: root.handleEscape()
   }
@@ -749,6 +749,8 @@ PanelWindow {
               id: tileRepeater
               model: tileCollection.model
               delegate: Plugins.TileHost {
+                required property var model
+                tileBackground: model.tileBackground
                 required property string tileSpaceId
                 dashboard: root.dashboard
                 canvas: gridCanvas

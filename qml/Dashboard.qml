@@ -672,6 +672,12 @@ Item {
     return addDivider(draft.x1, draft.y1, draft.x2, draft.y2)
   }
 
+  function setTileBackground(tileId, background) {
+    if (!tileId) return
+    commit({ type: "setTileBackground", spaceId: activeSpace.id,
+      tileId: tileId, background: background })
+  }
+
   function setTileEmbedding(tileId, embedding) {
     if (!tileId) return
     commit({
@@ -713,6 +719,7 @@ Item {
       instanceId: pending ? String(pending.id) : "",
       label: descriptor.name,
       embedding: embedding || "auto",
+      background: pending ? pending.background !== false : true,
       manifest: descriptor.manifest,
       minW: hints.minW,
       minH: hints.minH,
@@ -789,7 +796,7 @@ Item {
     var placementCommand = {
       type: "addTile", spaceId: activeSpace.id, id: tileId,
       pluginId: draft.pluginId, label: draft.label, rect: draft.rect,
-      embedding: draft.embedding
+      embedding: draft.embedding, background: draft.background
     }
     var nextDocument = DashboardModel.apply(dashboardState, placementCommand, gridWidth, gridHeight)
     var added = DashboardModel.placement(nextDocument, tileId)
