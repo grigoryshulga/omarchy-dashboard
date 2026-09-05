@@ -37,18 +37,25 @@ unlink ~/.local/bin/omarchy-dashboard
 
 ## Loading and cache
 
-Embedded plugin pages and widgets load when their Space is first visited.
-Switching Spaces hides them and suspends their input, while retaining the same
-QML instances, local state, and lifecycle. Returning to a Space does not
-initialize its plugins again. A single Dashboard window owns these instances,
-so summoning Dashboard on another monitor also preserves them.
+Opening Dashboard queues every Space for preloading. The current Space has
+priority in both panel adaptation and page creation. Hidden pages are created
+one at a time after admitted pages have settled, with a short pause between
+them. Switching Spaces immediately admits that Space's pages and moves its
+pending adaptations ahead of the background queue. An adaptation already in
+progress finishes before the next one starts.
 
-New plugins on hidden Spaces remain unloaded until that Space is visited.
-Moving or reordering an existing tile preserves its instance; removing a tile
-or Space releases the affected instances. Closing Dashboard releases all its
-tile instances, and the next opening starts a fresh lazy session. Changing a
-plugin's presentation or reloading its code can still replace its page.
-Shared services and bar widgets remain owned by Omarchy Shell.
+Loaded pages keep their QML instances and state; hidden tiles do not receive
+input. New tiles on hidden Spaces join the background queue. Moving a tile
+preserves its instance, and removing a tile or Space releases its instances.
+Closing Dashboard stops further preloading and releases all tile instances.
+Changing a presentation or reloading plugin code can still replace a page.
+Shared services and bar widgets remain owned by Omarchy Shell; preloading a
+launcher does not open its native window or popout.
+
+If a plugin is slow or fails, its initial load can still be visible. Page errors
+do not block later background loads. The `status` response's `preload` object
+reports `residentTiles`, `queuedTiles` and `loadingTiles`; zero queued/loading
+tiles means the page queue has settled, including any tiles showing errors.
 
 Source plugin directories are never changed. The cache is content-fingerprint
 addressed, created through a staging directory, and validated before reuse.
@@ -56,7 +63,7 @@ Version-control metadata directories (`.git`, `.hg`, `.svn`) are not copied into
 the runtime cache. Plugin assets may be up to 8 MiB per file, with a 16 MiB
 limit for the entire tree; the entry point remains limited to 1 MiB. This
 includes larger preview images without omitting assets a plugin may use.
-Adaptation runs serially for visible tiles, skips Dashboard service controls,
+Adaptation runs serially across Spaces, skips Dashboard service controls,
 and discards results from an obsolete registry generation after a plugin update.
 State is limited to 256 KiB, read without following symlinks,
 and saved atomically.

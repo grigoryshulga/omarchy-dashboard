@@ -70,6 +70,11 @@ Item {
     && GridEngine.canPlace(previewRect, dashboard.activeTiles, tile.id, gridWidth, gridHeight)
   readonly property var presentation: dashboard.plugins.presentation(tile)
   readonly property string sourceUrl: String(presentation.source || "")
+  // Service readiness and native launchers have no page Loader to wait for.
+  // Preparation/Loader failures settle too, so one broken plugin cannot
+  // permanently hold the background queue.
+  readonly property bool loadSettled: (presentation.kind !== "embedded" && presentation.kind !== "widget")
+    || pageError !== "" || loadedPage !== null
   readonly property bool compactActionTile: (presentation.kind === "launcher" || presentation.kind === "control")
     && Math.min(width, height) < Style.space(96)
   readonly property real resizeHandleWidth: Math.max(Style.space(10), Style.spacing.sm * 2)

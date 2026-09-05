@@ -6,6 +6,7 @@ import "HostPlacements.js" as HostPlacements
 import "PluginControls.js" as PluginControls
 import "PluginIconResolver.js" as PluginIconResolver
 import "PluginPresentation.js" as PluginPresentation
+import "PluginLoadOrder.js" as PluginLoadOrder
 
 Item {
   id: root
@@ -23,7 +24,8 @@ Item {
   required property string pluginDirectory
   required property string cacheRoot
   property bool active: false
-  property var tiles: []
+  property string activeSpaceId: ""
+  readonly property var loadCandidates: PluginLoadOrder.prioritize(spaces, activeSpaceId)
   property var spaces: []
   property var pendingPlacements: []
 
@@ -500,7 +502,7 @@ Item {
   }
 
   function requestAdaptation(pluginId) {
-    if (!pluginId || explicitPageUrl(pluginId) || adaptations[pluginId]
+    if (!active || !pluginId || explicitPageUrl(pluginId) || adaptations[pluginId]
         || adaptationErrors[pluginId] !== undefined || adaptingPluginId || adapter.running) return
     var entry = descriptor(pluginId)
     var entryPoint = adaptationEntryPoint(pluginId)
@@ -527,13 +529,13 @@ Item {
     adapter.running = true
   }
 
-  function prepareVisiblePanels() {
+  function preparePanels() {
     if (!active || adaptingPluginId || adapter.running) return
-    var visibleTiles = Array.isArray(tiles) ? tiles : []
-    for (var index = 0; index < visibleTiles.length; index++) {
-      var id = String(visibleTiles[index].pluginId || "")
+    var candidates = loadCandidates
+    for (var index = 0; index < candidates.length; index++) {
+      var id = String(candidates[index].pluginId || "")
       var entry = descriptor(id)
-      var preference = PluginPresentation.normalizePreference(visibleTiles[index].embedding)
+      var preference = PluginPresentation.normalizePreference(candidates[index].embedding)
       if (!id || preference === "widget" || preference === "control"
           || (preference === "auto" && PluginControls.profile(id))
           || (preference === "launcher" && widgetPageUrl(id))
@@ -559,13 +561,13 @@ Item {
     adaptations = ({})
     adaptationErrors = ({})
     requestIconScan()
-    Qt.callLater(prepareVisiblePanels)
+    Qt.callLater(preparePanels)
   }
 
-  onActiveChanged: if (active) Qt.callLater(prepareVisiblePanels)
-  onTilesChanged: Qt.callLater(prepareVisiblePanels)
-  onAdaptationsChanged: Qt.callLater(prepareVisiblePanels)
-  onAdaptationErrorsChanged: Qt.callLater(prepareVisiblePanels)
+  onActiveChanged: if (active) Qt.callLater(preparePanels)
+  onLoadCandidatesChanged: Qt.callLater(preparePanels)
+  onAdaptationsChanged: Qt.callLater(preparePanels)
+  onAdaptationErrorsChanged: Qt.callLater(preparePanels)
 
   Connections {
     target: root.registry
@@ -584,7 +586,7 @@ Item {
       adapterKillTimer.stop()
       var id = root.adaptingPluginId
       root.adaptingPluginId = ""
-      Qt.callLater(root.prepareVisiblePanels)
+      Qt.callLater(root.preparePanels)
       // A registry refresh can happen while the helper copies old sources.
       if (root.adaptingEpoch !== root.pluginEpoch) return
       if (!id) return

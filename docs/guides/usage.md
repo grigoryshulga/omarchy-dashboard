@@ -83,9 +83,10 @@ Alt+1 … Alt+9 also work while an embedded plugin has focus. These shortcuts ar
 suspended during renaming, the catalog and popouts. A three-finger horizontal
 swipe switches Spaces when the compositor forwards touch points to Dashboard.
 
-Plugins load when you first visit their Space and retain their state while
-Dashboard stays open. Hidden tiles do not receive input. Closing Dashboard
-releases these instances; the next opening starts a new session.
+Opening Dashboard starts loading all Spaces: the current Space first, then
+the others in the background. Switching to an unfinished Space gives it
+priority. Loaded plugins keep their state while Dashboard stays open; hidden
+tiles do not receive input. Closing Dashboard releases these instances.
 
 ## Text and dividers
 

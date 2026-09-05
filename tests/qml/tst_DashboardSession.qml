@@ -16,12 +16,18 @@ TestCase {
     id: fakePlugins
     property int initialized: 0
     property int deactivated: 0
+    property string failedTileId: ""
+    property string waitingControlId: ""
     function presentation(tile) {
+      if (tile.id === waitingControlId) return {
+        kind: "control", state: "preparing", name: "Waiting service", active: false,
+        icon: "x", contentLayout: "padded", available: ["control"]
+      }
       return { kind: "embedded", state: "ready", name: "Test", icon: "x",
         contentLayout: "padded", available: ["embedded"],
         source: Qt.resolvedUrl("../fixtures/InteractivePage.qml") }
     }
-    function inject(page, tile) { initialized += 1; return true }
+    function inject(page, tile) { initialized += 1; return tile.id !== failedTileId }
     function deactivate(page, reason) { deactivated += 1 }
     function focusPage(page) { page.forceActiveFocus() }
     function requestAdaptation(id) {}
@@ -66,6 +72,8 @@ TestCase {
       visible: tileSpaceId === test.activeSpaceId
       surfaceActive: fakeDashboard.opened && visible
       keepLoaded: fakeDashboard.opened
+      onLoadSettledChanged: session.reportSettled(tileId, loadSettled)
+      Component.onCompleted: session.reportSettled(tileId, loadSettled)
     }
   }
 
@@ -82,6 +90,7 @@ TestCase {
 
   function init() {
     fakeDashboard.opened = false
+    session.preloadInterval = 100000
     fakeDashboard.mode = "browse"
     test.activeSpaceId = "one"
     test.spaces = [
@@ -91,12 +100,14 @@ TestCase {
     ]
     fakePlugins.initialized = 0
     fakePlugins.deactivated = 0
+    fakePlugins.failedTileId = ""
+    fakePlugins.waitingControlId = ""
     mouseMove(test, 880, 580)
   }
 
   function cleanup() { fakeDashboard.opened = false }
 
-  function test_loads_only_visited_pages_and_preserves_plugin_state_until_close() {
+  function test_foreground_pages_keep_their_instances_until_close() {
     compare(tiles.count, 0)
     fakeDashboard.opened = true
     var first = loaded("a")
@@ -129,7 +140,52 @@ TestCase {
     compare(fakePlugins.initialized, 3)
   }
 
-  function test_layout_edits_preserve_other_instances_and_keep_new_hidden_plugins_lazy() {
+  function test_background_preloads_every_space_and_keeps_hidden_pages_passive() {
+    session.preloadInterval = 1
+    fakeDashboard.opened = true
+    tryCompare(fakePlugins, "initialized", 3)
+    compare(session.queuedCount, 0)
+    compare(session.loadingCount, 0)
+    var second = loaded("b")
+    var secondPage = second.loadedPage
+    secondPage.clicks = 42
+    verify(!second.visible)
+    verify(!second.interacting)
+    verify(!second.pointerEnabled)
+    test.activeSpaceId = "two"
+    compare(hosted("b"), second)
+    compare(second.loadedPage, secondPage)
+    compare(second.loadedPage.clicks, 42)
+    compare(fakePlugins.initialized, 3)
+    fakeDashboard.opened = false
+    compare(tiles.count, 0)
+    compare(fakePlugins.deactivated, 3)
+    compare(session.queuedCount, 0)
+    compare(session.loadingCount, 0)
+  }
+
+  function test_failed_page_does_not_block_preloading_remaining_spaces() {
+    fakePlugins.failedTileId = "a"
+    session.preloadInterval = 1
+    fakeDashboard.opened = true
+    tryCompare(fakePlugins, "initialized", 3)
+    verify(hosted("a").pageError !== "")
+    loaded("b")
+    loaded("c")
+    compare(session.loadingCount, 0)
+  }
+
+  function test_service_readiness_does_not_hold_the_page_loading_queue() {
+    fakePlugins.waitingControlId = "a"
+    session.preloadInterval = 1
+    fakeDashboard.opened = true
+    loaded("b")
+    loaded("c")
+    compare(fakePlugins.initialized, 2)
+    compare(session.loadingCount, 0)
+  }
+
+  function test_layout_edits_preserve_instances_and_enqueue_new_hidden_plugins() {
     fakeDashboard.opened = true
     var first = loaded("a")
     test.activeSpaceId = "two"
@@ -164,6 +220,11 @@ TestCase {
     compare(hosted("b"), second)
     compare(fakePlugins.deactivated, 1)
     compare(hosted("new"), null)
+    compare(session.queuedCount, 1)
+    session.preloadNext()
+    var added = loaded("new")
+    verify(!added.visible)
+    compare(session.queuedCount, 0)
   }
 
   function test_close_during_async_load_leaves_no_resident_tiles() {

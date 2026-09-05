@@ -21,6 +21,11 @@ PanelWindow {
   property string pendingRemovalSpaceId: ""
   readonly property int surfaceInset: Math.max(Style.spacing.panelGap, Style.gapsOut)
   readonly property int cardInset: dashboard.glassBackground ? 0 : Style.gapsOut
+  readonly property var preloadStatus: ({
+    residentTiles: sessionTiles.tiles.length,
+    queuedTiles: sessionTiles.queuedCount,
+    loadingTiles: sessionTiles.loadingCount
+  })
 
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
@@ -752,6 +757,8 @@ PanelWindow {
                 visible: tileSpaceId === root.dashboard.activeSpace.id
                 surfaceActive: root.visible && visible
                 keepLoaded: root.dashboard.opened
+                onLoadSettledChanged: sessionTiles.reportSettled(tileId, loadSettled)
+                Component.onCompleted: sessionTiles.reportSettled(tileId, loadSettled)
               }
             }
 

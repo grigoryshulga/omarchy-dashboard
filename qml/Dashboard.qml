@@ -175,6 +175,7 @@ Item {
       selectedTileId: selectedTileId,
       selectedElementId: selectedElementId,
       adaptingPluginId: plugins.adaptingPluginId,
+      preload: dashboardSurface.preloadStatus,
       cornerRadius: Style.cornerRadius,
       surfaceMode: surfaceMode,
       blurBackground: blurBackground,
@@ -864,7 +865,7 @@ Item {
     pluginDirectory: root.pluginDirectory
     cacheRoot: root.cacheRoot
     active: root.opened
-    tiles: root.activeTiles
+    activeSpaceId: root.activeSpace.id
     spaces: root.dashboardState.spaces
     pendingPlacements: root.pendingPlacements
   }
@@ -872,6 +873,7 @@ Item {
   // One surface owns the session's plugin instances, even when summoned on
   // another monitor. Moving its screen does not recreate the QML page tree.
   Ui.DashboardSurface {
+    id: dashboardSurface
     dashboard: root
     screen: {
       var screens = Quickshell.screens || []

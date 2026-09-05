@@ -15,7 +15,7 @@ the behavior they own.
 | Plugins | `qml/plugins/PluginRuntime.qml` | Registry access, settings, adaptation scheduling and lifecycle injection |
 | Plugin presentation | `qml/plugins/PluginPresentation.js`, `PluginControls.js`, `PluginIconResolver.js` | Presentation selection, supported service controls and icons |
 | Plugin hosting | `qml/plugins/TileHost.qml`, `DashboardPopout.qml`, `HostPlacements.js` | Embedded input/lifecycle, popout sizing and Shell host references |
-| Resident tiles | `qml/plugins/DashboardSessionTiles.qml`, `DashboardTileCollection.qml` | Lazy session membership and delegate identity |
+| Resident tiles | `qml/plugins/DashboardSessionTiles.qml`, `DashboardTileCollection.qml`, `PluginLoadOrder.js` | Prioritized background admission, session lifetime and delegate identity |
 | Layout | `qml/layout/` | Grid calculations, placement previews, alignment guides and graphic elements |
 | Navigation | `qml/navigation/` | Reading order, spatial selection, swipe direction and shortcut dispatch |
 | Appearance | `qml/appearance/` | Surface mode normalization and applying Hyprland layer blur |
@@ -58,12 +58,20 @@ bounded adaptation helpers when a standard Omarchy panel needs an embedded
 host. `qml/plugins/adapters/` contains the self-contained QML hosts copied into
 the adapted artifact; they must not depend on other Dashboard directories.
 
-The Dashboard surface owns one session collection. `DashboardSessionTiles`
-includes tiles from the current Space and retains previously visited tiles.
-`DashboardTileCollection` reconciles by tile ID, so moving or reordering a tile
-does not recreate its Loader. `TileHost` owns that Loader and separates
-`keepLoaded` from `surfaceActive`: a hidden page can remain resident while input
-is disabled. Closing Dashboard empties the collection and releases its pages.
+The Dashboard surface owns one session collection. `PluginLoadOrder` orders
+all tiles with the active Space first; the adapter scheduler uses that order
+before starting each job. `DashboardSessionTiles` admits the active Space
+immediately and then admits one background tile at a time after existing loads
+settle. A Space switch bypasses background admission without discarding work
+already started. `TileHost.loadSettled` reports completion or failure; controls
+and launchers need no page Loader and settle immediately. A short timer yields
+between background admissions and stops when Dashboard closes.
+
+`DashboardTileCollection` reconciles by tile ID, so moving or reprioritizing
+a tile does not recreate its Loader. `TileHost` separates `keepLoaded` from
+`surfaceActive`: a hidden page can remain resident while input is disabled.
+Closing Dashboard empties the collection and releases its pages. Adaptation
+artifacts remain reusable in the disk cache.
 
 `TileHost` handles hover selection, entering interaction with one click, and
 the thicker interaction frame. `DashboardPopout` owns its separate loaded page
@@ -97,7 +105,8 @@ behavior they exercise:
 | `tst_Navigation.qml` | Reading order, spatial selection, gestures and shortcuts |
 | `tst_Appearance.qml` | Surface modes and blur rule generation |
 | `tst_PluginCompatibility.qml` | Capabilities, controls, icons, size hints and collection identity |
-| `tst_DashboardSession.qml` | Lazy loading, retained state, edits and teardown |
+| `tst_DashboardSession.qml` | Background preloading, retained state, errors, edits and teardown |
+| `tst_PluginLoadQueue.qml` | Foreground priority, bounded background admission and queue lifetime |
 | `tst_TilePointer.qml` | Mouse selection, interaction, focus and Escape |
 | `tst_PlacementActions.qml` | Silhouette actions, compact controls, tooltips and drag handling |
 | `tst_DashboardPopout.qml` | Dismissal, resizing and initialization recovery |
