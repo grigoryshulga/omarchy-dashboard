@@ -5,6 +5,7 @@ import "../../qml/plugins/PopoutGeometry.js" as PopoutGeometry
 import "../../qml/plugins/PluginControls.js" as PluginControls
 import "../../qml/plugins/PluginIconResolver.js" as PluginIconResolver
 import "../../qml/plugins/PluginPresentation.js" as PluginPresentation
+import "../../qml/plugins/PluginCatalogModel.js" as PluginCatalogModel
 import "../../qml/plugins" as Plugins
 
 TestCase {
@@ -18,6 +19,34 @@ TestCase {
     compare(PluginPresentation.nextPreference("auto", ["control", "launcher"]), "control")
     compare(PluginPresentation.nextPreference("widget", ["launcher"]), "auto")
     compare(PluginPresentation.nextPreference("auto", []), "auto")
+  }
+
+  function test_catalog_combines_public_plugin_list_with_catalog_manifests() {
+    var catalog = PluginCatalogModel.catalogFromPublicSources(
+      JSON.stringify([
+        { id: "omarchy.clock", name: "Clock", enabled: true, firstParty: true },
+        { id: "gshulga.dashboard", name: "Dashboard", enabled: true },
+        { id: "acme.weather", name: "Weather", enabled: false, firstParty: false },
+        { id: "acme.weather", name: "Duplicate" }
+      ]),
+      JSON.stringify([{
+        id: "acme.weather", name: "Weather Panel", description: "Forecast",
+        firstParty: false, sourceDir: "/tmp/acme.weather",
+        entryPoints: { barWidget: "Panel.qml" }
+      }]),
+      "gshulga.dashboard"
+    )
+    compare(catalog.length, 2)
+    compare(catalog[0].id, "omarchy.clock")
+    compare(catalog[0].name, "Clock")
+    compare(catalog[0].__isFirstParty, true)
+    compare(catalog[1].id, "acme.weather")
+    compare(catalog[1].name, "Weather Panel")
+    compare(catalog[1].description, "Forecast")
+    compare(catalog[1].__enabled, false)
+    compare(catalog[1].entryPoints.barWidget, "Panel.qml")
+    compare(catalog[1].__sourceDir, "/tmp/acme.weather")
+    compare(PluginCatalogModel.catalogFromPublicSources("{", "[]", "dashboard").length, 0)
   }
 
   function tile(id, x, y, w, h) {

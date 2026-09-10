@@ -988,6 +988,7 @@ PanelWindow {
       visible: dashboard.overlay === "catalog"
       z: 20
       plugins: dashboard.plugins.availablePlugins
+      onVisibleChanged: if (visible) dashboard.plugins.refreshPluginCatalog()
       onCloseRequested: {
         dashboard.overlay = ""
         keyCatcher.forceActiveFocus()

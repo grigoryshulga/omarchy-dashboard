@@ -830,6 +830,7 @@ Item {
 
   onOpenedChanged: {
     if (!opened) stateStore.flush()
+    else plugins.refreshPluginCatalog()
   }
   onActiveSpaceChanged: {
     Qt.callLater(root.ensureSelection)
