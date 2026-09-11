@@ -597,10 +597,16 @@ Item {
       "/usr/bin/python3", "-I", pluginDirectory + "/bin/omarchy-dashboard-run-helper",
       "--max-bytes", String(maxHelperOutputLength), "--timeout-seconds", "5", "--"
     ]
-    pluginListProcess.command = helper.concat([
+    var environment = [
+      "/usr/bin/env", "HOME=" + String(dashboardHost.home || ""),
+      "OMARCHY_PATH=/usr/share/omarchy", "PATH=/usr/local/bin:/usr/bin:/bin"
+    ]
+    pluginListProcess.command = helper.concat(environment).concat([
       "/usr/share/omarchy/bin/omarchy", "plugin", "list", "--json"
     ])
-    pluginCatalogProcess.command = helper.concat(["/usr/share/omarchy/bin/omarchy-plugin-catalog"])
+    pluginCatalogProcess.command = helper.concat(environment).concat([
+      "/usr/share/omarchy/bin/omarchy-plugin-catalog"
+    ])
     pluginListProcess.running = true
     pluginCatalogProcess.running = true
   }

@@ -3,6 +3,15 @@
 User-visible changes are grouped by release. A version marked **Unreleased**
 is being tested on `dev`; `main` is the stable installation branch.
 
+## [1.8.2] — 2026-09-11
+
+### Fixed
+
+- Restore plugin catalog discovery on Omarchy 4.0.3 by combining Shell's public
+  plugin list with the public manifest catalog.
+- Keep catalog helpers working when Dashboard launches them with a clean process
+  environment.
+
 ## [1.8.1] — 2026-09-05
 
 ### Fixed
@@ -70,4 +79,5 @@ There was no corresponding GitHub Release or tag. This entry records that
 baseline without assigning a retrospective release date.
 
 [1.8.1]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.0...v1.8.1
+[1.8.2]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.1...v1.8.2
 [1.8.0]: https://github.com/grigoryshulga/omarchy-dashboard/compare/dfb7f4c...v1.8.0
