@@ -22,6 +22,11 @@ class QmlSecurityTests(unittest.TestCase):
         self.assertIn("--max-bytes", source)
         self.assertIn("adapterTimeout", source)
         self.assertIn("iconTimeout", source)
+        self.assertIn("omarchy-plugin-catalog", source)
+        self.assertIn('"plugin", "list", "--json"', source)
+        self.assertIn("OMARCHY_PATH=/usr/share/omarchy", source)
+        self.assertIn("PATH=/usr/local/bin:/usr/bin:/bin", source)
+        self.assertNotIn("resolveEnabledId", source)
 
     def test_every_text_renderer_is_explicitly_plain_text(self) -> None:
         for path in sorted((ROOT / "qml").rglob("*.qml")):

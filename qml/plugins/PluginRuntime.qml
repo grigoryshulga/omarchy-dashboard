@@ -7,6 +7,7 @@ import "PluginControls.js" as PluginControls
 import "PluginIconResolver.js" as PluginIconResolver
 import "PluginPresentation.js" as PluginPresentation
 import "PluginLoadOrder.js" as PluginLoadOrder
+import "PluginCatalogModel.js" as PluginCatalogModel
 
 Item {
   id: root
@@ -36,6 +37,13 @@ Item {
   property int pluginEpoch: 0
   property var scannedIcons: ({})
   property bool iconScanTimedOut: false
+  property var pluginCatalog: []
+  property string pluginListText: ""
+  property string pluginCatalogText: ""
+  property int pluginCatalogRevision: 0
+  property int pluginCatalogRequest: 0
+  property int pluginListGeneration: 0
+  property int pluginCatalogGeneration: 0
 
   // Adapted bar panels are rendered inside the Dashboard surface, not on the
   // bar. Give them Dashboard's foreground palette while retaining the shell
@@ -66,12 +74,18 @@ Item {
     return ["__proto__", "prototype", "constructor"].indexOf(id) >= 0 ? "" : id
   }
 
+  function catalogManifest(id) {
+    var wanted = safePluginId(id)
+    var catalog = Array.isArray(pluginCatalog) ? pluginCatalog : []
+    for (var index = 0; index < catalog.length; index++)
+      if (catalog[index] && String(catalog[index].id) === wanted) return catalog[index]
+    return null
+  }
+
   function descriptor(id) {
-    if (!registry || !registry.installedPlugins) return null
-    var resolved = typeof registry.resolveEnabledId === "function" ? registry.resolveEnabledId(id) : id
-    resolved = safePluginId(resolved)
+    var resolved = safePluginId(id)
     if (!resolved) return null
-    var pluginManifest = registry.installedPlugins[resolved]
+    var pluginManifest = catalogManifest(resolved)
     if (!pluginManifest) return null
     var controlProfile = PluginControls.profile(resolved)
     var capabilities = PluginPresentation.capabilities(pluginManifest, { hasControl: !!controlProfile })
@@ -102,8 +116,7 @@ Item {
   }
 
   function discoverAvailablePlugins() {
-    var revision = registryRevision
-    if (!registry || !registry.installedPlugins) return []
+    var revision = pluginCatalogRevision
     var used = ({})
     var sourceSpaces = Array.isArray(spaces) ? spaces : []
     for (var spaceIndex = 0; spaceIndex < sourceSpaces.length; spaceIndex++) {
@@ -111,11 +124,12 @@ Item {
       for (var tileIndex = 0; tileIndex < spaceTiles.length; tileIndex++) used[spaceTiles[tileIndex].pluginId] = true
     }
     var entries = []
-    var manifests = registry.installedPlugins
+    var manifests = Array.isArray(pluginCatalog) ? pluginCatalog : []
     var inspected = 0
-    for (var id in manifests) {
+    for (var manifestIndex = 0; manifestIndex < manifests.length; manifestIndex++) {
       inspected += 1
       if (entries.length >= maxDiscoveredPlugins || inspected > maxDiscoveredPlugins * 2) break
+      var id = manifests[manifestIndex] && manifests[manifestIndex].id
       var entry = descriptor(id)
       if (!entry || entry.id === dashboardPluginId || used[entry.id]) continue
       entries.push(entry)
@@ -212,7 +226,7 @@ Item {
         // third-party plugin, including entries that were already placed.
         for (var index = 0; index < desired.length; index++) {
           var id = desired[index].id
-          var manifest = registry && registry.installedPlugins ? registry.installedPlugins[id] : null
+          var manifest = catalogManifest(id)
           if (manifest && manifest.__isFirstParty) continue
           enableInConfig(config, id, manifest)
         }
@@ -243,18 +257,30 @@ Item {
 
   function explicitPageUrl(pluginId) {
     var entry = descriptor(pluginId)
-    if (!entry || !registry) return ""
+    if (!entry) return ""
     var entryPoints = entry.manifest.entryPoints || ({})
-    if (entryPoints.dashboardPage) return registry.entryPointUrl(entry.manifest, "dashboardPage")
-    if (entryPoints.sidePanelPage) return registry.entryPointUrl(entry.manifest, "sidePanelPage")
+    if (entryPoints.dashboardPage) return entryPointUrl(entry.manifest, "dashboardPage")
+    if (entryPoints.sidePanelPage) return entryPointUrl(entry.manifest, "sidePanelPage")
     return ""
   }
 
   function widgetPageUrl(pluginId) {
     var entry = descriptor(pluginId)
-    if (!entry || !registry || !entry.manifest.entryPoints
+    if (!entry || !entry.manifest.entryPoints
         || !entry.manifest.entryPoints.dashboardWidget) return ""
-    return registry.entryPointUrl(entry.manifest, "dashboardWidget")
+    return entryPointUrl(entry.manifest, "dashboardWidget")
+  }
+
+  function entryPointUrl(manifest, name) {
+    var entryPoints = manifest && manifest.entryPoints ? manifest.entryPoints : ({})
+    var entryPoint = String(entryPoints[name] || "")
+    var sourceDir = String(manifest && manifest.__sourceDir || "")
+    if (sourceDir.charAt(0) !== "/" || entryPoint === "" || entryPoint.charAt(0) === "/"
+        || entryPoint.indexOf("\0") >= 0 || entryPoint.indexOf("\\") >= 0) return ""
+    var parts = entryPoint.split("/")
+    for (var index = 0; index < parts.length; index++)
+      if (parts[index] === "" || parts[index] === "." || parts[index] === "..") return ""
+    return "file://" + encodeURI(sourceDir.replace(/\/$/, "") + "/" + entryPoint)
   }
 
   function versionedUrl(url) {
@@ -564,6 +590,36 @@ Item {
     Qt.callLater(preparePanels)
   }
 
+  function refreshPluginCatalog() {
+    if (pluginListProcess.running || pluginCatalogProcess.running) return
+    pluginCatalogRequest += 1
+    var helper = [
+      "/usr/bin/python3", "-I", pluginDirectory + "/bin/omarchy-dashboard-run-helper",
+      "--max-bytes", String(maxHelperOutputLength), "--timeout-seconds", "5", "--"
+    ]
+    var environment = [
+      "/usr/bin/env", "HOME=" + String(dashboardHost.home || ""),
+      "OMARCHY_PATH=/usr/share/omarchy", "PATH=/usr/local/bin:/usr/bin:/bin"
+    ]
+    pluginListProcess.command = helper.concat(environment).concat([
+      "/usr/share/omarchy/bin/omarchy", "plugin", "list", "--json"
+    ])
+    pluginCatalogProcess.command = helper.concat(environment).concat([
+      "/usr/share/omarchy/bin/omarchy-plugin-catalog"
+    ])
+    pluginListProcess.running = true
+    pluginCatalogProcess.running = true
+  }
+
+  function applyPluginCatalog() {
+    if (pluginListGeneration !== pluginCatalogRequest || pluginCatalogGeneration !== pluginCatalogRequest)
+      return
+    pluginCatalog = PluginCatalogModel.catalogFromPublicSources(
+      pluginListText, pluginCatalogText, dashboardPluginId)
+    pluginCatalogRevision += 1
+    resetRegistry()
+  }
+
   onActiveChanged: if (active) Qt.callLater(preparePanels)
   onLoadCandidatesChanged: Qt.callLater(preparePanels)
   onAdaptationsChanged: Qt.callLater(preparePanels)
@@ -571,8 +627,28 @@ Item {
 
   Connections {
     target: root.registry
-    function onPluginsChanged() { root.resetRegistry() }
-    function onLocalPluginChanged(pluginId) { root.resetRegistry() }
+    function onPluginsChanged() { root.refreshPluginCatalog() }
+    function onLocalPluginChanged(pluginId) { root.refreshPluginCatalog() }
+  }
+
+  Process {
+    id: pluginListProcess
+    stdout: StdioCollector { id: pluginListOutput; waitForEnd: true }
+    onExited: function(exitCode) {
+      pluginListText = exitCode === 0 ? String(pluginListOutput.text || "") : "[]"
+      pluginListGeneration = root.pluginCatalogRequest
+      root.applyPluginCatalog()
+    }
+  }
+
+  Process {
+    id: pluginCatalogProcess
+    stdout: StdioCollector { id: pluginCatalogOutput; waitForEnd: true }
+    onExited: function(exitCode) {
+      pluginCatalogText = exitCode === 0 ? String(pluginCatalogOutput.text || "") : "[]"
+      pluginCatalogGeneration = root.pluginCatalogRequest
+      root.applyPluginCatalog()
+    }
   }
 
   Process {
@@ -693,5 +769,8 @@ Item {
     onTriggered: if (iconScanner.running) iconScanner.signal(9)
   }
 
-  Component.onCompleted: requestIconScan()
+  Component.onCompleted: {
+    requestIconScan()
+    refreshPluginCatalog()
+  }
 }
