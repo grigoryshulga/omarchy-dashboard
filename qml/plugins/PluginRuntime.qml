@@ -33,6 +33,12 @@ Item {
 
   property var adaptations: ({})
   property var adaptationErrors: ({})
+  // Optimistic values for our own settings. The scoped Shell API republishes
+  // `barConfig` on a later tick, so a just-written option is echoed here until
+  // the persisted config catches up. Without it the read would lag the write
+  // and a second click could see a stale value and do nothing.
+  property var pendingSettings: ({})
+  property int settingsEpoch: 0
   // Public helper outputs that produced the current validated adaptations.
   // Matching this key keeps resident adaptations across Dashboard opens.
   property string appliedCatalogSources: ""
@@ -414,9 +420,30 @@ Item {
   }
 
   function dashboardSetting(name, fallback) {
-    var settings = ownSettings()
-    var value = settings[name]
+    // Touch the epoch so dependants re-evaluate whenever the optimistic values
+    // change, even if `barConfig` still reports the previous value.
+    var stamp = settingsEpoch
+    var optimistic = pendingSettings
+    if (optimistic && optimistic[name] !== undefined && optimistic[name] !== null)
+      return optimistic[name]
+    var value = ownSettings()[name]
     return value !== undefined && value !== null ? value : fallback
+  }
+
+  // Effective inline options: the persisted entry with any not-yet-published
+  // writes layered on top. Used as the merge base so a fast second write cannot
+  // drop the first one while `barConfig` is still catching up.
+  function effectiveSettings() {
+    return PluginSettings.withOverrides(ownSettings(), pendingSettings)
+  }
+
+  function rememberSetting(name, value) {
+    var next = ({})
+    var current = pendingSettings || ({})
+    for (var key in current) next[key] = current[key]
+    next[name] = value
+    pendingSettings = next
+    settingsEpoch += 1
   }
 
   function setDashboardSetting(name, value) {
@@ -426,9 +453,14 @@ Item {
     // choices would be dropped.
     if (shell && typeof shell.updateEntryInline === "function") {
       try {
-        var current = ownSettings()
+        var current = effectiveSettings()
         var next = PluginSettings.withSetting(current, key, value)
-        if (shell.updateEntryInline(dashboardPluginId, next) === true) return true
+        if (shell.updateEntryInline(dashboardPluginId, next) === true) {
+          // The scoped API republishes `barConfig` on a later tick, so echo the
+          // value locally until the persisted config agrees with it.
+          rememberSetting(key, value)
+          return true
+        }
         // A false answer also means "nothing changed"; treat an already
         // matching value as success so a redundant write is not an error.
         return String(current[key]) === String(value)
@@ -445,6 +477,7 @@ Item {
         console.warn("Dashboard: failed to save setting " + name + ": " + error)
         return false
       }
+      rememberSetting(key, value)
       return true
     } catch (exception) {
       console.warn("Dashboard: failed to save setting " + name + ":", exception)
@@ -695,6 +728,21 @@ Item {
     function onLocalPluginChanged(pluginId) {
       root.invalidateAdaptation(pluginId)
       root.refreshPluginCatalog()
+    }
+  }
+
+  // The scoped Shell API refreshes `barConfig` after a config change, so once
+  // the persisted entry agrees with an echoed value that echo is no longer
+  // needed. A mismatch is ignored: `barConfig` can lag the store (it is
+  // coalesced), and dropping the echo then would flip the UI to a stale value.
+  Connections {
+    target: root.shell
+    function onBarConfigChanged() {
+      if (!root.pendingSettings) return
+      var result = PluginSettings.settleOverrides(root.pendingSettings, root.ownSettings())
+      if (!result.settled) return
+      root.pendingSettings = result.overrides
+      root.settingsEpoch += 1
     }
   }
 

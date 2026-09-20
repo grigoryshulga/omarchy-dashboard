@@ -32,3 +32,32 @@ function withSetting(settings, name, value) {
   next[String(name)] = value
   return next
 }
+
+// Layer not-yet-published writes over the persisted entry. Used as the merge
+// base so a quick second write cannot drop the first one while the scoped API
+// is still republishing `barConfig`.
+function withOverrides(settings, overrides) {
+  var source = settings && typeof settings === "object" ? settings : ({})
+  var next = ({})
+  for (var key in source) if (key !== "id") next[key] = source[key]
+  var pending = overrides && typeof overrides === "object" ? overrides : ({})
+  for (var name in pending) next[name] = pending[name]
+  return next
+}
+
+// Decide which optimistic echoes to keep. A value the persisted entry now
+// matches is confirmed and dropped; a key it does not contain is still
+// unpublished and kept. A differing value is also kept: the scoped API can
+// republish a stale config after one of our own writes, and adopting that would
+// flip the UI back to the value the user just replaced.
+function settleOverrides(overrides, stored) {
+  var source = overrides && typeof overrides === "object" ? overrides : ({})
+  var persisted = stored && typeof stored === "object" ? stored : ({})
+  var kept = ({})
+  var settled = false
+  for (var name in source) {
+    if (persisted[name] === source[name]) { settled = true; continue }
+    kept[name] = source[name]
+  }
+  return { overrides: kept, settled: settled }
+}
