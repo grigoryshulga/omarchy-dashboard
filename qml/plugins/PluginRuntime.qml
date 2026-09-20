@@ -8,6 +8,7 @@ import "PluginIconResolver.js" as PluginIconResolver
 import "PluginPresentation.js" as PluginPresentation
 import "PluginLoadOrder.js" as PluginLoadOrder
 import "PluginCatalogModel.js" as PluginCatalogModel
+import "PluginSettings.js" as PluginSettings
 
 Item {
   id: root
@@ -61,7 +62,6 @@ Item {
     property var shell: root.shell
   }
 
-  readonly property int registryRevision: registry ? registry.registryRevision : 0
   readonly property var availablePlugins: discoverAvailablePlugins()
   readonly property var hostEntries: HostPlacements.entries(
     shell ? shell.shellConfig : null, dashboardPluginId)
@@ -383,6 +383,14 @@ Item {
     iconTimeout.restart()
   }
 
+  // The scoped Shell API republishes the public bar config whenever shell.json
+  // changes, so our own inline settings are resolved from it. Reading that
+  // property also keeps dependants live without the host registry, which
+  // third-party plugins no longer receive.
+  function ownSettings() {
+    return PluginSettings.fromBarLayout(shell ? shell.barConfig : null, dashboardPluginId) || ({})
+  }
+
   function pluginSettings(id) {
     try {
       var hosted = HostPlacements.settingsFor(
@@ -392,6 +400,8 @@ Item {
         var widgets = shell.bar.moduleWidgets(id)
         if (widgets.length > 0 && widgets[0] && widgets[0].settings) return widgets[0].settings
       }
+      var inline = PluginSettings.fromBarLayout(shell ? shell.barConfig : null, id)
+      if (inline) return inline
       var config = shell ? shell.shellConfig : null
       if (config && Array.isArray(config.plugins)) {
         for (var index = 0; index < config.plugins.length; index++)
@@ -404,16 +414,33 @@ Item {
   }
 
   function dashboardSetting(name, fallback) {
-    var revision = registryRevision
-    var settings = pluginSettings(dashboardPluginId)
+    var settings = ownSettings()
     var value = settings[name]
     return value !== undefined && value !== null ? value : fallback
   }
 
   function setDashboardSetting(name, value) {
+    var key = String(name)
+    // Write our own inline bar entry through the scoped Shell API. The write
+    // replaces the entry, so merge the current options or the user's other
+    // choices would be dropped.
+    if (shell && typeof shell.updateEntryInline === "function") {
+      try {
+        var current = ownSettings()
+        var next = PluginSettings.withSetting(current, key, value)
+        if (shell.updateEntryInline(dashboardPluginId, next) === true) return true
+        // A false answer also means "nothing changed"; treat an already
+        // matching value as success so a redundant write is not an error.
+        return String(current[key]) === String(value)
+      } catch (exception) {
+        console.warn("Dashboard: failed to save setting " + name + ":", exception)
+        return false
+      }
+    }
+    // Older Shell builds expose the host registry instead of the scoped API.
     if (!registry || typeof registry.setBarWidget !== "function") return false
     try {
-      var error = registry.setBarWidget(dashboardPluginId, String(name), value, {})
+      var error = registry.setBarWidget(dashboardPluginId, key, value, {})
       if (error) {
         console.warn("Dashboard: failed to save setting " + name + ": " + error)
         return false
