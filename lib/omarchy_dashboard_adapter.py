@@ -23,10 +23,14 @@ class AdaptationError(Exception):
     """The source does not satisfy Dashboard's deliberately narrow contract."""
 
 
-ADAPTER_VERSION = "dashboard-adapter-v10"
+ADAPTER_VERSION = "dashboard-adapter-v11"
 PADDED_LAYOUT = "padded"
 EDGE_TO_EDGE_LAYOUT = "edge-to-edge"
 CONTENT_LAYOUTS = frozenset((PADDED_LAYOUT, EDGE_TO_EDGE_LAYOUT))
+MARKER_KEYS = frozenset((
+    "version", "fingerprint", "entryPoint", "entryPoints", "sourceDir",
+    "sourceDigest", "adapterDigest", "artifactDigest", "layout",
+))
 MAX_ENTRY_POINT_BYTES = 1024 * 1024
 MAX_SOURCE_ENTRIES = 1024
 MAX_SOURCE_FILES = 1024
@@ -932,7 +936,9 @@ def prune_namespace(namespace_root: Path, current: Path) -> None:
             continue
 
 
-def completed_artifact(destination: Path, generated_source: Path, fingerprint: str) -> bool:
+def completed_artifact(
+    destination: Path, generated_source: Path, fingerprint: str, source_digest: str
+) -> bool:
     marker = destination / MARKER_NAME
     try:
         if destination.is_symlink() or not destination.is_dir() or not is_within(generated_source, destination):
@@ -941,9 +947,11 @@ def completed_artifact(destination: Path, generated_source: Path, fingerprint: s
         if not isinstance(document, dict):
             return False
         relative_source = generated_source.relative_to(destination).as_posix()
-        if set(document) != {"version", "fingerprint", "entryPoint", "artifactDigest", "layout"}:
+        if set(document) != MARKER_KEYS:
             return False
         if document["version"] != ADAPTER_VERSION or document["fingerprint"] != fingerprint:
+            return False
+        if document["sourceDigest"] != source_digest:
             return False
         if document["entryPoint"] != relative_source:
             return False
@@ -957,6 +965,77 @@ def completed_artifact(destination: Path, generated_source: Path, fingerprint: s
         json.JSONDecodeError, RecursionError,
     ):
         return False
+
+
+def adaptation_identity(adapter_dir: Path) -> str:
+    """Hash the transform version and the helper sources copied into artifacts.
+
+    A helper edit must produce a new artifact, so its bytes belong in the key
+    that decides whether a cached artifact is reusable.
+    """
+    digest = hashlib.sha256()
+    digest_field(digest, ADAPTER_VERSION.encode("utf-8"))
+    for name in HELPER_NAMES:
+        digest_field(digest, name.encode("utf-8"))
+        digest_field(
+            digest,
+            read_regular_file(adapter_dir / name, MAX_ENTRY_POINT_BYTES, f"adapter helper {name}"),
+        )
+    return digest.hexdigest()
+
+
+def marker_is_reusable(
+    document: object,
+    source_dir: Path,
+    entry_points: list[str],
+    source_digest: str,
+    adapter_digest: str,
+) -> bool:
+    if not isinstance(document, dict) or set(document) != MARKER_KEYS:
+        return False
+    if document["version"] != ADAPTER_VERSION:
+        return False
+    if document["sourceDir"] != str(source_dir):
+        return False
+    if document["sourceDigest"] != source_digest or document["adapterDigest"] != adapter_digest:
+        return False
+    stored = document["entryPoints"]
+    return isinstance(stored, list) and stored == entry_points
+
+
+def cached_artifact(
+    namespace_root: Path,
+    source_dir: Path,
+    entry_points: list[str],
+    source_digest: str,
+    adapter_digest: str,
+) -> Path | None:
+    """Reuse a verified artifact built from this exact source without copying.
+
+    The complete build below is only needed when the source, its entry points or
+    the adapter helpers changed, so unchanged plugins skip copy, transform and
+    seal while still passing the same artifact integrity check.
+    """
+    for child in sorted(namespace_root.iterdir()):
+        if child.name == ".lock":
+            continue
+        try:
+            metadata = child.lstat()
+            if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+                continue
+            document = json.loads(
+                read_regular_file(child / MARKER_NAME, MAX_MARKER_BYTES, "artifact marker").decode("utf-8")
+            )
+        except (
+            AdaptationError, OSError, UnicodeError, json.JSONDecodeError, RecursionError,
+        ):
+            continue
+        if not marker_is_reusable(document, source_dir, entry_points, source_digest, adapter_digest):
+            continue
+        generated_source = child / str(document["entryPoint"])
+        if completed_artifact(child, generated_source, str(document["fingerprint"]), source_digest):
+            return generated_source
+    return None
 
 
 def build(source_dir: Path, entry_point: str | list[str], cache_root: Path, plugin_id: str, adapter_dir: Path) -> Path:
@@ -980,6 +1059,18 @@ def build(source_dir: Path, entry_point: str | list[str], cache_root: Path, plug
     namespace = hashlib.sha256(plugin_id.encode("utf-8")).hexdigest()
     namespace_root = cache_root / namespace
     safe_directory(namespace_root)
+
+    entry_points = [entry_point] if isinstance(entry_point, str) else list(entry_point)
+    if not entry_points or len(entry_points) > 4:
+        raise AdaptationError("expected between one and four entry points")
+    wanted_entry_points = list(dict.fromkeys(entry_points))
+    source_digest = tree_digest(source_dir, skip_vcs=True)
+    adapter_digest = adaptation_identity(adapter_dir)
+    cached = cached_artifact(
+        namespace_root, source_dir, wanted_entry_points, source_digest, adapter_digest)
+    if cached is not None:
+        return cached
+
     staging_parent = cache_root / ".staging"
     safe_directory(staging_parent)
     clean_stale_staging(staging_parent)
@@ -990,12 +1081,9 @@ def build(source_dir: Path, entry_point: str | list[str], cache_root: Path, plug
     try:
         output = staging / "output"
         copy_tree(source_dir, output)
-        entry_points = [entry_point] if isinstance(entry_point, str) else entry_point
-        if not entry_points or len(entry_points) > 4:
-            raise AdaptationError("expected between one and four entry points")
         failures = []
         transforms: dict[Path, tuple[str, str]] = {}
-        for candidate in dict.fromkeys(entry_points):
+        for candidate in wanted_entry_points:
             try:
                 entry_source = choose_source(output, candidate, transforms)
                 if entry_source not in transforms:
@@ -1031,6 +1119,10 @@ def build(source_dir: Path, entry_point: str | list[str], cache_root: Path, plug
             "version": ADAPTER_VERSION,
             "fingerprint": fingerprint,
             "entryPoint": entry_relative.as_posix(),
+            "entryPoints": wanted_entry_points,
+            "sourceDir": str(source_dir),
+            "sourceDigest": source_digest,
+            "adapterDigest": adapter_digest,
             "artifactDigest": artifact_digest,
             "layout": layout,
         }
@@ -1041,12 +1133,12 @@ def build(source_dir: Path, entry_point: str | list[str], cache_root: Path, plug
 
         with cache_lock(namespace_root):
             if destination.exists() or destination.is_symlink():
-                if completed_artifact(destination, generated_source, fingerprint):
+                if completed_artifact(destination, generated_source, fingerprint, source_digest):
                     return generated_source
                 remove_tree(destination)
             os.rename(output, destination)
             destination.chmod(0o700)
-            if not completed_artifact(destination, generated_source, fingerprint):
+            if not completed_artifact(destination, generated_source, fingerprint, source_digest):
                 remove_tree(destination)
                 raise AdaptationError("adapter publication failed integrity verification")
             prune_namespace(namespace_root, destination)

@@ -334,6 +334,53 @@ TestCase {
             self.assertEqual(adapter.artifact_layout(output, cache), adapter.PADDED_LAYOUT)
             self.assertEqual(output, adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR))
 
+    def test_reuses_a_verified_artifact_without_copying_again(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.write_source(root)
+            cache = root / "cache"
+            first = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
+
+            with mock.patch.object(adapter, "copy_tree", wraps=adapter.copy_tree) as copy:
+                second = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
+
+            self.assertEqual(copy.call_count, 0)
+            self.assertEqual(second, first)
+
+    def test_reuse_requires_the_same_source_snapshot(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.write_source(root)
+            cache = root / "cache"
+            first = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
+            (source / "Panel.qml").write_text(PANEL.replace("id: root", "id: changed"))
+
+            with mock.patch.object(adapter, "copy_tree", wraps=adapter.copy_tree) as copy:
+                second = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
+
+            self.assertNotEqual(second.parent, first.parent)
+            self.assertEqual(copy.call_count, 1)
+            self.assertIn("id: changed", second.read_text())
+
+    def test_reuse_requires_a_verified_artifact(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.write_source(root)
+            cache = root / "cache"
+            output = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
+            artifact = output.parent
+            artifact.chmod(0o700)
+            output.chmod(0o600)
+            output.write_text("Item {}")
+            artifact.chmod(0o500)
+
+            with mock.patch.object(adapter, "copy_tree", wraps=adapter.copy_tree) as copy:
+                repaired = adapter.build(source, "Panel.qml", cache, "example.plugin", ADAPTER_DIR)
+
+            self.assertEqual(copy.call_count, 1)
+            self.assertEqual(repaired, output)
+            self.assertIn("DashboardHost {", repaired.read_text())
+
     def test_ignores_root_vcs_metadata_when_building_a_runtime_artifact(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

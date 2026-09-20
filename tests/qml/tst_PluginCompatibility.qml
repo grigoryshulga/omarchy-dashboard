@@ -49,6 +49,28 @@ TestCase {
     compare(PluginCatalogModel.catalogFromPublicSources("{", "[]", "dashboard").length, 0)
   }
 
+  function test_catalog_sources_key_detects_only_real_catalog_changes() {
+    var list = JSON.stringify([{ id: "omarchy.clock", enabled: true }])
+    var catalog = JSON.stringify([{ id: "omarchy.clock", sourceDir: "/tmp/clock" }])
+    var key = PluginCatalogModel.catalogSourcesKey(list, catalog)
+    compare(key, PluginCatalogModel.catalogSourcesKey(list, catalog))
+    verify(key !== PluginCatalogModel.catalogSourcesKey(list + " ", catalog))
+    verify(key !== PluginCatalogModel.catalogSourcesKey(list, catalog + " "))
+    // An empty pair must still produce a key, so the first refresh always resets.
+    verify(PluginCatalogModel.catalogSourcesKey("", "") !== "")
+    verify(PluginCatalogModel.catalogSourcesKey(undefined, null) !== "")
+  }
+
+  function test_without_key_copies_a_lookup_table_minus_one_entry() {
+    var table = { "plugin.one": { url: "a" }, "plugin.two": { url: "b" } }
+    var filtered = PluginCatalogModel.withoutKey(table, "plugin.one")
+    compare(Object.keys(filtered).join(","), "plugin.two")
+    compare(filtered["plugin.two"].url, "b")
+    compare(Object.keys(table).length, 2)
+    compare(Object.keys(PluginCatalogModel.withoutKey(table, "missing")).length, 2)
+    compare(Object.keys(PluginCatalogModel.withoutKey(null, "plugin.one")).length, 0)
+  }
+
   function tile(id, x, y, w, h) {
     return { id: id, pluginId: "plugin." + id, x: x, y: y, w: w, h: h }
   }

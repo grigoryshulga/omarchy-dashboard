@@ -32,6 +32,9 @@ Item {
 
   property var adaptations: ({})
   property var adaptationErrors: ({})
+  // Public helper outputs that produced the current validated adaptations.
+  // Matching this key keeps resident adaptations across Dashboard opens.
+  property string appliedCatalogSources: ""
   property string adaptingPluginId: ""
   property int adaptingEpoch: -1
   property int pluginEpoch: 0
@@ -590,6 +593,29 @@ Item {
     Qt.callLater(preparePanels)
   }
 
+  // A local edit reports one plugin id. Drop only that plugin's validated
+  // result so unrelated tiles keep their pages and their prepared state.
+  function invalidateAdaptation(pluginId) {
+    var id = safePluginId(pluginId)
+    if (!id) return
+    var changed = false
+    if (adaptations[id] !== undefined) {
+      adaptations = PluginCatalogModel.withoutKey(adaptations, id)
+      changed = true
+    }
+    if (adaptationErrors[id] !== undefined) {
+      adaptationErrors = PluginCatalogModel.withoutKey(adaptationErrors, id)
+      changed = true
+    }
+    if (adaptingPluginId === id) {
+      // The running adapter copied a source that is already stale; dropping the
+      // id makes its exit handler discard the result and retry.
+      adaptingPluginId = ""
+      changed = true
+    }
+    if (changed) Qt.callLater(preparePanels)
+  }
+
   function refreshPluginCatalog() {
     if (pluginListProcess.running || pluginCatalogProcess.running) return
     pluginCatalogRequest += 1
@@ -617,6 +643,17 @@ Item {
     pluginCatalog = PluginCatalogModel.catalogFromPublicSources(
       pluginListText, pluginCatalogText, dashboardPluginId)
     pluginCatalogRevision += 1
+    var sources = PluginCatalogModel.catalogSourcesKey(pluginListText, pluginCatalogText)
+    if (sources === appliedCatalogSources) {
+      // The installed plugins and their manifests did not change, so resident
+      // adaptations stay valid. Skip the reset that would re-run every adapter
+      // and rescan icons on each Dashboard open.
+      // Failed plugins still retry, so a transient adapter failure recovers.
+      if (Object.keys(adaptationErrors).length > 0) adaptationErrors = ({})
+      Qt.callLater(preparePanels)
+      return
+    }
+    appliedCatalogSources = sources
     resetRegistry()
   }
 
@@ -628,7 +665,10 @@ Item {
   Connections {
     target: root.registry
     function onPluginsChanged() { root.refreshPluginCatalog() }
-    function onLocalPluginChanged(pluginId) { root.refreshPluginCatalog() }
+    function onLocalPluginChanged(pluginId) {
+      root.invalidateAdaptation(pluginId)
+      root.refreshPluginCatalog()
+    }
   }
 
   Process {
