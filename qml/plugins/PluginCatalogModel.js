@@ -30,6 +30,25 @@ function safeSourceDirectory(value) {
     && directory.indexOf("\n") < 0 && directory.indexOf("\r") < 0 ? directory.replace(/\/+$/, "") : ""
 }
 
+// The installed set and its manifests only change when the registry changes.
+// Comparing the two public helper outputs lets the runtime keep already
+// validated adaptations resident instead of repeating adapter work on every
+// Dashboard open. The NUL separator keeps the pair unambiguous.
+function catalogSourcesKey(listRaw, catalogRaw) {
+  return String(listRaw || "") + "\u0000" + String(catalogRaw || "")
+}
+
+// Copy a lookup table without one key so a single plugin can be invalidated
+// without rebuilding the whole object graph.
+function withoutKey(source, key) {
+  var wanted = String(key || "")
+  var result = ({})
+  var table = source && typeof source === "object" ? source : ({})
+  for (var current in table)
+    if (current !== wanted) result[current] = table[current]
+  return result
+}
+
 function catalogFromPublicSources(listRaw, catalogRaw, ownPluginId) {
   var catalog = parseJsonArray(catalogRaw)
   var manifests = ({})

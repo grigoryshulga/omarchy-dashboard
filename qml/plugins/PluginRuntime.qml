@@ -8,6 +8,7 @@ import "PluginIconResolver.js" as PluginIconResolver
 import "PluginPresentation.js" as PluginPresentation
 import "PluginLoadOrder.js" as PluginLoadOrder
 import "PluginCatalogModel.js" as PluginCatalogModel
+import "PluginSettings.js" as PluginSettings
 
 Item {
   id: root
@@ -32,6 +33,15 @@ Item {
 
   property var adaptations: ({})
   property var adaptationErrors: ({})
+  // Optimistic values for our own settings. The scoped Shell API republishes
+  // `barConfig` on a later tick, so a just-written option is echoed here until
+  // the persisted config catches up. Without it the read would lag the write
+  // and a second click could see a stale value and do nothing.
+  property var pendingSettings: ({})
+  property int settingsEpoch: 0
+  // Public helper outputs that produced the current validated adaptations.
+  // Matching this key keeps resident adaptations across Dashboard opens.
+  property string appliedCatalogSources: ""
   property string adaptingPluginId: ""
   property int adaptingEpoch: -1
   property int pluginEpoch: 0
@@ -58,7 +68,6 @@ Item {
     property var shell: root.shell
   }
 
-  readonly property int registryRevision: registry ? registry.registryRevision : 0
   readonly property var availablePlugins: discoverAvailablePlugins()
   readonly property var hostEntries: HostPlacements.entries(
     shell ? shell.shellConfig : null, dashboardPluginId)
@@ -380,41 +389,81 @@ Item {
     iconTimeout.restart()
   }
 
+  // The scoped Shell API republishes the public bar config whenever shell.json
+  // changes, so our own inline settings are resolved from it. Reading that
+  // property also keeps dependants live without the host registry, which
+  // third-party plugins no longer receive.
+  function ownSettings() {
+    return PluginSettings.fromBarLayout(shell ? shell.barConfig : null, dashboardPluginId) || ({})
+  }
+
+  // A third-party plugin only receives the public bar layout from the scoped
+  // Shell API. The host config and the live bar widget registry are not part of
+  // that surface, so another plugin's inline options are resolved from the
+  // layout alone. Missing options fall back to an empty object.
   function pluginSettings(id) {
-    try {
-      var hosted = HostPlacements.settingsFor(
-        shell ? shell.shellConfig : null, dashboardPluginId, id, "")
-      if (Object.keys(hosted).length > 0) return hosted
-      if (shell && shell.bar && typeof shell.bar.moduleWidgets === "function") {
-        var widgets = shell.bar.moduleWidgets(id)
-        if (widgets.length > 0 && widgets[0] && widgets[0].settings) return widgets[0].settings
-      }
-      var config = shell ? shell.shellConfig : null
-      if (config && Array.isArray(config.plugins)) {
-        for (var index = 0; index < config.plugins.length; index++)
-          if (config.plugins[index] && String(config.plugins[index].id) === id) return config.plugins[index]
-      }
-    } catch (error) {
-      console.warn("Dashboard: settings lookup failed for " + id + ":", error)
-    }
-    return ({})
+    return PluginSettings.fromBarLayout(shell ? shell.barConfig : null, id) || ({})
   }
 
   function dashboardSetting(name, fallback) {
-    var revision = registryRevision
-    var settings = pluginSettings(dashboardPluginId)
-    var value = settings[name]
+    // Touch the epoch so dependants re-evaluate whenever the optimistic values
+    // change, even if `barConfig` still reports the previous value.
+    var stamp = settingsEpoch
+    var optimistic = pendingSettings
+    if (optimistic && optimistic[name] !== undefined && optimistic[name] !== null)
+      return optimistic[name]
+    var value = ownSettings()[name]
     return value !== undefined && value !== null ? value : fallback
   }
 
+  // Effective inline options: the persisted entry with any not-yet-published
+  // writes layered on top. Used as the merge base so a fast second write cannot
+  // drop the first one while `barConfig` is still catching up.
+  function effectiveSettings() {
+    return PluginSettings.withOverrides(ownSettings(), pendingSettings)
+  }
+
+  function rememberSetting(name, value) {
+    var next = ({})
+    var current = pendingSettings || ({})
+    for (var key in current) next[key] = current[key]
+    next[name] = value
+    pendingSettings = next
+    settingsEpoch += 1
+  }
+
   function setDashboardSetting(name, value) {
+    var key = String(name)
+    // Write our own inline bar entry through the scoped Shell API. The write
+    // replaces the entry, so merge the current options or the user's other
+    // choices would be dropped.
+    if (shell && typeof shell.updateEntryInline === "function") {
+      try {
+        var current = effectiveSettings()
+        var next = PluginSettings.withSetting(current, key, value)
+        if (shell.updateEntryInline(dashboardPluginId, next) === true) {
+          // The scoped API republishes `barConfig` on a later tick, so echo the
+          // value locally until the persisted config agrees with it.
+          rememberSetting(key, value)
+          return true
+        }
+        // A false answer also means "nothing changed"; treat an already
+        // matching value as success so a redundant write is not an error.
+        return String(current[key]) === String(value)
+      } catch (exception) {
+        console.warn("Dashboard: failed to save setting " + name + ":", exception)
+        return false
+      }
+    }
+    // Older Shell builds expose the host registry instead of the scoped API.
     if (!registry || typeof registry.setBarWidget !== "function") return false
     try {
-      var error = registry.setBarWidget(dashboardPluginId, String(name), value, {})
+      var error = registry.setBarWidget(dashboardPluginId, key, value, {})
       if (error) {
         console.warn("Dashboard: failed to save setting " + name + ": " + error)
         return false
       }
+      rememberSetting(key, value)
       return true
     } catch (exception) {
       console.warn("Dashboard: failed to save setting " + name + ":", exception)
@@ -617,18 +666,45 @@ Item {
     pluginCatalog = PluginCatalogModel.catalogFromPublicSources(
       pluginListText, pluginCatalogText, dashboardPluginId)
     pluginCatalogRevision += 1
+    var sources = PluginCatalogModel.catalogSourcesKey(pluginListText, pluginCatalogText)
+    if (sources === appliedCatalogSources) {
+      // The installed plugins and their manifests did not change, so resident
+      // adaptations stay valid. Skip the reset that would re-run every adapter
+      // and rescan icons on each Dashboard open.
+      // Failed plugins still retry, so a transient adapter failure recovers.
+      if (Object.keys(adaptationErrors).length > 0) adaptationErrors = ({})
+      Qt.callLater(preparePanels)
+      return
+    }
+    appliedCatalogSources = sources
     resetRegistry()
   }
 
-  onActiveChanged: if (active) Qt.callLater(preparePanels)
+  // The scoped Shell API exposes no registry change signals, so refresh the
+  // catalog whenever the Dashboard opens. The result is cached by digest, so an
+  // unchanged plugin set keeps its resident adaptations.
+  onActiveChanged: {
+    if (!active) return
+    refreshPluginCatalog()
+    Qt.callLater(preparePanels)
+  }
   onLoadCandidatesChanged: Qt.callLater(preparePanels)
   onAdaptationsChanged: Qt.callLater(preparePanels)
   onAdaptationErrorsChanged: Qt.callLater(preparePanels)
 
+  // The scoped Shell API refreshes `barConfig` after a config change, so once
+  // the persisted entry agrees with an echoed value that echo is no longer
+  // needed. A mismatch is ignored: `barConfig` can lag the store (it is
+  // coalesced), and dropping the echo then would flip the UI to a stale value.
   Connections {
-    target: root.registry
-    function onPluginsChanged() { root.refreshPluginCatalog() }
-    function onLocalPluginChanged(pluginId) { root.refreshPluginCatalog() }
+    target: root.shell
+    function onBarConfigChanged() {
+      if (!root.pendingSettings) return
+      var result = PluginSettings.settleOverrides(root.pendingSettings, root.ownSettings())
+      if (!result.settled) return
+      root.pendingSettings = result.overrides
+      root.settingsEpoch += 1
+    }
   }
 
   Process {
