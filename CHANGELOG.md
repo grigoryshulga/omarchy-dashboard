@@ -3,6 +3,28 @@
 User-visible changes are grouped by release. A version marked **Unreleased**
 is being tested on `dev`; `main` is the stable installation branch.
 
+## [1.8.3] — 2026-09-20
+
+### Fixed
+
+- Choose the Framed or Glass surface again. Dashboard saves its own bar settings
+  through the scoped Shell API instead of the host registry, which third-party
+  plugins no longer receive.
+- Keep the shown surface mode in sync with the saved configuration, so switching
+  to Glass (or back to Framed) always applies and never leaves a stale value.
+- Preserve the other appearance choices when one option changes, so switching
+  the surface mode no longer drops the saved background preferences.
+
+### Changed
+
+- Open Dashboard faster by reusing validated plugin adaptations when the
+  installed plugins are unchanged, and refresh the plugin catalog on each open
+  instead of waiting for registry signals the scoped API does not expose.
+
+### Development
+
+- Add regression tests for the Dashboard settings helpers.
+
 ## [1.8.2] — 2026-09-11
 
 ### Fixed
@@ -80,4 +102,5 @@ baseline without assigning a retrospective release date.
 
 [1.8.1]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.0...v1.8.1
 [1.8.2]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.1...v1.8.2
+[1.8.3]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.2...v1.8.3
 [1.8.0]: https://github.com/grigoryshulga/omarchy-dashboard/compare/dfb7f4c...v1.8.0
