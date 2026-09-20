@@ -397,26 +397,12 @@ Item {
     return PluginSettings.fromBarLayout(shell ? shell.barConfig : null, dashboardPluginId) || ({})
   }
 
+  // A third-party plugin only receives the public bar layout from the scoped
+  // Shell API. The host config and the live bar widget registry are not part of
+  // that surface, so another plugin's inline options are resolved from the
+  // layout alone. Missing options fall back to an empty object.
   function pluginSettings(id) {
-    try {
-      var hosted = HostPlacements.settingsFor(
-        shell ? shell.shellConfig : null, dashboardPluginId, id, "")
-      if (Object.keys(hosted).length > 0) return hosted
-      if (shell && shell.bar && typeof shell.bar.moduleWidgets === "function") {
-        var widgets = shell.bar.moduleWidgets(id)
-        if (widgets.length > 0 && widgets[0] && widgets[0].settings) return widgets[0].settings
-      }
-      var inline = PluginSettings.fromBarLayout(shell ? shell.barConfig : null, id)
-      if (inline) return inline
-      var config = shell ? shell.shellConfig : null
-      if (config && Array.isArray(config.plugins)) {
-        for (var index = 0; index < config.plugins.length; index++)
-          if (config.plugins[index] && String(config.plugins[index].id) === id) return config.plugins[index]
-      }
-    } catch (error) {
-      console.warn("Dashboard: settings lookup failed for " + id + ":", error)
-    }
-    return ({})
+    return PluginSettings.fromBarLayout(shell ? shell.barConfig : null, id) || ({})
   }
 
   function dashboardSetting(name, fallback) {
@@ -653,29 +639,6 @@ Item {
     Qt.callLater(preparePanels)
   }
 
-  // A local edit reports one plugin id. Drop only that plugin's validated
-  // result so unrelated tiles keep their pages and their prepared state.
-  function invalidateAdaptation(pluginId) {
-    var id = safePluginId(pluginId)
-    if (!id) return
-    var changed = false
-    if (adaptations[id] !== undefined) {
-      adaptations = PluginCatalogModel.withoutKey(adaptations, id)
-      changed = true
-    }
-    if (adaptationErrors[id] !== undefined) {
-      adaptationErrors = PluginCatalogModel.withoutKey(adaptationErrors, id)
-      changed = true
-    }
-    if (adaptingPluginId === id) {
-      // The running adapter copied a source that is already stale; dropping the
-      // id makes its exit handler discard the result and retry.
-      adaptingPluginId = ""
-      changed = true
-    }
-    if (changed) Qt.callLater(preparePanels)
-  }
-
   function refreshPluginCatalog() {
     if (pluginListProcess.running || pluginCatalogProcess.running) return
     pluginCatalogRequest += 1
@@ -717,19 +680,17 @@ Item {
     resetRegistry()
   }
 
-  onActiveChanged: if (active) Qt.callLater(preparePanels)
+  // The scoped Shell API exposes no registry change signals, so refresh the
+  // catalog whenever the Dashboard opens. The result is cached by digest, so an
+  // unchanged plugin set keeps its resident adaptations.
+  onActiveChanged: {
+    if (!active) return
+    refreshPluginCatalog()
+    Qt.callLater(preparePanels)
+  }
   onLoadCandidatesChanged: Qt.callLater(preparePanels)
   onAdaptationsChanged: Qt.callLater(preparePanels)
   onAdaptationErrorsChanged: Qt.callLater(preparePanels)
-
-  Connections {
-    target: root.registry
-    function onPluginsChanged() { root.refreshPluginCatalog() }
-    function onLocalPluginChanged(pluginId) {
-      root.invalidateAdaptation(pluginId)
-      root.refreshPluginCatalog()
-    }
-  }
 
   // The scoped Shell API refreshes `barConfig` after a config change, so once
   // the persisted entry agrees with an echoed value that echo is no longer
