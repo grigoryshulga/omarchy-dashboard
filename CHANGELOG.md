@@ -3,6 +3,23 @@
 User-visible changes are grouped by release. A version marked **Unreleased**
 is being tested on `dev`; `main` is the stable installation branch.
 
+## [1.8.5] — 2026-10-14
+
+### Fixed
+
+- Load embedded plugins again on Omarchy builds whose `omarchy-shell` answers
+  over its own socket (Omarchy 4.0.4+). The plugin-list helper ran with a
+  hard-coded `OMARCHY_PATH=/usr/share/omarchy`, so against a shell running from
+  any other path — a dev checkout, a custom install — the helper could not
+  reach the live shell, the catalog came back empty and no tile content
+  loaded. Helpers now inherit the live session values (`OMARCHY_PATH`,
+  `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR`) with the packaged path as fallback.
+
+### Development
+
+- Cover the helper-environment builder with unit tests and pin the bounded
+  helper contract against the live-environment wiring.
+
 ## [1.8.4] — 2026-10-14
 
 ### Fixed
@@ -125,4 +142,5 @@ baseline without assigning a retrospective release date.
 [1.8.2]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.1...v1.8.2
 [1.8.3]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.2...v1.8.3
 [1.8.4]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.3...v1.8.4
+[1.8.5]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.4...v1.8.5
 [1.8.0]: https://github.com/grigoryshulga/omarchy-dashboard/compare/dfb7f4c...v1.8.0
