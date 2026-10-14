@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "../state/DashboardModel.js" as DashboardModel
 
 Item {
@@ -23,7 +24,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.78)
+    color: Qt.rgba(Commons.Color.background.r, Commons.Color.background.g, Commons.Color.background.b, 0.78)
   }
   MouseArea { anchors.fill: parent; onClicked: root.rejected() }
 
@@ -32,9 +33,9 @@ Item {
     width: Math.min(parent.width - Style.space(48), Style.space(520))
     height: Style.space(154)
     radius: Style.cornerRadius
-    color: Color.popups.background
+    color: Commons.Color.popups.background
     border.width: 1
-    border.color: Color.popups.border
+    border.color: Commons.Color.popups.border
     MouseArea { anchors.fill: parent; onClicked: {} }
 
     Column {
@@ -45,7 +46,7 @@ Item {
       Text {
         textFormat: Text.PlainText
         text: "Add text"
-        color: Color.popups.text
+        color: Commons.Color.popups.text
         font.family: Style.font.family
         font.pixelSize: Style.font.title
         font.bold: true
@@ -55,17 +56,17 @@ Item {
         width: parent.width
         height: Style.space(38)
         radius: Style.cornerRadius
-        color: Style.normalFillFor(Color.popups.text, Color.accent)
+        color: Style.normalFillFor(Commons.Color.popups.text, Commons.Color.accent)
         border.width: 1
-        border.color: input.activeFocus ? Color.accent : Color.popups.border
+        border.color: input.activeFocus ? Commons.Color.accent : Commons.Color.popups.border
 
         TextInput {
           id: input
           anchors.fill: parent
           anchors.leftMargin: Style.spacing.md
           anchors.rightMargin: Style.spacing.md
-          color: Color.popups.text
-          selectionColor: Color.accent
+          color: Commons.Color.popups.text
+          selectionColor: Commons.Color.accent
           verticalAlignment: TextInput.AlignVCenter
           font.family: Style.font.family
           font.pixelSize: Style.font.body

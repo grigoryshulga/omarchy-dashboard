@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
@@ -20,7 +21,7 @@ Item {
     width: Math.max(1, Style.space(1))
     height: parent.height
     visible: root.verticalGuideVisible
-    color: Color.accent
+    color: Commons.Color.accent
     opacity: 0.58
   }
 
@@ -29,7 +30,7 @@ Item {
     width: parent.width
     height: Math.max(1, Style.space(1))
     visible: root.horizontalGuideVisible
-    color: Color.accent
+    color: Commons.Color.accent
     opacity: 0.58
   }
 }

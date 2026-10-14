@@ -4,6 +4,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "../layout/GridEngine.js" as GridEngine
 import "../navigation/SpaceSwipe.js" as SpaceSwipe
@@ -268,7 +269,7 @@ PanelWindow {
 
   Rectangle {
     anchors.fill: parent
-    color: dashboard.glassBackground ? Color.menu.scrim : Color.background
+    color: dashboard.glassBackground ? Commons.Color.menu.scrim : Commons.Color.background
     opacity: dashboard.dimBackground ? (dashboard.glassBackground ? 1 : 0.86) : 0
   }
 
@@ -328,9 +329,9 @@ PanelWindow {
       anchors.margins: root.cardInset
       radius: dashboard.glassBackground ? 0 : Style.cornerRadius
       color: dashboard.glassBackground
-        ? "transparent" : Qt.darker(Color.popups.background, 1.14)
+        ? "transparent" : Qt.darker(Commons.Color.popups.background, 1.14)
       border.width: dashboard.glassBackground ? 0 : Math.max(1, Style.space(1))
-      border.color: Color.popups.border
+      border.color: Commons.Color.popups.border
 
       Column {
         anchors.fill: parent
@@ -429,8 +430,8 @@ PanelWindow {
                     height: width
                     radius: width / 2
                     color: spaceTabHover.hovered
-                      ? Color.accent
-                      : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.32)
+                      ? Commons.Color.accent
+                      : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.32)
                   }
 
                   Text {
@@ -440,7 +441,7 @@ PanelWindow {
                     width: parent.width - Style.spacing.sm * 2
                     visible: spaceTab.active && dashboard.overlay !== "rename"
                     text: spaceTab.modelData.name
-                    color: Color.accent
+                    color: Commons.Color.accent
                     font.family: Style.font.family
                     font.pixelSize: Style.font.subtitle
                     font.bold: true
@@ -452,9 +453,9 @@ PanelWindow {
                     anchors.fill: parent
                     visible: spaceTab.active && dashboard.overlay === "rename"
                     radius: Style.cornerRadius
-                    color: Style.normalFillFor(Color.popups.text, Color.accent)
+                    color: Style.normalFillFor(Commons.Color.popups.text, Commons.Color.accent)
                     border.width: 1
-                    border.color: Color.accent
+                    border.color: Commons.Color.accent
 
                     TextInput {
                       id: inlineNameInput
@@ -463,8 +464,8 @@ PanelWindow {
                       anchors.rightMargin: Style.spacing.sm
                       visible: parent.visible
                       text: visible ? root.editorText : ""
-                      color: Color.popups.text
-                      selectionColor: Color.accent
+                      color: Commons.Color.popups.text
+                      selectionColor: Commons.Color.accent
                       verticalAlignment: TextInput.AlignVCenter
                       font.family: Style.font.family
                       font.pixelSize: Style.font.body
@@ -552,7 +553,7 @@ PanelWindow {
               textFormat: Text.PlainText
               anchors.verticalCenter: parent.verticalCenter
               text: "Appearance"
-              color: Color.popups.text
+              color: Commons.Color.popups.text
               opacity: 0.62
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
@@ -602,7 +603,7 @@ PanelWindow {
               textFormat: Text.PlainText
               anchors.verticalCenter: parent.verticalCenter
               text: "Add"
-              color: Color.popups.text
+              color: Commons.Color.popups.text
               opacity: 0.62
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
@@ -676,9 +677,9 @@ PanelWindow {
             height: Style.space(42)
             visible: dashboard.placingDivider
             radius: Style.cornerRadius > 0 ? height / 2 : 0
-            color: Color.popups.background
+            color: Commons.Color.popups.background
             border.width: 1
-            border.color: Color.accent
+            border.color: Commons.Color.accent
             z: 60
 
             Row {
@@ -690,7 +691,7 @@ PanelWindow {
                 textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Drag between two grid points; the axis locks automatically"
-                color: Color.popups.text
+                color: Commons.Color.popups.text
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
               }
@@ -712,8 +713,18 @@ PanelWindow {
             anchors.centerIn: parent
             clip: true
 
-            onWidthChanged: if (root.visible) dashboard.updateGridBounds(width, height)
-            onHeightChanged: if (root.visible) dashboard.updateGridBounds(width, height)
+            // Qt 6.12 evaluates dependent bindings eagerly, so committing
+            // canvas bounds synchronously from a size change re-enters
+            // fittedBounds and trips the binding-loop detector on first
+            // layout. Coalesce into one deferred flush per event-loop turn.
+            function queueGridBoundsUpdate() {
+              if (root.visible) Qt.callLater(flushGridBoundsUpdate)
+            }
+            function flushGridBoundsUpdate() {
+              if (root.visible) dashboard.updateGridBounds(width, height)
+            }
+            onWidthChanged: queueGridBoundsUpdate()
+            onHeightChanged: queueGridBoundsUpdate()
 
             Canvas {
               id: dotGrid
@@ -728,7 +739,7 @@ PanelWindow {
               onPaint: {
                 var context = getContext("2d")
                 context.reset()
-                context.fillStyle = Color.popups.text
+                context.fillStyle = Commons.Color.popups.text
                 var spacing = Math.max(5, gridSpacing)
                 var radius = 0.8
 
@@ -811,7 +822,7 @@ PanelWindow {
                   ? Math.max(2, Style.space(2))
                   : Math.abs(dividerDraft.draft.y2 - dividerDraft.draft.y1)
                 radius: Math.min(width, height) / 2
-                color: Color.accent
+                color: Commons.Color.accent
               }
             }
 
@@ -868,7 +879,7 @@ PanelWindow {
                 textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Grid step"
-                color: Color.popups.text
+                color: Commons.Color.popups.text
                 opacity: 0.72
                 font.family: Style.font.family
                 font.pixelSize: Style.font.caption
@@ -883,12 +894,12 @@ PanelWindow {
                 width: Style.space(58)
                 height: Style.space(28)
                 radius: Style.cornerRadius > 0 ? height / 2 : 0
-                color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.06)
+                color: Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.06)
                 Text {
                   textFormat: Text.PlainText
                   anchors.centerIn: parent
                   text: dashboard.dashboardState.gridSpacing + " px"
-                  color: Color.popups.text
+                  color: Commons.Color.popups.text
                   font.family: Style.font.family
                   font.pixelSize: Style.font.caption
                 }
@@ -911,7 +922,7 @@ PanelWindow {
                 textFormat: Text.PlainText
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "󰕮"
-                color: Color.popups.text
+                color: Commons.Color.popups.text
                 opacity: 0.25
                 font.family: Style.font.family
                 font.pixelSize: Style.space(64)
@@ -920,7 +931,7 @@ PanelWindow {
                 textFormat: Text.PlainText
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "This Space is empty"
-                color: Color.popups.text
+                color: Commons.Color.popups.text
                 font.family: Style.font.family
                 font.pixelSize: Style.font.subtitle
               }

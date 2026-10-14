@@ -3,6 +3,27 @@
 User-visible changes are grouped by release. A version marked **Unreleased**
 is being tested on `dev`; `main` is the stable installation branch.
 
+## [1.8.4] — 2026-10-14
+
+### Fixed
+
+- Render Dashboard again on Omarchy installs updated to Qt 6.12 (quickshell
+  0.3.2). Qt 6.12 ships its own `Color` type that shadowed the palette
+  singleton, leaving tiles, dialogs and controls without colors. Every palette
+  reference is now qualified as `Commons.Color`, matching the Shell's own
+  migration.
+- Lay out the grid canvas reliably on first open. Qt 6.12 evaluates dependent
+  bindings eagerly, which turned the canvas-bounds feedback into a detected
+  binding loop and broke the initial sizing; canvas bounds now commit once per
+  layout pass.
+- Disable the `ShellIpc` handlers that current Omarchy panels declare, so
+  embedded copies of updated panels such as Bluetooth render without trying to
+  own the IPC target the bar panel already serves.
+
+### Development
+
+- Add an adapter regression test for the `ShellIpc` wrapper.
+
 ## [1.8.3] — 2026-09-20
 
 ### Fixed
@@ -103,4 +124,5 @@ baseline without assigning a retrospective release date.
 [1.8.1]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.0...v1.8.1
 [1.8.2]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.1...v1.8.2
 [1.8.3]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.2...v1.8.3
+[1.8.4]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.3...v1.8.4
 [1.8.0]: https://github.com/grigoryshulga/omarchy-dashboard/compare/dfb7f4c...v1.8.0

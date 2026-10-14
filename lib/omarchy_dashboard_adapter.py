@@ -280,7 +280,7 @@ def dashboard_replacements(
     for node in nodes:
         if not contains(root, node):
             continue
-        if node.type_name == "IpcHandler":
+        if node.type_name in ("IpcHandler", "ShellIpc"):
             replacements.append((node.type_token.start, node.type_token.end, "DashboardDisabledIpc"))
         elif node.type_name in ("BarIconButton", "WidgetButton"):
             replacements.append((node.type_token.start, node.type_token.end, "DashboardHiddenBarButton"))

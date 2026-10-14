@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "GridEngine.js" as GridEngine
 import "../state/DashboardModel.js" as DashboardModel
 
@@ -159,7 +160,7 @@ Item {
       anchors.fill: parent
       objectName: "graphicText"
       text: String(root.element.text || "")
-      color: Color.popups.text
+      color: Commons.Color.popups.text
       font.family: Style.font.family
       font.bold: true
       font.pixelSize: Math.max(Style.font.title, Math.min(Style.space(180), height * 0.78))
@@ -176,7 +177,7 @@ Item {
       visible: root.editing && root.selected
       color: "transparent"
       border.width: 1
-      border.color: Color.accent
+      border.color: Commons.Color.accent
       radius: Style.cornerRadius
     }
 
@@ -201,15 +202,15 @@ Item {
       height: width
       visible: root.editing && root.selected
       radius: Style.cornerRadius
-      color: textResizeArea.containsMouse ? Color.accent : Color.popups.background
+      color: textResizeArea.containsMouse ? Commons.Color.accent : Commons.Color.popups.background
       border.width: 1
-      border.color: Color.accent
+      border.color: Commons.Color.accent
       z: 5
       Text {
         textFormat: Text.PlainText
         anchors.centerIn: parent
         text: "\uf065"
-        color: Color.popups.text
+        color: Commons.Color.popups.text
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
       }
@@ -233,15 +234,15 @@ Item {
       height: width
       visible: root.editing && root.selected
       radius: Style.cornerRadius
-      color: textRemoveArea.containsMouse ? Color.accent : Color.popups.background
+      color: textRemoveArea.containsMouse ? Commons.Color.accent : Commons.Color.popups.background
       border.width: 1
-      border.color: Color.accent
+      border.color: Commons.Color.accent
       z: 5
       Text {
         textFormat: Text.PlainText
         anchors.centerIn: parent
         text: "\uf1f8"
-        color: Color.popups.text
+        color: Commons.Color.popups.text
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
       }
@@ -273,7 +274,7 @@ Item {
       width: root.horizontalDivider ? parent.width : root.dividerThickness
       height: root.horizontalDivider ? root.dividerThickness : parent.height
       radius: Math.min(width, height) / 2
-      color: root.selected ? Color.accent : Color.popups.text
+      color: root.selected ? Commons.Color.accent : Commons.Color.popups.text
       opacity: root.selected ? 1 : 0.48
     }
 
@@ -302,9 +303,9 @@ Item {
       radius: width / 2
       x: (atStart ? root.shown.x1 : root.shown.x2) - width / 2
       y: (atStart ? root.shown.y1 : root.shown.y2) - height / 2
-      color: endpointMouse.containsMouse ? Color.accent : Color.popups.background
+      color: endpointMouse.containsMouse ? Commons.Color.accent : Commons.Color.popups.background
       border.width: 2
-      border.color: Color.accent
+      border.color: Commons.Color.accent
       z: 6
       MouseArea {
         id: endpointMouse
@@ -329,15 +330,15 @@ Item {
     width: Style.space(24)
     height: width
     radius: width / 2
-    color: dividerRemoveArea.containsMouse ? Color.accent : Color.popups.background
+    color: dividerRemoveArea.containsMouse ? Commons.Color.accent : Commons.Color.popups.background
     border.width: 1
-    border.color: Color.accent
+    border.color: Commons.Color.accent
     z: 7
     Text {
       textFormat: Text.PlainText
       anchors.centerIn: parent
       text: "\uf1f8"
-      color: Color.popups.text
+      color: Commons.Color.popups.text
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
     }

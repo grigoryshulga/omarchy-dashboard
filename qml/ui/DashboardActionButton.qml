@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 // Compact expanding pill, matching omarchy-side-panel's chrome language.
 Rectangle {
@@ -11,7 +12,7 @@ Rectangle {
   property bool active: false
   property bool expandOnHover: true
   property bool alwaysExpanded: false
-  property color foreground: Color.popups.text
+  property color foreground: Commons.Color.popups.text
   signal clicked()
 
   readonly property bool hasIcon: icon.length > 0
@@ -26,9 +27,9 @@ Rectangle {
   radius: Style.cornerRadius > 0 ? height / 2 : 0
   clip: true
   opacity: enabled ? 1 : 0.42
-  color: accent ? Color.accent
-    : (active ? Style.selectedFillFor(foreground, Color.accent)
-      : (mouse.containsMouse ? Style.hoverFillFor(foreground, Color.accent)
+  color: accent ? Commons.Color.accent
+    : (active ? Style.selectedFillFor(foreground, Commons.Color.accent)
+      : (mouse.containsMouse ? Style.hoverFillFor(foreground, Commons.Color.accent)
         : Qt.rgba(foreground.r, foreground.g, foreground.b, 0.06)))
 
   Behavior on width { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
@@ -41,7 +42,7 @@ Rectangle {
     Text {
       textFormat: Text.PlainText
       text: root.icon
-      color: root.accent ? Color.background : root.foreground
+      color: root.accent ? Commons.Color.background : root.foreground
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
       font.bold: true
@@ -50,7 +51,7 @@ Rectangle {
       textFormat: Text.PlainText
       visible: root.expanded
       text: root.text
-      color: root.accent ? Color.background : root.foreground
+      color: root.accent ? Commons.Color.background : root.foreground
       font.family: Style.font.family
       font.pixelSize: Style.font.caption
     }
@@ -62,7 +63,7 @@ Rectangle {
     anchors.centerIn: parent
     visible: !root.hasIcon
     text: root.text
-    color: root.accent ? Color.background : root.foreground
+  color: root.accent ? Commons.Color.background : root.foreground
     font.family: Style.font.family
     font.pixelSize: Style.font.bodySmall
   }
