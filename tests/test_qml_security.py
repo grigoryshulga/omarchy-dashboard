@@ -24,8 +24,14 @@ class QmlSecurityTests(unittest.TestCase):
         self.assertIn("iconTimeout", source)
         self.assertIn("omarchy-plugin-catalog", source)
         self.assertIn('"plugin", "list", "--json"', source)
-        self.assertIn("OMARCHY_PATH=/usr/share/omarchy", source)
-        self.assertIn("PATH=/usr/local/bin:/usr/bin:/bin", source)
+        # The helper environment mirrors the live shell session (a dev
+        # checkout runs from another OMARCHY_PATH than the packaged one); the
+        # packaged default is only a fallback inside the pure builder.
+        self.assertIn("helperEnvironment", source)
+        self.assertNotIn("OMARCHY_PATH=/usr/share/omarchy", source)
+        builder = (ROOT / "qml" / "plugins" / "PluginCatalogModel.js").read_text(encoding="utf-8")
+        self.assertIn('"/usr/share/omarchy"', builder)
+        self.assertIn('"PATH=/usr/local/bin:/usr/bin:/bin"', builder)
         self.assertNotIn("resolveEnabledId", source)
 
     def test_every_text_renderer_is_explicitly_plain_text(self) -> None:

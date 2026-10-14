@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Commons as Commons
@@ -72,6 +73,17 @@ Item {
   readonly property var availablePlugins: discoverAvailablePlugins()
   readonly property var hostEntries: HostPlacements.entries(
     shell ? shell.shellConfig : null, dashboardPluginId)
+  // Live session values for helper processes. omarchy-shell reaches the
+  // running shell through a socket named after OMARCHY_PATH and the Wayland
+  // display, so the plugin list helper must run under the same values this
+  // plugin itself runs under — a dev checkout is not /usr/share/omarchy.
+  readonly property var liveHelperEnvironment: ({
+    HOME: Quickshell.env("HOME"),
+    OMARCHY_PATH: Quickshell.env("OMARCHY_PATH"),
+    XDG_RUNTIME_DIR: Quickshell.env("XDG_RUNTIME_DIR"),
+    WAYLAND_DISPLAY: Quickshell.env("WAYLAND_DISPLAY")
+  })
+
 
   function boundedText(value, maximum) {
     var text = value === undefined || value === null ? "" : String(value)
@@ -647,10 +659,8 @@ Item {
       "/usr/bin/python3", "-I", pluginDirectory + "/bin/omarchy-dashboard-run-helper",
       "--max-bytes", String(maxHelperOutputLength), "--timeout-seconds", "5", "--"
     ]
-    var environment = [
-      "/usr/bin/env", "HOME=" + String(dashboardHost.home || ""),
-      "OMARCHY_PATH=/usr/share/omarchy", "PATH=/usr/local/bin:/usr/bin:/bin"
-    ]
+    var environment = ["/usr/bin/env"].concat(
+      PluginCatalogModel.helperEnvironment(liveHelperEnvironment))
     pluginListProcess.command = helper.concat(environment).concat([
       "/usr/share/omarchy/bin/omarchy", "plugin", "list", "--json"
     ])

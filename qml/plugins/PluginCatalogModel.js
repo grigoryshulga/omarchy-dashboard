@@ -38,6 +38,30 @@ function catalogSourcesKey(listRaw, catalogRaw) {
   return String(listRaw || "") + "\u0000" + String(catalogRaw || "")
 }
 
+// The plugin list is answered by the live shell over a socket whose name
+// hashes the running OMARCHY_PATH and Wayland display (omarchy-shell). A dev
+// checkout or custom install runs from a different path than the packaged
+// /usr/share/omarchy, so helper processes must inherit the same values this
+// plugin runs under; only missing ones fall back to the packaged defaults.
+function helperEnvironment(source) {
+  var live = source && typeof source === "object" ? source : ({})
+  function absolute(name, fallback) {
+    var value = boundedText(live[name], 4096).trim()
+    return value.charAt(0) === "/" ? value : fallback
+  }
+
+  var pairs = [
+    "HOME=" + boundedText(live.HOME, 4096),
+    "OMARCHY_PATH=" + absolute("OMARCHY_PATH", "/usr/share/omarchy"),
+    "PATH=/usr/local/bin:/usr/bin:/bin"
+  ]
+  var runtimeDirectory = absolute("XDG_RUNTIME_DIR", "")
+  if (runtimeDirectory) pairs.push("XDG_RUNTIME_DIR=" + runtimeDirectory)
+  var display = boundedText(live.WAYLAND_DISPLAY, 4096).trim()
+  if (display) pairs.push("WAYLAND_DISPLAY=" + display)
+  return pairs
+}
+
 // Copy a lookup table without one key so a single plugin can be invalidated
 // without rebuilding the whole object graph.
 function withoutKey(source, key) {
