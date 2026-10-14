@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "../ui" as Ui
 
 Item {
@@ -32,7 +33,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.78)
+    color: Qt.rgba(Commons.Color.background.r, Commons.Color.background.g, Commons.Color.background.b, 0.78)
   }
   MouseArea { anchors.fill: parent; onClicked: root.closeRequested() }
 
@@ -41,9 +42,9 @@ Item {
     width: Math.min(parent.width - Style.space(48), Style.space(620))
     height: Math.min(parent.height - Style.space(48), shortcutsColumn.implicitHeight + Style.spacing.lg * 2)
     radius: Style.cornerRadius
-    color: Color.popups.background
+    color: Commons.Color.popups.background
     border.width: 1
-    border.color: Color.popups.border
+    border.color: Commons.Color.popups.border
     MouseArea { anchors.fill: parent; onClicked: {} }
 
     Column {
@@ -62,7 +63,7 @@ Item {
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
           text: "Keyboard shortcuts"
-          color: Color.popups.text
+          color: Commons.Color.popups.text
           font.family: Style.font.family
           font.pixelSize: Style.font.title
           font.bold: true
@@ -89,12 +90,12 @@ Item {
             width: Style.space(180)
             height: Math.max(Style.space(25), parent.height - Style.spacing.xs * 2)
             radius: Style.cornerRadius
-            color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.07)
+            color: Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.07)
             Text {
               textFormat: Text.PlainText
               anchors.centerIn: parent
               text: modelData.key
-              color: Color.accent
+              color: Commons.Color.accent
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
               elide: Text.ElideRight
@@ -108,7 +109,7 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: modelData.action
-            color: Color.popups.text
+            color: Commons.Color.popups.text
             font.family: Style.font.family
             font.pixelSize: Style.font.bodySmall
             wrapMode: Text.WordWrap

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "../ui" as Ui
 
 Item {
@@ -37,7 +38,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.78)
+    color: Qt.rgba(Commons.Color.background.r, Commons.Color.background.g, Commons.Color.background.b, 0.78)
   }
   MouseArea { anchors.fill: parent; onClicked: root.closeRequested() }
 
@@ -46,9 +47,9 @@ Item {
     width: Math.min(parent.width - Style.space(48), Style.space(680))
     height: Math.min(parent.height - Style.space(48), Style.space(720))
     radius: Style.cornerRadius
-    color: Color.popups.background
+    color: Commons.Color.popups.background
     border.width: 1
-    border.color: Color.popups.border
+    border.color: Commons.Color.popups.border
     MouseArea { anchors.fill: parent; onClicked: {} }
 
     Column {
@@ -64,7 +65,7 @@ Item {
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
           text: "Add Plugin"
-          color: Color.popups.text
+          color: Commons.Color.popups.text
           font.family: Style.font.family
           font.pixelSize: Style.font.title
           font.bold: true
@@ -82,15 +83,15 @@ Item {
         width: parent.width
         height: Style.space(42)
         radius: Style.cornerRadius
-        color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.06)
+        color: Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.06)
         border.width: 1
-        border.color: filterInput.activeFocus ? Color.accent : Color.popups.border
+        border.color: filterInput.activeFocus ? Commons.Color.accent : Commons.Color.popups.border
         TextInput {
           id: filterInput
           anchors.fill: parent
           anchors.margins: Style.spacing.sm
-          color: Color.popups.text
-          selectionColor: Color.accent
+          color: Commons.Color.popups.text
+          selectionColor: Commons.Color.accent
           font.family: Style.font.family
           font.pixelSize: Style.font.body
           maximumLength: 160
@@ -109,7 +110,7 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           visible: filterInput.text.length === 0
           text: "Search installed plugins…"
-          color: Color.popups.text
+          color: Commons.Color.popups.text
           opacity: 0.4
           font.family: Style.font.family
           font.pixelSize: Style.font.body
@@ -127,9 +128,9 @@ Item {
         highlightMoveDuration: 80
         highlight: Rectangle {
           radius: Style.cornerRadius
-          color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.16)
+          color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.16)
           border.width: 1
-          border.color: Color.accent
+          border.color: Commons.Color.accent
         }
         delegate: Rectangle {
           id: pluginRow
@@ -139,10 +140,10 @@ Item {
           height: Style.space(76)
           radius: Style.cornerRadius
           color: rowMouse.containsMouse || ListView.isCurrentItem
-            ? Style.hoverFillFor(Color.popups.text, Color.accent)
-            : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.035)
+            ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent)
+            : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.035)
           border.width: 1
-          border.color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.1)
+          border.color: Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.1)
 
           Column {
             anchors.left: parent.left
@@ -155,7 +156,7 @@ Item {
               textFormat: Text.PlainText
               width: parent.width
               text: pluginRow.modelData.name
-              color: Color.popups.text
+              color: Commons.Color.popups.text
               font.family: Style.font.family
               font.pixelSize: Style.font.body
               font.bold: true
@@ -165,7 +166,7 @@ Item {
               textFormat: Text.PlainText
               width: parent.width
               text: pluginRow.modelData.description || pluginRow.modelData.id
-              color: Color.popups.text
+              color: Commons.Color.popups.text
               opacity: 0.58
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
@@ -177,7 +178,7 @@ Item {
               text: pluginRow.modelData.pending
                 ? "Pending placement · " + pluginRow.modelData.compatibility
                 : pluginRow.modelData.compatibility
-              color: Color.accent
+              color: Commons.Color.accent
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
               elide: Text.ElideRight
@@ -210,7 +211,7 @@ Item {
           anchors.centerIn: parent
           visible: parent.count === 0
           text: root.plugins.length === 0 ? "No plugins are installed" : "No matching plugins"
-          color: Color.popups.text
+          color: Commons.Color.popups.text
           opacity: 0.55
           font.family: Style.font.family
           font.pixelSize: Style.font.body

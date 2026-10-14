@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
@@ -14,7 +15,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.78)
+    color: Qt.rgba(Commons.Color.background.r, Commons.Color.background.g, Commons.Color.background.b, 0.78)
   }
   MouseArea { anchors.fill: parent; onClicked: root.rejected() }
 
@@ -23,9 +24,9 @@ Item {
     width: Math.min(parent.width - Style.space(48), Style.space(440))
     height: confirmationContent.implicitHeight + Style.spacing.lg * 2
     radius: Style.cornerRadius
-    color: Color.popups.background
+    color: Commons.Color.popups.background
     border.width: 1
-    border.color: Color.popups.border
+    border.color: Commons.Color.popups.border
     MouseArea { anchors.fill: parent; onClicked: {} }
 
     Column {
@@ -40,7 +41,7 @@ Item {
         textFormat: Text.PlainText
         width: parent.width
         text: root.title
-        color: Color.popups.text
+        color: Commons.Color.popups.text
         font.family: Style.font.family
         font.pixelSize: Style.font.title
         font.bold: true
@@ -50,7 +51,7 @@ Item {
         width: parent.width
         text: root.message
         wrapMode: Text.Wrap
-        color: Color.popups.text
+        color: Commons.Color.popups.text
         opacity: 0.76
         font.family: Style.font.family
         font.pixelSize: Style.font.body

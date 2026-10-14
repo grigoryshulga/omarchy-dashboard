@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls as Controls
 import qs.Commons
+import qs.Commons as Commons
 import "../state/DashboardModel.js" as DashboardModel
 
 Row {
@@ -21,7 +22,7 @@ Row {
     anchors.verticalCenter: parent.verticalCenter
     visible: root.textSelected || root.dividerSelected
     text: root.textSelected ? "Align" : "Thickness"
-    color: Color.popups.text
+    color: Commons.Color.popups.text
     opacity: 0.62
     font.family: Style.font.family
     font.pixelSize: Style.font.caption
@@ -46,9 +47,9 @@ Row {
         width: Style.space(28)
         height: width
         radius: Style.cornerRadius
-        color: checked ? Style.selectedFillFor(Color.popups.text, Color.accent)
-          : (mouse.containsMouse ? Style.hoverFillFor(Color.popups.text, Color.accent)
-            : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.06))
+        color: checked ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent)
+          : (mouse.containsMouse ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent)
+            : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.06))
         Accessible.role: Accessible.RadioButton
         Accessible.name: modelData.label
         Accessible.checked: checked
@@ -58,7 +59,7 @@ Row {
           textFormat: Text.PlainText
           anchors.centerIn: parent
           text: button.modelData.icon
-          color: Color.popups.text
+          color: Commons.Color.popups.text
           font.family: Style.font.family
           font.pixelSize: Style.font.bodySmall
         }
@@ -78,15 +79,15 @@ Row {
           contentItem: Text {
             textFormat: Text.PlainText
             text: tooltip.text
-            color: Color.popups.text
+            color: Commons.Color.popups.text
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
           }
           background: Rectangle {
             radius: Style.cornerRadius
-            color: Color.popups.background
+            color: Commons.Color.popups.background
             border.width: 1
-            border.color: Color.accent
+            border.color: Commons.Color.accent
           }
         }
       }
@@ -114,12 +115,12 @@ Row {
       width: thicknessSlider.availableWidth
       height: Style.space(4)
       radius: height / 2
-      color: Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.18)
+      color: Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.18)
       Rectangle {
         width: thicknessSlider.visualPosition * parent.width
         height: parent.height
         radius: parent.radius
-        color: Color.accent
+        color: Commons.Color.accent
       }
     }
     handle: Rectangle {
@@ -128,9 +129,9 @@ Row {
       width: Style.space(14)
       height: width
       radius: width / 2
-      color: Color.popups.text
+      color: Commons.Color.popups.text
       border.width: thicknessSlider.activeFocus || thicknessSlider.pressed ? 2 : 1
-      border.color: Color.accent
+      border.color: Commons.Color.accent
     }
   }
 
@@ -141,7 +142,7 @@ Row {
     visible: root.dividerSelected
     width: Style.space(34)
     text: Math.round(thicknessSlider.value) + " px"
-    color: Color.popups.text
+    color: Commons.Color.popups.text
     font.family: Style.font.family
     font.pixelSize: Style.font.caption
   }

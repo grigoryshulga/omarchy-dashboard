@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 Rectangle {
   id: root
@@ -10,7 +11,7 @@ Rectangle {
   property string title: ""
   property string detail: ""
 
-  readonly property color feedbackColor: valid ? Color.accent : Qt.rgba(0.95, 0.25, 0.30, 1)
+  readonly property color feedbackColor: valid ? Commons.Color.accent : Qt.rgba(0.95, 0.25, 0.30, 1)
 
   radius: Style.cornerRadius
   color: Qt.rgba(feedbackColor.r, feedbackColor.g, feedbackColor.b, 0.18)

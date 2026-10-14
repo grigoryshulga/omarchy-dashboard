@@ -89,6 +89,18 @@ class AdapterTests(unittest.TestCase):
         self.assertIn('sequence: "/"', transformed)
         self.assertIn("// KeyboardPanel { root.controller.hide()", transformed)
 
+    def test_disables_shell_ipc_wrappers_introduced_by_the_shell_update(self):
+        source = PANEL.replace(
+            "  IpcHandler { function close() { root.close() } }",
+            '  ShellIpc { target: "example.plugin"\n'
+            "    function toggle() { root.toggle() }\n"
+            "  }",
+        )
+        transformed = adapter.transform_qml(source)
+        self.assertIn('DashboardDisabledIpc { target: "example.plugin"', transformed)
+        self.assertIn("function toggle() { root.toggle() }", transformed)
+        self.assertNotIn("ShellIpc {", transformed)
+
     def test_disables_single_quoted_escape_without_touching_string_contents(self):
         transformed = adapter.transform_qml(PANEL.replace(
             'sequence: "Escape"', "sequence: 'Escape'"

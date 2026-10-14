@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls as Controls
 import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
@@ -50,8 +51,8 @@ Item {
     radius: Style.cornerRadius
     clip: true
     opacity: enabled ? 1 : 0.4
-    color: primary ? Color.accent : (mouse.containsMouse
-      ? Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.12) : "transparent")
+    color: primary ? Commons.Color.accent : (mouse.containsMouse
+      ? Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.12) : "transparent")
     Accessible.role: Accessible.Button
     Accessible.name: label
     Accessible.onPressAction: if (enabled) clicked()
@@ -60,8 +61,8 @@ Item {
       textFormat: Text.PlainText
       anchors.centerIn: parent
       text: action.icon
-      color: action.primary ? Color.background
-        : (action.destructive ? Qt.rgba(0.95, 0.45, 0.48, 1) : Color.popups.text)
+      color: action.primary ? Commons.Color.background
+        : (action.destructive ? Qt.rgba(0.95, 0.45, 0.48, 1) : Commons.Color.popups.text)
       font.family: Style.font.family
       font.pixelSize: Style.font.bodySmall
     }
@@ -76,15 +77,15 @@ Item {
       contentItem: Text {
         textFormat: Text.PlainText
         text: tooltip.text
-        color: Color.popups.text
+        color: Commons.Color.popups.text
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
       }
       background: Rectangle {
         radius: Style.cornerRadius
-        color: Color.popups.background
+        color: Commons.Color.popups.background
         border.width: 1
-        border.color: Color.accent
+        border.color: Commons.Color.accent
       }
     }
 
@@ -141,7 +142,7 @@ Item {
     height: root.compact ? Math.min(Style.space(28), Math.max(0, root.height - Style.space(6)))
       : Style.space(36)
     radius: Style.cornerRadius
-    color: Color.popups.background
+    color: Commons.Color.popups.background
 
     Loader {
       anchors.centerIn: parent
@@ -172,10 +173,10 @@ Item {
       anchors.margins: -Style.space(2)
       z: -1
       radius: Style.cornerRadius
-      color: Color.popups.background
+      color: Commons.Color.popups.background
     }
     text: root.modeText
-    color: Color.popups.text
+    color: Commons.Color.popups.text
     font.family: Style.font.family
     font.pixelSize: Style.font.caption
     horizontalAlignment: Text.AlignHCenter
@@ -190,7 +191,7 @@ Item {
     width: root.availableWidth
     visible: root.title !== "" && !root.compact && root.height >= Style.space(140)
     text: root.title
-    color: Color.popups.text
+    color: Commons.Color.popups.text
     font.family: Style.font.family
     font.pixelSize: Style.font.body
     font.bold: true
@@ -206,7 +207,7 @@ Item {
     width: root.availableWidth
     visible: !root.compact && root.height >= Style.space(90)
     text: root.detail
-    color: root.canAdd ? Color.popups.text : Qt.rgba(0.95, 0.45, 0.48, 1)
+    color: root.canAdd ? Commons.Color.popups.text : Qt.rgba(0.95, 0.45, 0.48, 1)
     font.family: Style.font.family
     font.pixelSize: Style.font.caption
     horizontalAlignment: Text.AlignHCenter
@@ -233,7 +234,7 @@ Item {
         textFormat: Text.PlainText
         id: popupMode
         text: root.modeText
-        color: Color.popups.text
+        color: Commons.Color.popups.text
         font.family: Style.font.family
         font.pixelSize: Style.font.caption
         anchors.horizontalCenter: parent.horizontalCenter
@@ -246,9 +247,9 @@ Item {
     }
     background: Rectangle {
       radius: Style.cornerRadius
-      color: Color.popups.background
+      color: Commons.Color.popups.background
       border.width: 1
-      border.color: Color.accent
+      border.color: Commons.Color.accent
     }
   }
 }

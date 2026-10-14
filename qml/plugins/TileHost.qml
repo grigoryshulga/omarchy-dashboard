@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "../layout/GridEngine.js" as GridEngine
 import "../layout" as Layout
 import "../ui" as Ui
@@ -341,12 +342,12 @@ Item {
     radius: Style.cornerRadius
     color: !root.tileBackground ? "transparent"
       : root.presentation.kind === "launcher" && actionMouse.containsMouse
-      ? Style.hoverFillFor(Color.popups.text, Color.accent)
-      : Color.popups.background
+      ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent)
+      : Commons.Color.popups.background
     border.width: root.frameWidth
     border.color: root.selected
-      ? Color.accent
-      : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.09)
+      ? Commons.Color.accent
+      : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.09)
 
     Behavior on opacity { NumberAnimation { duration: 90 } }
 
@@ -390,7 +391,7 @@ Item {
           textFormat: Text.PlainText
           anchors.horizontalCenter: parent.horizontalCenter
           text: root.pageError ? "⚠" : "…"
-          color: root.pageError ? Color.accent : Color.popups.text
+          color: root.pageError ? Commons.Color.accent : Commons.Color.popups.text
           opacity: 0.82
           font.family: Style.font.family
           font.pixelSize: Style.space(30)
@@ -399,7 +400,7 @@ Item {
           textFormat: Text.PlainText
           width: parent.width
           text: root.presentation.name || root.tile.label || root.tile.pluginId
-          color: Color.popups.text
+          color: Commons.Color.popups.text
           font.family: Style.font.family
           font.pixelSize: Style.font.title
           font.bold: true
@@ -411,7 +412,7 @@ Item {
           width: parent.width
           visible: text.length > 0
           text: root.pageError || root.presentation.reason || ""
-          color: Color.popups.text
+          color: Commons.Color.popups.text
           opacity: 0.58
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
@@ -455,7 +456,7 @@ Item {
             anchors.centerIn: parent
             visible: root.presentation.iconKind !== "image"
             text: root.presentation.icon
-            color: Color.popups.text
+            color: Commons.Color.popups.text
             font.family: Style.font.family
             font.pixelSize: Math.round(parent.height * 0.72)
           }
@@ -466,7 +467,7 @@ Item {
           width: parent.width
           visible: !root.compactActionTile
           text: root.presentation.name || root.tile.label || root.tile.pluginId
-          color: Color.popups.text
+          color: Commons.Color.popups.text
           font.family: Style.font.family
           font.pixelSize: Style.font.title
           font.bold: true
@@ -481,7 +482,7 @@ Item {
           width: parent.width
           visible: !root.compactActionTile && root.launchError.length > 0
           text: root.launchError
-          color: Color.accent
+          color: Commons.Color.accent
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
           horizontalAlignment: Text.AlignHCenter
@@ -493,7 +494,7 @@ Item {
         anchors.fill: parent
         visible: root.presentation.kind === "control" && root.presentation.active
         radius: Style.cornerRadius
-        color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.10)
+        color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.10)
       }
 
       Column {
@@ -506,7 +507,7 @@ Item {
           textFormat: Text.PlainText
           anchors.horizontalCenter: parent.horizontalCenter
           text: root.presentation.icon
-          color: root.presentation.active ? Color.accent : Color.popups.text
+          color: root.presentation.active ? Commons.Color.accent : Commons.Color.popups.text
           opacity: root.presentation.state === "preparing" ? 0.45 : 0.9
           font.family: Style.font.family
           font.pixelSize: root.compactActionTile
@@ -518,7 +519,7 @@ Item {
           width: parent.width
           visible: !root.compactActionTile
           text: root.presentation.name || root.tile.label
-          color: Color.popups.text
+          color: Commons.Color.popups.text
           font.family: Style.font.family
           font.pixelSize: Style.font.body
           font.bold: true
@@ -532,14 +533,14 @@ Item {
           height: Style.space(24)
           radius: Style.cornerRadius > 0 ? height / 2 : 0
           color: root.presentation.active
-            ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.20)
-            : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.07)
+            ? Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.20)
+            : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.07)
           Text {
             textFormat: Text.PlainText
             id: controlStatus
             anchors.centerIn: parent
             text: root.presentation.statusText || ""
-            color: root.presentation.active ? Color.accent : Color.popups.text
+            color: root.presentation.active ? Commons.Color.accent : Commons.Color.popups.text
             opacity: root.presentation.state === "preparing" ? 0.55 : 0.82
             font.family: Style.font.family
             font.pixelSize: Style.font.caption
@@ -551,7 +552,7 @@ Item {
           width: parent.width
           visible: !root.compactActionTile && root.launchError.length > 0
           text: root.launchError
-          color: Color.accent
+          color: Commons.Color.accent
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
           horizontalAlignment: Text.AlignHCenter
@@ -575,8 +576,8 @@ Item {
       color: "transparent"
       border.width: root.frameWidth
       border.color: root.selected
-        ? Color.accent
-        : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.09)
+        ? Commons.Color.accent
+        : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.09)
       z: 10
     }
 
@@ -587,19 +588,19 @@ Item {
       height: Style.space(58)
       radius: Style.cornerRadius > 0 ? height / 2 : 0
       z: 25
-      color: Qt.rgba(Color.popups.background.r, Color.popups.background.g,
-        Color.popups.background.b, 0.90)
+      color: Qt.rgba(Commons.Color.popups.background.r, Commons.Color.popups.background.g,
+        Commons.Color.popups.background.b, 0.90)
       border.width: 1
       border.color: root.selected
-        ? Color.accent
-        : Qt.rgba(Color.popups.text.r, Color.popups.text.g, Color.popups.text.b, 0.18)
+        ? Commons.Color.accent
+        : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.18)
 
       Text {
         textFormat: Text.PlainText
         id: shortcutText
         anchors.centerIn: parent
         text: root.keyboardShortcut
-        color: root.selected ? Color.accent : Color.popups.text
+        color: root.selected ? Commons.Color.accent : Commons.Color.popups.text
         font.family: Style.font.family
         font.pixelSize: Style.font.title
         font.bold: true

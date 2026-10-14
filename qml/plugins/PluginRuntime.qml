@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import "../layout/GridEngine.js" as GridEngine
 import "HostPlacements.js" as HostPlacements
 import "PluginControls.js" as PluginControls
@@ -61,9 +62,9 @@ Item {
   QtObject {
     id: dashboardBar
 
-    property color barForeground: Color.popups.text
-    property color foreground: Color.popups.text
-    property color urgent: Color.accent
+    property color barForeground: Commons.Color.popups.text
+    property color foreground: Commons.Color.popups.text
+    property color urgent: Commons.Color.accent
     property string fontFamily: Style.font.family
     property var shell: root.shell
   }

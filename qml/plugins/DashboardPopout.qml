@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "PopoutGeometry.js" as PopoutGeometry
 import "../ui" as Ui
 
@@ -111,7 +112,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Qt.rgba(Color.background.r, Color.background.g, Color.background.b, 0.24)
+    color: Qt.rgba(Commons.Color.background.r, Commons.Color.background.g, Commons.Color.background.b, 0.24)
     MouseArea {
       anchors.fill: parent
       onClicked: root.closeRequested()
@@ -124,9 +125,9 @@ Item {
     width: root.geometry.width
     height: root.geometry.height
     radius: Style.cornerRadius
-    color: Color.popups.background
+    color: Commons.Color.popups.background
     border.width: 1
-    border.color: Color.accent
+    border.color: Commons.Color.accent
 
     MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -146,7 +147,7 @@ Item {
         anchors.rightMargin: Style.spacing.sm
         anchors.verticalCenter: parent.verticalCenter
         text: root.presentation.name || "Plugin"
-        color: Color.popups.text
+        color: Commons.Color.popups.text
         font.family: Style.font.family
         font.pixelSize: Style.font.body
         elide: Text.ElideRight
@@ -162,7 +163,7 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           visible: root.sizeError !== "" || card.width > Style.space(460)
           text: root.sizeError || (Math.round(card.width) + " × " + Math.round(card.height))
-          color: root.sizeError ? Color.accent : Color.popups.text
+          color: root.sizeError ? Commons.Color.accent : Commons.Color.popups.text
           opacity: 0.6
           font.family: Style.font.family
           font.pixelSize: Style.font.caption
@@ -213,7 +214,7 @@ Item {
           textFormat: Text.PlainText
           anchors.horizontalCenter: parent.horizontalCenter
           text: root.pageError ? "⚠" : "…"
-          color: root.pageError ? Color.accent : Color.popups.text
+          color: root.pageError ? Commons.Color.accent : Commons.Color.popups.text
           font.family: Style.font.family
           font.pixelSize: Style.space(32)
         }
@@ -221,7 +222,7 @@ Item {
           textFormat: Text.PlainText
           width: parent.width
           text: root.pageError || root.presentation.reason || "Preparing plugin…"
-          color: Color.popups.text
+          color: Commons.Color.popups.text
           opacity: 0.7
           font.family: Style.font.family
           font.pixelSize: Style.font.body
@@ -237,12 +238,12 @@ Item {
       width: Style.space(24)
       height: width
       radius: Style.cornerRadius
-      color: Color.popups.background
+      color: Commons.Color.popups.background
       Text {
         textFormat: Text.PlainText
         anchors.centerIn: parent
         text: "◢"
-        color: Color.accent
+        color: Commons.Color.accent
         font.pixelSize: Style.font.caption
       }
       MouseArea {
