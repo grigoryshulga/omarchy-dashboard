@@ -61,6 +61,47 @@ TestCase {
     verify(PluginCatalogModel.catalogSourcesKey(undefined, null) !== "")
   }
 
+  function test_helper_environment_reaches_the_live_shell_socket() {
+    // omarchy-shell names its socket after the running OMARCHY_PATH and
+    // Wayland display, so a dev checkout must pass its own values through.
+    compare(PluginCatalogModel.helperEnvironment({
+      HOME: "/home/dev", OMARCHY_PATH: "/home/dev/omarchy",
+      XDG_RUNTIME_DIR: "/run/user/1000", WAYLAND_DISPLAY: "wayland-1"
+    }), [
+      "HOME=/home/dev",
+      "OMARCHY_PATH=/home/dev/omarchy",
+      "PATH=/usr/local/bin:/usr/bin:/bin",
+      "XDG_RUNTIME_DIR=/run/user/1000",
+      "WAYLAND_DISPLAY=wayland-1"
+    ])
+  }
+
+  function test_helper_environment_falls_back_to_packaged_defaults() {
+    compare(PluginCatalogModel.helperEnvironment({}), [
+      "HOME=",
+      "OMARCHY_PATH=/usr/share/omarchy",
+      "PATH=/usr/local/bin:/usr/bin:/bin"
+    ])
+    // Relative or empty paths are not forwarded; only absolute ones are.
+    compare(PluginCatalogModel.helperEnvironment({
+      HOME: "/home/dev", OMARCHY_PATH: "relative/omarchy", XDG_RUNTIME_DIR: "run/1000"
+    }), [
+      "HOME=/home/dev",
+      "OMARCHY_PATH=/usr/share/omarchy",
+      "PATH=/usr/local/bin:/usr/bin:/bin"
+    ])
+    // An absolute display names its socket directly; omarchy-shell accepts it.
+    compare(PluginCatalogModel.helperEnvironment({
+      HOME: "/home/dev", WAYLAND_DISPLAY: "/run/user/1000/wayland-1"
+    }), [
+      "HOME=/home/dev",
+      "OMARCHY_PATH=/usr/share/omarchy",
+      "PATH=/usr/local/bin:/usr/bin:/bin",
+      "WAYLAND_DISPLAY=/run/user/1000/wayland-1"
+    ])
+
+  }
+
   function test_without_key_copies_a_lookup_table_minus_one_entry() {
     var table = { "plugin.one": { url: "a" }, "plugin.two": { url: "b" } }
     var filtered = PluginCatalogModel.withoutKey(table, "plugin.one")
