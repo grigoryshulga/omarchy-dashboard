@@ -1,11 +1,12 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 
 Item {
   id: root
+
+  HostChrome { id: hostChrome }
 
   property bool verticalGuideVisible: false
   property bool horizontalGuideVisible: false
@@ -18,19 +19,19 @@ Item {
 
   Rectangle {
     x: Math.round(root.verticalGuidePosition - width / 2)
-    width: Math.max(1, Style.space(1))
+    width: Math.max(1, hostChrome.space(1))
     height: parent.height
     visible: root.verticalGuideVisible
-    color: Commons.Color.accent
+    color: hostChrome.accent
     opacity: 0.58
   }
 
   Rectangle {
     y: Math.round(root.horizontalGuidePosition - height / 2)
     width: parent.width
-    height: Math.max(1, Style.space(1))
+    height: Math.max(1, hostChrome.space(1))
     visible: root.horizontalGuideVisible
-    color: Commons.Color.accent
+    color: hostChrome.accent
     opacity: 0.58
   }
 }

@@ -1,11 +1,12 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 
 Item {
   id: root
+
+  HostChrome { id: hostChrome }
 
   property string title: "Confirm action"
   property string message: ""
@@ -15,18 +16,18 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Qt.rgba(Commons.Color.background.r, Commons.Color.background.g, Commons.Color.background.b, 0.78)
+    color: Qt.rgba(hostChrome.background.r, hostChrome.background.g, hostChrome.background.b, 0.78)
   }
   MouseArea { anchors.fill: parent; onClicked: root.rejected() }
 
   Rectangle {
     anchors.centerIn: parent
-    width: Math.min(parent.width - Style.space(48), Style.space(440))
-    height: confirmationContent.implicitHeight + Style.spacing.lg * 2
-    radius: Style.cornerRadius
-    color: Commons.Color.popups.background
-    border.width: 1
-    border.color: Commons.Color.popups.border
+    width: Math.min(parent.width - hostChrome.space(48), hostChrome.space(440))
+    height: confirmationContent.implicitHeight + hostChrome.spaceLg * 2
+    radius: hostChrome.cornerRadius
+    color: hostChrome.popupBackground
+    border.width: hostChrome.borderWidth
+    border.color: hostChrome.popupBorder
     MouseArea { anchors.fill: parent; onClicked: {} }
 
     Column {
@@ -34,16 +35,16 @@ Item {
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
-      anchors.margins: Style.spacing.lg
-      spacing: Style.spacing.md
+      anchors.margins: hostChrome.spaceLg
+      spacing: hostChrome.spaceMd
 
       Text {
         textFormat: Text.PlainText
         width: parent.width
         text: root.title
-        color: Commons.Color.popups.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.title
+        color: hostChrome.popupText
+        font.family: hostChrome.fontFamily
+        font.pixelSize: hostChrome.fontTitle
         font.bold: true
       }
       Text {
@@ -51,14 +52,14 @@ Item {
         width: parent.width
         text: root.message
         wrapMode: Text.Wrap
-        color: Commons.Color.popups.text
+        color: hostChrome.popupText
         opacity: 0.76
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
+        font.family: hostChrome.fontFamily
+        font.pixelSize: hostChrome.fontBody
       }
       Row {
         anchors.right: parent.right
-        spacing: Style.spacing.sm
+        spacing: hostChrome.spaceSm
 
         DashboardActionButton {
           text: "Cancel"

@@ -1,13 +1,15 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
+import "../system"
 import "GridEngine.js" as GridEngine
 import "../plugins/PluginPresentation.js" as PluginPresentation
 import "../ui" as Ui
 
 Item {
   id: root
+
+  HostChrome { id: hostChrome }
 
   required property var dashboard
   required property Item canvas
@@ -26,7 +28,7 @@ Item {
   readonly property var draft: dashboard.placementDraft
   readonly property var rect: draft ? draft.rect : ({ x: 0, y: 0, w: 0, h: 0 })
   readonly property bool valid: dashboard.placementValid
-  readonly property real resizeHandleWidth: Math.max(Style.space(10), Style.spacing.sm * 2)
+  readonly property real resizeHandleWidth: Math.max(hostChrome.space(10), hostChrome.spaceSm * 2)
 
   x: rect.x
   y: rect.y

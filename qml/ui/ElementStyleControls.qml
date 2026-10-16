@@ -2,12 +2,13 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls as Controls
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 import "../state/DashboardModel.js" as DashboardModel
 
 Row {
   id: root
+
+  HostChrome { id: hostChrome }
 
   property var element: null
   readonly property bool textSelected: element !== null && element.kind === "text"
@@ -15,23 +16,23 @@ Row {
   signal alignmentRequested(string alignment)
   signal thicknessRequested(int thickness)
 
-  spacing: Style.spacing.sm
+  spacing: hostChrome.spaceSm
 
   Text {
     textFormat: Text.PlainText
     anchors.verticalCenter: parent.verticalCenter
     visible: root.textSelected || root.dividerSelected
     text: root.textSelected ? "Align" : "Thickness"
-    color: Commons.Color.popups.text
+    color: hostChrome.popupText
     opacity: 0.62
-    font.family: Style.font.family
-    font.pixelSize: Style.font.caption
+    font.family: hostChrome.fontFamily
+    font.pixelSize: hostChrome.fontCaption
   }
 
   Row {
     objectName: "textAlignmentControls"
     visible: root.textSelected
-    spacing: Style.spacing.xs
+    spacing: hostChrome.spaceXs
     Repeater {
       model: [
         { alignment: "left", icon: "\uf036", label: "Align left" },
@@ -44,12 +45,12 @@ Row {
         readonly property bool checked: root.textSelected
           && DashboardModel.normalizeTextAlignment(root.element.alignment) === modelData.alignment
         objectName: "align-" + modelData.alignment
-        width: Style.space(28)
+        width: hostChrome.space(28)
         height: width
-        radius: Style.cornerRadius
-        color: checked ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent)
-          : (mouse.containsMouse ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent)
-            : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.06))
+        radius: hostChrome.cornerRadius
+        color: checked ? hostChrome.selectedFill(hostChrome.popupText, hostChrome.accent)
+          : (mouse.containsMouse ? hostChrome.hoverFill(hostChrome.popupText, hostChrome.accent)
+            : Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.06))
         Accessible.role: Accessible.RadioButton
         Accessible.name: modelData.label
         Accessible.checked: checked
@@ -59,9 +60,9 @@ Row {
           textFormat: Text.PlainText
           anchors.centerIn: parent
           text: button.modelData.icon
-          color: Commons.Color.popups.text
-          font.family: Style.font.family
-          font.pixelSize: Style.font.bodySmall
+          color: hostChrome.popupText
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontBodySmall
         }
         MouseArea {
           id: mouse
@@ -75,19 +76,19 @@ Row {
           visible: button.visible && mouse.containsMouse
           delay: 400
           text: button.modelData.label
-          padding: Style.spacing.sm
+          padding: hostChrome.spaceSm
           contentItem: Text {
             textFormat: Text.PlainText
             text: tooltip.text
-            color: Commons.Color.popups.text
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            color: hostChrome.popupText
+            font.family: hostChrome.fontFamily
+            font.pixelSize: hostChrome.fontCaption
           }
           background: Rectangle {
-            radius: Style.cornerRadius
-            color: Commons.Color.popups.background
+            radius: hostChrome.cornerRadius
+            color: hostChrome.popupBackground
             border.width: 1
-            border.color: Commons.Color.accent
+            border.color: hostChrome.accent
           }
         }
       }
@@ -98,8 +99,8 @@ Row {
     id: thicknessSlider
     objectName: "dividerThicknessSlider"
     visible: root.dividerSelected
-    width: Style.space(120)
-    height: Style.space(28)
+    width: hostChrome.space(120)
+    height: hostChrome.space(28)
     from: DashboardModel.MIN_DIVIDER_THICKNESS
     to: DashboardModel.MAX_DIVIDER_THICKNESS
     stepSize: 1
@@ -113,25 +114,25 @@ Row {
       x: thicknessSlider.leftPadding
       y: (thicknessSlider.height - height) / 2
       width: thicknessSlider.availableWidth
-      height: Style.space(4)
+      height: hostChrome.space(4)
       radius: height / 2
-      color: Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.18)
+      color: Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.18)
       Rectangle {
         width: thicknessSlider.visualPosition * parent.width
         height: parent.height
         radius: parent.radius
-        color: Commons.Color.accent
+        color: hostChrome.accent
       }
     }
     handle: Rectangle {
       x: thicknessSlider.leftPadding + thicknessSlider.visualPosition * (thicknessSlider.availableWidth - width)
       y: (thicknessSlider.height - height) / 2
-      width: Style.space(14)
+      width: hostChrome.space(14)
       height: width
       radius: width / 2
-      color: Commons.Color.popups.text
+      color: hostChrome.popupText
       border.width: thicknessSlider.activeFocus || thicknessSlider.pressed ? 2 : 1
-      border.color: Commons.Color.accent
+      border.color: hostChrome.accent
     }
   }
 
@@ -140,10 +141,10 @@ Row {
     objectName: "dividerThicknessValue"
     anchors.verticalCenter: parent.verticalCenter
     visible: root.dividerSelected
-    width: Style.space(34)
+    width: hostChrome.space(34)
     text: Math.round(thicknessSlider.value) + " px"
-    color: Commons.Color.popups.text
-    font.family: Style.font.family
-    font.pixelSize: Style.font.caption
+    color: hostChrome.popupText
+    font.family: hostChrome.fontFamily
+    font.pixelSize: hostChrome.fontCaption
   }
 }

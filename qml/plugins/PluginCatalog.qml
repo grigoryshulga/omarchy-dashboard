@@ -1,12 +1,13 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 import "../ui" as Ui
 
 Item {
   id: root
+
+  HostChrome { id: hostChrome }
 
   property var plugins: []
   property string filterText: ""
@@ -38,36 +39,36 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Qt.rgba(Commons.Color.background.r, Commons.Color.background.g, Commons.Color.background.b, 0.78)
+    color: Qt.rgba(hostChrome.background.r, hostChrome.background.g, hostChrome.background.b, 0.78)
   }
   MouseArea { anchors.fill: parent; onClicked: root.closeRequested() }
 
   Rectangle {
     anchors.centerIn: parent
-    width: Math.min(parent.width - Style.space(48), Style.space(680))
-    height: Math.min(parent.height - Style.space(48), Style.space(720))
-    radius: Style.cornerRadius
-    color: Commons.Color.popups.background
-    border.width: 1
-    border.color: Commons.Color.popups.border
+    width: Math.min(parent.width - hostChrome.space(48), hostChrome.space(680))
+    height: Math.min(parent.height - hostChrome.space(48), hostChrome.space(720))
+    radius: hostChrome.cornerRadius
+    color: hostChrome.popupBackground
+    border.width: hostChrome.borderWidth
+    border.color: hostChrome.popupBorder
     MouseArea { anchors.fill: parent; onClicked: {} }
 
     Column {
       anchors.fill: parent
-      anchors.margins: Style.spacing.lg
-      spacing: Style.spacing.md
+      anchors.margins: hostChrome.spaceLg
+      spacing: hostChrome.spaceMd
 
       Item {
         width: parent.width
-        height: Style.space(34)
+        height: hostChrome.space(34)
         Text {
           textFormat: Text.PlainText
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
           text: "Add Plugin"
-          color: Commons.Color.popups.text
-          font.family: Style.font.family
-          font.pixelSize: Style.font.title
+          color: hostChrome.popupText
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontTitle
           font.bold: true
         }
         Ui.DashboardActionButton {
@@ -81,19 +82,19 @@ Item {
 
       Rectangle {
         width: parent.width
-        height: Style.space(42)
-        radius: Style.cornerRadius
-        color: Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.06)
+        height: hostChrome.space(42)
+        radius: hostChrome.cornerRadius
+        color: Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.06)
         border.width: 1
-        border.color: filterInput.activeFocus ? Commons.Color.accent : Commons.Color.popups.border
+        border.color: filterInput.activeFocus ? hostChrome.accent : hostChrome.popupBorder
         TextInput {
           id: filterInput
           anchors.fill: parent
-          anchors.margins: Style.spacing.sm
-          color: Commons.Color.popups.text
-          selectionColor: Commons.Color.accent
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
+          anchors.margins: hostChrome.spaceSm
+          color: hostChrome.popupText
+          selectionColor: hostChrome.accent
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontBody
           maximumLength: 160
           focus: root.visible
           onTextChanged: root.filterText = text
@@ -106,59 +107,59 @@ Item {
         Text {
           textFormat: Text.PlainText
           anchors.left: parent.left
-          anchors.leftMargin: Style.spacing.sm
+          anchors.leftMargin: hostChrome.spaceSm
           anchors.verticalCenter: parent.verticalCenter
           visible: filterInput.text.length === 0
           text: "Search installed plugins…"
-          color: Commons.Color.popups.text
+          color: hostChrome.popupText
           opacity: 0.4
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontBody
         }
       }
 
       ListView {
         id: pluginList
         width: parent.width
-        height: parent.height - Style.space(34) - Style.space(42) - parent.spacing * 2
+        height: parent.height - hostChrome.space(34) - hostChrome.space(42) - parent.spacing * 2
         clip: true
-        spacing: Style.spacing.sm
+        spacing: hostChrome.spaceSm
         model: root.filteredPlugins
         currentIndex: count > 0 ? 0 : -1
         highlightMoveDuration: 80
         highlight: Rectangle {
-          radius: Style.cornerRadius
-          color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.16)
+          radius: hostChrome.cornerRadius
+          color: Qt.rgba(hostChrome.accent.r, hostChrome.accent.g, hostChrome.accent.b, 0.16)
           border.width: 1
-          border.color: Commons.Color.accent
+          border.color: hostChrome.accent
         }
         delegate: Rectangle {
           id: pluginRow
           required property var modelData
           required property int index
           width: ListView.view.width
-          height: Style.space(76)
-          radius: Style.cornerRadius
+          height: hostChrome.space(76)
+          radius: hostChrome.cornerRadius
           color: rowMouse.containsMouse || ListView.isCurrentItem
-            ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent)
-            : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.035)
+            ? hostChrome.hoverFill(hostChrome.popupText, hostChrome.accent)
+            : Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.035)
           border.width: 1
-          border.color: Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.1)
+          border.color: Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.1)
 
           Column {
             anchors.left: parent.left
             anchors.right: addButton.left
             anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: Style.spacing.md
-            anchors.rightMargin: Style.spacing.md
-            spacing: Style.spacing.xs
+            anchors.leftMargin: hostChrome.spaceMd
+            anchors.rightMargin: hostChrome.spaceMd
+            spacing: hostChrome.spaceXs
             Text {
               textFormat: Text.PlainText
               width: parent.width
               text: pluginRow.modelData.name
-              color: Commons.Color.popups.text
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
+              color: hostChrome.popupText
+              font.family: hostChrome.fontFamily
+              font.pixelSize: hostChrome.fontBody
               font.bold: true
               elide: Text.ElideRight
             }
@@ -166,10 +167,10 @@ Item {
               textFormat: Text.PlainText
               width: parent.width
               text: pluginRow.modelData.description || pluginRow.modelData.id
-              color: Commons.Color.popups.text
+              color: hostChrome.popupText
               opacity: 0.58
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              font.family: hostChrome.fontFamily
+              font.pixelSize: hostChrome.fontCaption
               elide: Text.ElideRight
             }
             Text {
@@ -178,9 +179,9 @@ Item {
               text: pluginRow.modelData.pending
                 ? "Pending placement · " + pluginRow.modelData.compatibility
                 : pluginRow.modelData.compatibility
-              color: Commons.Color.accent
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              color: hostChrome.accent
+              font.family: hostChrome.fontFamily
+              font.pixelSize: hostChrome.fontCaption
               elide: Text.ElideRight
             }
           }
@@ -188,7 +189,7 @@ Item {
           Ui.DashboardActionButton {
             id: addButton
             anchors.right: parent.right
-            anchors.rightMargin: Style.spacing.md
+            anchors.rightMargin: hostChrome.spaceMd
             anchors.verticalCenter: parent.verticalCenter
             icon: "\uf067"
             text: pluginRow.modelData.pending ? "Place" : "Add"
@@ -198,7 +199,7 @@ Item {
           MouseArea {
             id: rowMouse
             anchors.fill: parent
-            anchors.rightMargin: addButton.width + Style.spacing.lg
+            anchors.rightMargin: addButton.width + hostChrome.spaceLg
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onDoubleClicked: root.pluginRequested(pluginRow.modelData.id)
@@ -211,10 +212,10 @@ Item {
           anchors.centerIn: parent
           visible: parent.count === 0
           text: root.plugins.length === 0 ? "No plugins are installed" : "No matching plugins"
-          color: Commons.Color.popups.text
+          color: hostChrome.popupText
           opacity: 0.55
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontBody
         }
       }
     }

@@ -1,13 +1,14 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 import "GridEngine.js" as GridEngine
 import "../state/DashboardModel.js" as DashboardModel
 
 Item {
   id: root
+
+  HostChrome { id: hostChrome }
 
   required property var dashboard
   required property var element
@@ -26,7 +27,7 @@ Item {
   readonly property bool editing: dashboard.mode === "edit"
   readonly property bool selected: dashboard.selectedElementId === element.id
   readonly property var shown: previewGeometry || element
-  readonly property real dividerThickness: Style.space(DashboardModel.normalizeDividerThickness(element.thickness))
+  readonly property real dividerThickness: hostChrome.space(DashboardModel.normalizeDividerThickness(element.thickness))
   readonly property bool horizontalDivider: element.kind === "divider"
     && shown.y1 === shown.y2
 
@@ -160,12 +161,12 @@ Item {
       anchors.fill: parent
       objectName: "graphicText"
       text: String(root.element.text || "")
-      color: Commons.Color.popups.text
-      font.family: Style.font.family
+      color: hostChrome.popupText
+      font.family: hostChrome.fontFamily
       font.bold: true
-      font.pixelSize: Math.max(Style.font.title, Math.min(Style.space(180), height * 0.78))
+      font.pixelSize: Math.max(hostChrome.fontTitle, Math.min(hostChrome.space(180), height * 0.78))
       fontSizeMode: Text.Fit
-      minimumPixelSize: Math.max(8, Style.font.caption)
+      minimumPixelSize: Math.max(8, hostChrome.fontCaption)
       horizontalAlignment: root.element.alignment === "right" ? Text.AlignRight
         : (root.element.alignment === "center" ? Text.AlignHCenter : Text.AlignLeft)
       verticalAlignment: Text.AlignVCenter
@@ -177,8 +178,8 @@ Item {
       visible: root.editing && root.selected
       color: "transparent"
       border.width: 1
-      border.color: Commons.Color.accent
-      radius: Style.cornerRadius
+      border.color: hostChrome.accent
+      radius: hostChrome.cornerRadius
     }
 
     MouseArea {
@@ -198,21 +199,21 @@ Item {
     Rectangle {
       anchors.right: parent.right
       anchors.bottom: parent.bottom
-      width: Style.space(24)
+      width: hostChrome.space(24)
       height: width
       visible: root.editing && root.selected
-      radius: Style.cornerRadius
-      color: textResizeArea.containsMouse ? Commons.Color.accent : Commons.Color.popups.background
+      radius: hostChrome.cornerRadius
+      color: textResizeArea.containsMouse ? hostChrome.accent : hostChrome.popupBackground
       border.width: 1
-      border.color: Commons.Color.accent
+      border.color: hostChrome.accent
       z: 5
       Text {
         textFormat: Text.PlainText
         anchors.centerIn: parent
         text: "\uf065"
-        color: Commons.Color.popups.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        color: hostChrome.popupText
+        font.family: hostChrome.fontFamily
+        font.pixelSize: hostChrome.fontCaption
       }
       MouseArea {
         id: textResizeArea
@@ -230,21 +231,21 @@ Item {
     Rectangle {
       anchors.right: parent.right
       anchors.top: parent.top
-      width: Style.space(24)
+      width: hostChrome.space(24)
       height: width
       visible: root.editing && root.selected
-      radius: Style.cornerRadius
-      color: textRemoveArea.containsMouse ? Commons.Color.accent : Commons.Color.popups.background
+      radius: hostChrome.cornerRadius
+      color: textRemoveArea.containsMouse ? hostChrome.accent : hostChrome.popupBackground
       border.width: 1
-      border.color: Commons.Color.accent
+      border.color: hostChrome.accent
       z: 5
       Text {
         textFormat: Text.PlainText
         anchors.centerIn: parent
         text: "\uf1f8"
-        color: Commons.Color.popups.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        color: hostChrome.popupText
+        font.family: hostChrome.fontFamily
+        font.pixelSize: hostChrome.fontCaption
       }
       MouseArea {
         id: textRemoveArea
@@ -265,7 +266,7 @@ Item {
       ? Math.abs(root.shown.x2 - root.shown.x1) : hitPadding * 2) : 0
     height: visible ? (root.horizontalDivider
       ? hitPadding * 2 : Math.abs(root.shown.y2 - root.shown.y1)) : 0
-    readonly property real hitPadding: Math.max(8, Style.space(8), root.dividerThickness / 2)
+    readonly property real hitPadding: Math.max(8, hostChrome.space(8), root.dividerThickness / 2)
 
     Rectangle {
       objectName: "graphicDivider"
@@ -274,7 +275,7 @@ Item {
       width: root.horizontalDivider ? parent.width : root.dividerThickness
       height: root.horizontalDivider ? root.dividerThickness : parent.height
       radius: Math.min(width, height) / 2
-      color: root.selected ? Commons.Color.accent : Commons.Color.popups.text
+      color: root.selected ? hostChrome.accent : hostChrome.popupText
       opacity: root.selected ? 1 : 0.48
     }
 
@@ -298,14 +299,14 @@ Item {
       id: endpointHandle
       required property int index
       readonly property bool atStart: index === 0
-      width: Style.space(18)
+      width: hostChrome.space(18)
       height: width
       radius: width / 2
       x: (atStart ? root.shown.x1 : root.shown.x2) - width / 2
       y: (atStart ? root.shown.y1 : root.shown.y2) - height / 2
-      color: endpointMouse.containsMouse ? Commons.Color.accent : Commons.Color.popups.background
+      color: endpointMouse.containsMouse ? hostChrome.accent : hostChrome.popupBackground
       border.width: 2
-      border.color: Commons.Color.accent
+      border.color: hostChrome.accent
       z: 6
       MouseArea {
         id: endpointMouse
@@ -327,20 +328,20 @@ Item {
     visible: root.element.kind === "divider" && root.editing && root.selected
     x: (root.shown.x1 + root.shown.x2 - width) / 2
     y: (root.shown.y1 + root.shown.y2 - height) / 2
-    width: Style.space(24)
+    width: hostChrome.space(24)
     height: width
     radius: width / 2
-    color: dividerRemoveArea.containsMouse ? Commons.Color.accent : Commons.Color.popups.background
+    color: dividerRemoveArea.containsMouse ? hostChrome.accent : hostChrome.popupBackground
     border.width: 1
-    border.color: Commons.Color.accent
+    border.color: hostChrome.accent
     z: 7
     Text {
       textFormat: Text.PlainText
       anchors.centerIn: parent
       text: "\uf1f8"
-      color: Commons.Color.popups.text
-      font.family: Style.font.family
-      font.pixelSize: Style.font.caption
+      color: hostChrome.popupText
+      font.family: hostChrome.fontFamily
+      font.pixelSize: hostChrome.fontCaption
     }
     MouseArea {
       id: dividerRemoveArea

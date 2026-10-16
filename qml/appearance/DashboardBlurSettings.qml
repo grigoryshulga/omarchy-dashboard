@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell.Io
 import "HyprlandBlur.js" as HyprlandBlur
 
 Item {
@@ -10,23 +9,26 @@ Item {
   visible: false
   property bool active: false
   property bool pending: false
+  property var hostSession: null
 
   function applyRule() {
-    if (ruleProc.running) {
-      pending = true
+    if (!root.hostSession) return
+    if (!root.hostSession.commandReady()) {
+      root.pending = true
       return
     }
-    ruleProc.command = ["hyprctl", "eval", HyprlandBlur.ruleExpression(active)]
-    ruleProc.running = true
+    if (!root.hostSession.startCommand(["hyprctl", "eval", HyprlandBlur.ruleExpression(root.active)]))
+      root.pending = true
   }
 
   function scheduleApply() {
+    if (!root.hostSession) return
     applyTimer.restart()
   }
 
-  Process {
-    id: ruleProc
-    onExited: function() {
+  Connections {
+    target: root.hostSession
+    function onCommandExited() {
       if (!root.pending) return
       root.pending = false
       Qt.callLater(root.applyRule)

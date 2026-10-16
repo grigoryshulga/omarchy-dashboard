@@ -3,8 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 import qs.Ui
 import "../layout/GridEngine.js" as GridEngine
 import "../navigation/SpaceSwipe.js" as SpaceSwipe
@@ -15,12 +14,14 @@ import "../plugins" as Plugins
 PanelWindow {
   id: root
 
+  HostChrome { id: hostChrome }
+
   required property var dashboard
   property string editorText: ""
   property string textEditorElementId: ""
   property string pendingRemovalSpaceId: ""
-  readonly property int surfaceInset: Math.max(Style.spacing.panelGap, Style.gapsOut)
-  readonly property int cardInset: dashboard.glassBackground ? 0 : Style.gapsOut
+  readonly property int surfaceInset: Math.max(hostChrome.panelGap, hostChrome.gapsOut)
+  readonly property int cardInset: dashboard.glassBackground ? 0 : hostChrome.gapsOut
   readonly property var preloadStatus: ({
     residentTiles: sessionTiles.tiles.length,
     queuedTiles: sessionTiles.queuedCount,
@@ -269,7 +270,7 @@ PanelWindow {
 
   Rectangle {
     anchors.fill: parent
-    color: dashboard.glassBackground ? Commons.Color.menu.scrim : Commons.Color.background
+    color: dashboard.glassBackground ? hostChrome.menuScrim : hostChrome.background
     opacity: dashboard.dimBackground ? (dashboard.glassBackground ? 1 : 0.86) : 0
   }
 
@@ -327,11 +328,11 @@ PanelWindow {
       id: dashboardCard
       anchors.fill: parent
       anchors.margins: root.cardInset
-      radius: dashboard.glassBackground ? 0 : Style.cornerRadius
+      radius: dashboard.glassBackground ? 0 : hostChrome.cornerRadius
       color: dashboard.glassBackground
-        ? "transparent" : Qt.darker(Commons.Color.popups.background, 1.14)
-      border.width: dashboard.glassBackground ? 0 : Math.max(1, Style.space(1))
-      border.color: Commons.Color.popups.border
+        ? "transparent" : Qt.darker(hostChrome.popupBackground, 1.14)
+      border.width: dashboard.glassBackground ? 0 : hostChrome.borderWidth
+      border.color: hostChrome.popupBorder
 
       Column {
         anchors.fill: parent
@@ -341,7 +342,7 @@ PanelWindow {
         Item {
           id: toolbar
           width: parent.width
-          height: Math.max(Style.space(42), Style.font.title + Style.spacing.controlPaddingY * 2)
+          height: Math.max(hostChrome.space(42), hostChrome.fontTitle + hostChrome.controlPaddingY * 2)
           readonly property bool controlsVisible: dashboard.mode === "edit" || toolbarHover.hovered
 
           HoverHandler {
@@ -354,8 +355,8 @@ PanelWindow {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             readonly property int spaceCount: dashboard.dashboardState.spaces.length
-            readonly property real tabStep: Style.space(24)
-            readonly property real tabGap: Style.spacing.xs
+            readonly property real tabStep: hostChrome.space(24)
+            readonly property real tabGap: hostChrome.spaceXs
             readonly property int activeIndex: {
               var spaces = dashboard.dashboardState.spaces
               for (var index = 0; index < spaces.length; index++)
@@ -363,17 +364,17 @@ PanelWindow {
               return 0
             }
             readonly property real activeTabWidth: dashboard.overlay === "rename"
-              ? Style.space(190)
-              : Math.min(Style.space(260), Math.max(Style.space(52), activeSpaceMeasure.implicitWidth + Style.spacing.sm * 2))
-            height: Style.space(28)
+              ? hostChrome.space(190)
+              : Math.min(hostChrome.space(260), Math.max(hostChrome.space(52), activeSpaceMeasure.implicitWidth + hostChrome.spaceSm * 2))
+            height: hostChrome.space(28)
 
             Text {
               textFormat: Text.PlainText
               id: activeSpaceMeasure
               visible: false
               text: dashboard.activeSpace.name
-              font.family: Style.font.family
-              font.pixelSize: Style.font.subtitle
+              font.family: hostChrome.fontFamily
+              font.pixelSize: hostChrome.fontSubtitle
               font.bold: true
             }
 
@@ -426,24 +427,24 @@ PanelWindow {
                     id: spaceIndicator
                     anchors.centerIn: parent
                     visible: !spaceTab.active
-                    width: Style.space(9)
+                    width: hostChrome.space(9)
                     height: width
                     radius: width / 2
                     color: spaceTabHover.hovered
-                      ? Commons.Color.accent
-                      : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.32)
+                      ? hostChrome.accent
+                      : Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.32)
                   }
 
                   Text {
                     textFormat: Text.PlainText
                     id: activeSpaceName
                     anchors.centerIn: parent
-                    width: parent.width - Style.spacing.sm * 2
+                    width: parent.width - hostChrome.spaceSm * 2
                     visible: spaceTab.active && dashboard.overlay !== "rename"
                     text: spaceTab.modelData.name
-                    color: Commons.Color.accent
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.subtitle
+                    color: hostChrome.accent
+                    font.family: hostChrome.fontFamily
+                    font.pixelSize: hostChrome.fontSubtitle
                     font.bold: true
                     horizontalAlignment: Text.AlignHCenter
                     elide: Text.ElideRight
@@ -452,23 +453,23 @@ PanelWindow {
                   Rectangle {
                     anchors.fill: parent
                     visible: spaceTab.active && dashboard.overlay === "rename"
-                    radius: Style.cornerRadius
-                    color: Style.normalFillFor(Commons.Color.popups.text, Commons.Color.accent)
+                    radius: hostChrome.cornerRadius
+                    color: hostChrome.normalFill(hostChrome.popupText, hostChrome.accent)
                     border.width: 1
-                    border.color: Commons.Color.accent
+                    border.color: hostChrome.accent
 
                     TextInput {
                       id: inlineNameInput
                       anchors.fill: parent
-                      anchors.leftMargin: Style.spacing.sm
-                      anchors.rightMargin: Style.spacing.sm
+                      anchors.leftMargin: hostChrome.spaceSm
+                      anchors.rightMargin: hostChrome.spaceSm
                       visible: parent.visible
                       text: visible ? root.editorText : ""
-                      color: Commons.Color.popups.text
-                      selectionColor: Commons.Color.accent
+                      color: hostChrome.popupText
+                      selectionColor: hostChrome.accent
                       verticalAlignment: TextInput.AlignVCenter
-                      font.family: Style.font.family
-                      font.pixelSize: Style.font.body
+                      font.family: hostChrome.fontFamily
+                      font.pixelSize: hostChrome.fontBody
                       maximumLength: 80
                       onTextChanged: if (visible) root.editorText = text
                       onAccepted: root.finishNameEditor()
@@ -526,14 +527,14 @@ PanelWindow {
               icon: "\uf067"
               text: "Add Space"
               expandOnHover: false
-              width: Style.space(20)
-              height: Style.space(20)
+              width: hostChrome.space(20)
+              height: hostChrome.space(20)
               onClicked: root.beginCreate()
             }
           }
 
           DashboardActionButton {
-            x: addSpaceButton.x + addSpaceButton.width + Style.spacing.sm
+            x: addSpaceButton.x + addSpaceButton.width + hostChrome.spaceSm
             anchors.verticalCenter: parent.verticalCenter
             visible: dashboard.mode === "edit" && dashboard.dashboardState.spaces.length > 1
             icon: "\uf1f8"
@@ -547,16 +548,16 @@ PanelWindow {
             anchors.leftMargin: 30
             anchors.verticalCenter: parent.verticalCenter
             visible: toolbar.controlsVisible && dashboard.mode === "edit" && !elementStyleControls.element
-            spacing: Style.spacing.xs
+            spacing: hostChrome.spaceXs
 
             Text {
               textFormat: Text.PlainText
               anchors.verticalCenter: parent.verticalCenter
               text: "Appearance"
-              color: Commons.Color.popups.text
+              color: hostChrome.popupText
               opacity: 0.62
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              font.family: hostChrome.fontFamily
+              font.pixelSize: hostChrome.fontCaption
             }
             DashboardActionButton {
               icon: "\uf2d0"
@@ -597,16 +598,16 @@ PanelWindow {
                 + sessionControls.x - width) / 2
             anchors.verticalCenter: parent.verticalCenter
             visible: toolbar.controlsVisible && dashboard.mode === "edit"
-            spacing: Style.spacing.xs
+            spacing: hostChrome.spaceXs
 
             Text {
               textFormat: Text.PlainText
               anchors.verticalCenter: parent.verticalCenter
               text: "Add"
-              color: Commons.Color.popups.text
+              color: hostChrome.popupText
               opacity: 0.62
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              font.family: hostChrome.fontFamily
+              font.pixelSize: hostChrome.fontCaption
             }
 
             DashboardActionButton {
@@ -636,7 +637,7 @@ PanelWindow {
             id: sessionControls
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.spacing.sm
+            spacing: hostChrome.spaceSm
             DashboardActionButton {
               visible: toolbar.controlsVisible
               icon: dashboard.mode === "edit" ? "\uf00c" : "\uf044"
@@ -671,29 +672,29 @@ PanelWindow {
 
           Rectangle {
             anchors.top: parent.top
-            anchors.topMargin: Style.spacing.sm
+            anchors.topMargin: hostChrome.spaceSm
             anchors.horizontalCenter: parent.horizontalCenter
-            width: placementControls.implicitWidth + Style.spacing.lg * 2
-            height: Style.space(42)
+            width: placementControls.implicitWidth + hostChrome.spaceLg * 2
+            height: hostChrome.space(42)
             visible: dashboard.placingDivider
-            radius: Style.cornerRadius > 0 ? height / 2 : 0
-            color: Commons.Color.popups.background
+            radius: hostChrome.cornerRadius > 0 ? height / 2 : 0
+            color: hostChrome.popupBackground
             border.width: 1
-            border.color: Commons.Color.accent
+            border.color: hostChrome.accent
             z: 60
 
             Row {
               id: placementControls
               anchors.centerIn: parent
-              spacing: Style.spacing.sm
+              spacing: hostChrome.spaceSm
 
               Text {
                 textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Drag between two grid points; the axis locks automatically"
-                color: Commons.Color.popups.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
+                color: hostChrome.popupText
+                font.family: hostChrome.fontFamily
+                font.pixelSize: hostChrome.fontCaption
               }
               DashboardActionButton {
                 text: "Cancel"
@@ -739,7 +740,7 @@ PanelWindow {
               onPaint: {
                 var context = getContext("2d")
                 context.reset()
-                context.fillStyle = Commons.Color.popups.text
+                context.fillStyle = hostChrome.popupText
                 var spacing = Math.max(5, gridSpacing)
                 var radius = 0.8
 
@@ -817,12 +818,12 @@ PanelWindow {
                   : Math.min(dividerDraft.draft.y1, dividerDraft.draft.y2)
                 width: dividerDraft.horizontal
                   ? Math.abs(dividerDraft.draft.x2 - dividerDraft.draft.x1)
-                  : Math.max(2, Style.space(2))
+                  : Math.max(2, hostChrome.space(2))
                 height: dividerDraft.horizontal
-                  ? Math.max(2, Style.space(2))
+                  ? Math.max(2, hostChrome.space(2))
                   : Math.abs(dividerDraft.draft.y2 - dividerDraft.draft.y1)
                 radius: Math.min(width, height) / 2
-                color: Commons.Color.accent
+                color: hostChrome.accent
               }
             }
 
@@ -872,17 +873,17 @@ PanelWindow {
               anchors.right: parent.right
               anchors.bottom: parent.bottom
               visible: dashboard.mode === "edit"
-              spacing: Style.spacing.xs
+              spacing: hostChrome.spaceXs
               z: 10
 
               Text {
                 textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Grid step"
-                color: Commons.Color.popups.text
+                color: hostChrome.popupText
                 opacity: 0.72
-                font.family: Style.font.family
-                font.pixelSize: Style.font.caption
+                font.family: hostChrome.fontFamily
+                font.pixelSize: hostChrome.fontCaption
               }
               DashboardActionButton {
                 icon: "\uf068"
@@ -891,17 +892,17 @@ PanelWindow {
                 onClicked: dashboard.adjustGridSpacing(-5)
               }
               Rectangle {
-                width: Style.space(58)
-                height: Style.space(28)
-                radius: Style.cornerRadius > 0 ? height / 2 : 0
-                color: Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.06)
+                width: hostChrome.space(58)
+                height: hostChrome.space(28)
+                radius: hostChrome.cornerRadius > 0 ? height / 2 : 0
+                color: Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.06)
                 Text {
                   textFormat: Text.PlainText
                   anchors.centerIn: parent
                   text: dashboard.dashboardState.gridSpacing + " px"
-                  color: Commons.Color.popups.text
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
+                  color: hostChrome.popupText
+                  font.family: hostChrome.fontFamily
+                  font.pixelSize: hostChrome.fontCaption
                 }
               }
               DashboardActionButton {
@@ -917,23 +918,23 @@ PanelWindow {
               visible: dashboard.activeTiles.length === 0
                 && dashboard.activeElements.length === 0
                 && !dashboard.placingPlugin && !dashboard.placingDivider
-              spacing: Style.spacing.md
+              spacing: hostChrome.spaceMd
               Text {
                 textFormat: Text.PlainText
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "󰕮"
-                color: Commons.Color.popups.text
+                color: hostChrome.popupText
                 opacity: 0.25
-                font.family: Style.font.family
-                font.pixelSize: Style.space(64)
+                font.family: hostChrome.fontFamily
+                font.pixelSize: hostChrome.space(64)
               }
               Text {
                 textFormat: Text.PlainText
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "This Space is empty"
-                color: Commons.Color.popups.text
-                font.family: Style.font.family
-                font.pixelSize: Style.font.subtitle
+                color: hostChrome.popupText
+                font.family: hostChrome.fontFamily
+                font.pixelSize: hostChrome.fontSubtitle
               }
               DashboardActionButton {
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -945,7 +946,7 @@ PanelWindow {
               Row {
                 anchors.horizontalCenter: parent.horizontalCenter
                 visible: dashboard.mode === "edit"
-                spacing: Style.spacing.sm
+                spacing: hostChrome.spaceSm
                 DashboardActionButton {
                   text: "Divider"
                   onClicked: dashboard.beginDividerPlacement()

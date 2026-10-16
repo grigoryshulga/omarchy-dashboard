@@ -1,8 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 import "../layout/GridEngine.js" as GridEngine
 import "HostPlacements.js" as HostPlacements
 import "PluginControls.js" as PluginControls
@@ -14,6 +13,8 @@ import "PluginSettings.js" as PluginSettings
 
 Item {
   id: root
+
+  HostChrome { id: hostChrome }
 
   readonly property int maxPluginIdLength: 160
   readonly property int maxPluginNameLength: 160
@@ -63,10 +64,10 @@ Item {
   QtObject {
     id: dashboardBar
 
-    property color barForeground: Commons.Color.popups.text
-    property color foreground: Commons.Color.popups.text
-    property color urgent: Commons.Color.accent
-    property string fontFamily: Style.font.family
+    property color barForeground: hostChrome.popupText
+    property color foreground: hostChrome.popupText
+    property color urgent: hostChrome.accent
+    property string fontFamily: hostChrome.fontFamily
     property var shell: root.shell
   }
 
@@ -77,11 +78,22 @@ Item {
   // running shell through a socket named after OMARCHY_PATH and the Wayland
   // display, so the plugin list helper must run under the same values this
   // plugin itself runs under — a dev checkout is not /usr/share/omarchy.
+  // Quickshell.env can throw when the Quickshell context is unavailable;
+  // helper spawning must tolerate a missing environment variable.
+  function safeEnvValue(name) {
+    try {
+      var value = Quickshell.env(name)
+      return value === undefined || value === null ? "" : String(value)
+    } catch (error) {
+      return ""
+    }
+  }
+
   readonly property var liveHelperEnvironment: ({
-    HOME: Quickshell.env("HOME"),
-    OMARCHY_PATH: Quickshell.env("OMARCHY_PATH"),
-    XDG_RUNTIME_DIR: Quickshell.env("XDG_RUNTIME_DIR"),
-    WAYLAND_DISPLAY: Quickshell.env("WAYLAND_DISPLAY")
+    HOME: safeEnvValue("HOME"),
+    OMARCHY_PATH: safeEnvValue("OMARCHY_PATH"),
+    XDG_RUNTIME_DIR: safeEnvValue("XDG_RUNTIME_DIR"),
+    WAYLAND_DISPLAY: safeEnvValue("WAYLAND_DISPLAY")
   })
 
 
