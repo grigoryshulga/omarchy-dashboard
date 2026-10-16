@@ -3,6 +3,9 @@ import QtQuick
 Item {
   property var bar: null
   property string text: ""
+  // BarIconButton gained labelText for the battery/status pills; the hidden
+  // button has no bar slot to draw it in, so it stays a compatibility member.
+  property string labelText: ""
   property string fontFamily: ""
   property real fontSize: 0
   property color foreground: "transparent"

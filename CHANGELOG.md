@@ -3,6 +3,31 @@
 User-visible changes are grouped by release. A version marked **Unreleased**
 is being tested on `dev`; `main` is the stable installation branch.
 
+## [1.8.7] — 2026-10-16
+
+### Fixed
+
+- Load system panels again on Omarchy builds that build a panel body on first
+  open (shell commit `4c1b4cb3a9`, Omarchy 4.0.0.r7013 and later). The adapter's
+  in-process replacement for `KeyboardPanel` did not implement the lazy
+  `content` contract, so Weather, Clock, Network, Audio, Bluetooth, Power,
+  Monitor, Tailscale, Dropbox, Elsewhen and Agents failed to instantiate as
+  tiles with `Cannot assign to non-existent property "content"` and rendered
+  empty. The replacement now builds and exposes that content exactly as the
+  shell does. Battery and other status pills also assign `BarIconButton.labelText`,
+  added to the shell in the same update, which the bar-button replacement lacked.
+- Report an incompatible panel instead of publishing a broken artifact. The
+  adapter verifies the members an adapted block sets against the compatibility
+  shim it will be rewritten to, and names the missing member when they differ,
+  so a shell-side addition surfaces as a reported adaptation failure rather than
+  an empty tile.
+
+### Development
+
+- `tests/adapter-smoke.sh` now adapts and loads every installed standard panel,
+  which turns the next shell-side member addition into a failing check instead
+  of empty tiles.
+
 ## [1.8.6] — 2026-10-16
 
 ### Fixed
@@ -172,4 +197,5 @@ baseline without assigning a retrospective release date.
 [1.8.4]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.3...v1.8.4
 [1.8.5]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.4...v1.8.5
 [1.8.6]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.5...v1.8.6
+[1.8.7]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.6...v1.8.7
 [1.8.0]: https://github.com/grigoryshulga/omarchy-dashboard/compare/dfb7f4c...v1.8.0
