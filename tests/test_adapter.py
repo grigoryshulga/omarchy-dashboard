@@ -69,6 +69,41 @@ MAPPED_CARD = MAPPED_PANEL.replace(
 )
 
 
+LAZY_PANEL = """import QtQuick
+import "stub"
+Panel {
+  id: root
+  property bool opened: false
+  function open() { root.opened = true }
+  function close() { root.opened = false }
+  KeyboardPanel {
+    id: panel
+    objectName: "host"
+    open: root.opened
+    width: panel.fittedContentWidth(480)
+    height: panel.fittedContentHeight(panel.loadedContentHeight)
+    content: Item {
+      objectName: "body"
+      implicitHeight: 24
+    }
+  }
+}
+"""
+
+# Stands in for the shell's Panel base: it lets an adapted standard panel be
+# loaded in a bare Quickshell test without an Omarchy installation.
+PANEL_STUB = """import QtQuick
+Item {
+  id: root
+  property bool opened: false
+  // The adapted panel is told not to own IPC; the shell's Panel declares this.
+  property bool manageIpc: true
+  function open() { root.opened = true }
+  function close() { root.opened = false }
+}
+"""
+
+
 class AdapterTests(unittest.TestCase):
     def write_source(self, directory: Path, content: str = PANEL) -> Path:
         source = directory / "source"
@@ -252,6 +287,74 @@ TestCase {
                                     env={**os.environ, 'QT_QPA_PLATFORM': 'offscreen'},
                                     capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_generated_standard_panel_builds_its_content_on_first_open(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = self.write_source(root, LAZY_PANEL)
+            (source / 'stub').mkdir()
+            (source / 'stub' / 'Panel.qml').write_text(PANEL_STUB)
+            output = adapter.build(source, 'Panel.qml', root / 'cache', 'example.plugin', ADAPTER_DIR)
+            suite = root / 'tst_LazyContent.qml'
+            suite.write_text('''import QtQuick
+import QtTest
+TestCase {
+  id: test
+  name: "AdaptedLazyContent"
+  when: windowShown
+  visible: true
+  width: 480
+  height: 300
+  property string mode: "interact"
+  function test_first_open_builds_the_body_and_keeps_it() {
+    var component = Qt.createComponent(''' + json.dumps(output.as_uri()) + ''')
+    compare(component.status, Component.Ready, component.errorString())
+    var page = createTemporaryObject(component, test, { width: 480, height: 300, dashboardHost: test })
+    verify(page !== null)
+    var host = findChild(page, "host")
+    verify(host !== null)
+    // The shell builds a panel body on first open; the host stays lazy as well.
+    verify(host.loadedContent === null)
+    compare(host.loadedContentHeight, 0)
+    page.open()
+    verify(host.loadedContent !== null)
+    compare(host.loadedContentHeight, 24)
+    verify(findChild(host, "body") !== null)
+    verify(host.ensureContent() === host.loadedContent)
+    // A built body survives the close, exactly as it does in the shell.
+    page.close()
+    verify(host.loadedContent !== null)
+  }
+}
+''')
+            runner = os.environ.get('QMLTESTRUNNER', '/usr/lib/qt6/bin/qmltestrunner')
+            result = subprocess.run([runner, '-input', str(suite), '-o', '-,txt'],
+                                    env={**os.environ, 'QT_QPA_PLATFORM': 'offscreen'},
+                                    capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_rejects_a_host_member_the_compatibility_shim_does_not_implement(self):
+        # KeyboardPanel declares this; DashboardHost does not. Adaptation has to
+        # report the gap instead of publishing an artifact that cannot load.
+        source = PANEL.replace(
+            "  KeyboardPanel { open: root.opened }",
+            "  KeyboardPanel { open: root.opened\n    popoutSwitching: true }",
+        )
+        with self.assertRaises(adapter.AdaptationError) as raised:
+            adapter.transform_qml(source, ADAPTER_DIR)
+        self.assertIn("popoutSwitching", str(raised.exception))
+        self.assertIn("DashboardHost.qml", str(raised.exception))
+
+    def test_replaced_block_may_use_builtins_and_typed_parameters(self):
+        source = PANEL.replace(
+            "  KeyboardPanel { open: root.opened }",
+            "  KeyboardPanel { open: root.opened\n"
+            "    implicitWidth: 480\n"
+            "    function brightness(percent: string): string { return percent } }",
+        )
+        transformed = adapter.transform_qml(source, ADAPTER_DIR)
+        self.assertIn("DashboardHost {", transformed)
+        self.assertIn("function brightness(percent: string)", transformed)
 
     def test_large_preview_assets_are_preserved_in_the_validated_copy(self):
         with tempfile.TemporaryDirectory() as temporary:

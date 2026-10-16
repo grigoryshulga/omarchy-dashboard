@@ -59,6 +59,15 @@ bounded adaptation helpers when a standard Omarchy panel needs an embedded
 host. `qml/plugins/adapters/` contains the self-contained QML hosts copied into
 the adapted artifact; they must not depend on other Dashboard directories.
 
+Those hosts are a contract, not a convenience: the adapter rewrites Omarchy's
+`KeyboardPanel`, `BarIconButton`, `WidgetButton`, `IpcHandler` and `ShellIpc`
+into them, so each one has to offer every member the adapted block sets — the
+shell adds members between releases (`KeyboardPanel.content`,
+`BarIconButton.labelText`). `lib/omarchy_dashboard_adapter.py` checks the
+members of each replaced block against its shim and reports the missing name
+instead of publishing an artifact that cannot load, which would otherwise show
+up as an empty tile.
+
 The Dashboard surface owns one session collection. `PluginLoadOrder` orders
 all tiles with the active Space first; the adapter scheduler uses that order
 before starting each job. `DashboardSessionTiles` admits the active Space
@@ -118,7 +127,9 @@ behavior they exercise:
 Python tests cover CLI behavior, adaptation, icons and secure helpers.
 `test_state_store.py` runs an isolated Quickshell instance to check that saves
 become idle, retain edits made during a write, and retry a failed write.
-`tests/adapter-smoke.sh` adapts installed Omarchy panels using a temporary cache.
+`tests/adapter-smoke.sh` adapts installed Omarchy panels using a temporary cache,
+then loads every installed standard panel to prove the adapted artifact
+instantiates.
 `tests/live-system-seam.sh` resolves the seam against the installed shell
 modules and fails when a plugin file leaks a binding error, with no compositor
 needed. `tests/live-corner-radius.sh` is a separate live-system check that

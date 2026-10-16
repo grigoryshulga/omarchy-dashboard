@@ -43,6 +43,8 @@ MAX_CACHED_ARTIFACTS = 8
 STALE_STAGING_SECONDS = 24 * 60 * 60
 MARKER_NAME = ".omarchy-dashboard-adapted"
 HELPER_NAMES = ("DashboardHost.qml", "DashboardDisabledIpc.qml", "DashboardHiddenBarButton.qml")
+# The compatibility shims ship with the plugin's QML; this module lives in lib/.
+DEFAULT_ADAPTER_DIR = Path(__file__).resolve().parents[1] / "qml" / "plugins" / "adapters"
 VCS_ROOT_NAMES = frozenset((".git", ".hg", ".svn"))
 
 
@@ -200,6 +202,117 @@ def direct_attached_property(
     return None
 
 
+# Members every QML Item already has, so a shim never has to declare them.
+SHIM_ASSIGNMENT_BUILTINS = frozenset((
+    "id", "objectName", "parent", "data", "children", "resources",
+    "x", "y", "z", "width", "height", "implicitWidth", "implicitHeight",
+    "rotation", "scale", "transformOrigin", "opacity", "visible", "enabled",
+    "clip", "focus", "activeFocusOnTab", "antialiasing", "smooth", "cache",
+    "state", "states", "transitions", "baselineOffset",
+))
+
+SHIM_MEMBERS: dict[Path, frozenset[str]] = {}
+
+
+def shim_members(path: Path) -> frozenset[str] | None:
+    """Member names a compatibility shim declares, or None when it is unreadable.
+
+    Extraction is deliberately generous: calling a declared member missing would
+    reject a panel that works today.
+    """
+    cached = SHIM_MEMBERS.get(path)
+    if cached is not None:
+        return cached
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    found: set[str] = set()
+    token_list = tokens(source)
+    for index, token in enumerate(token_list):
+        if token.value not in ("property", "signal", "function"):
+            continue
+        for candidate in token_list[index + 1:index + 4]:
+            if candidate.value in (":", "(", "{", "}"):
+                break
+            if candidate.value and (candidate.value[0].isalpha() or candidate.value[0] == "_"):
+                found.add(candidate.value)
+    SHIM_MEMBERS[path] = frozenset(found)
+    return SHIM_MEMBERS[path]
+
+
+def assigned_members(token_list: list[Token], node: ObjectNode) -> set[str]:
+    """Direct `name: value` bindings inside a block, excluding declarations."""
+    names: set[str] = set()
+    depth = 0
+    parentheses = 0
+    for index, token in enumerate(token_list):
+        if token.start <= node.open_token.start or token.end >= node.close_token.end:
+            continue
+        if token.value == "{":
+            depth += 1
+            continue
+        if token.value == "}":
+            depth -= 1
+            continue
+        if token.value == "(":
+            parentheses += 1
+            continue
+        if token.value == ")":
+            parentheses -= 1
+            continue
+        # Only top-level bindings count: a nested object owns its own members,
+        # and a parameter list holds `name: type` annotations, not assignments.
+        if depth != 0 or parentheses != 0:
+            continue
+        if index + 1 >= len(token_list) or token_list[index + 1].value != ":":
+            continue
+        value = token.value
+        if not value or not (value[0].isalpha() or value[0] == "_"):
+            continue
+        # A dotted path (`anchors.fill`) is not an assignment to this object, and
+        # `property bool enabled:` declares a member rather than setting one.
+        previous = token_list[index - 1].value if index else ""
+        before_previous = token_list[index - 2].value if index > 1 else ""
+        if previous in (".", "?") or previous in (
+            "property", "alias", "readonly", "default", "signal"
+        ) or before_previous in ("property", "alias", "readonly", "default"):
+            continue
+        names.add(value)
+    return names - SHIM_ASSIGNMENT_BUILTINS
+
+
+def signal_for_handler(name: str) -> str:
+    """`onPressed` binds the `pressed` signal."""
+    if len(name) > 2 and name.startswith("on") and name[2].isupper():
+        return name[2].lower() + name[3:]
+    return name
+
+
+def verify_shim_contract(
+    node: ObjectNode, token_list: list[Token], shim: str, adapter_dir: Path
+) -> None:
+    """Reject a block that sets a member its Dashboard shim does not implement.
+
+    Omarchy's UI kit gains members between releases: KeyboardPanel.content and
+    BarIconButton.labelText both arrived in one week. An adapted panel that sets
+    one of them cannot instantiate inside Dashboard, which the user sees as an
+    empty tile; naming the gap here reports the failure instead.
+    """
+    members = shim_members(Path(adapter_dir) / shim)
+    if members is None:
+        return
+    missing = sorted(
+        name for name in assigned_members(token_list, node)
+        if signal_for_handler(name) not in members
+    )
+    if missing:
+        raise AdaptationError(
+            f"{node.type_name} sets {', '.join(missing)}, "
+            f"which the {shim} compatibility shim does not implement"
+        )
+
+
 def binding_line(
     source: str, binding: tuple[Token, Token] | None
 ) -> tuple[int, int, str] | None:
@@ -273,16 +386,24 @@ def replace_ranges(source: str, replacements: list[tuple[int, int, str]]) -> str
 
 
 def dashboard_replacements(
-    source: str, token_list: list[Token], nodes: list[ObjectNode], root: ObjectNode, root_id: str
+    source: str,
+    token_list: list[Token],
+    nodes: list[ObjectNode],
+    root: ObjectNode,
+    root_id: str,
+    adapter_dir: Path | None = None,
 ) -> list[tuple[int, int, str]]:
     """Disable process-global hooks that an in-process copy must not own."""
+    shims = Path(adapter_dir) if adapter_dir is not None else DEFAULT_ADAPTER_DIR
     replacements: list[tuple[int, int, str]] = []
     for node in nodes:
         if not contains(root, node):
             continue
         if node.type_name in ("IpcHandler", "ShellIpc"):
+            verify_shim_contract(node, token_list, "DashboardDisabledIpc.qml", shims)
             replacements.append((node.type_token.start, node.type_token.end, "DashboardDisabledIpc"))
         elif node.type_name in ("BarIconButton", "WidgetButton"):
+            verify_shim_contract(node, token_list, "DashboardHiddenBarButton.qml", shims)
             replacements.append((node.type_token.start, node.type_token.end, "DashboardHiddenBarButton"))
         elif node.type_name == "Shortcut":
             sequence = direct_property(token_list, node, "sequence")
@@ -299,7 +420,11 @@ def dashboard_replacements(
 
 
 def transform_standard_panel(
-    source: str, token_list: list[Token], nodes: list[ObjectNode], root: ObjectNode
+    source: str,
+    token_list: list[Token],
+    nodes: list[ObjectNode],
+    root: ObjectNode,
+    adapter_dir: Path | None = None,
 ) -> str:
     """Adapt one constrained standard KeyboardPanel without rewriting its lifecycle."""
     if not nodes or nodes[0].type_name != "Panel":
@@ -314,6 +439,10 @@ def transform_standard_panel(
     if len(hosts) != 1:
         raise AdaptationError("expected exactly one standard KeyboardPanel")
     host = hosts[0]
+    verify_shim_contract(
+        host, token_list, "DashboardHost.qml",
+        Path(adapter_dir) if adapter_dir is not None else DEFAULT_ADAPTER_DIR,
+    )
 
     if direct_property(token_list, root, "dashboardHost"):
         raise AdaptationError("root Panel already declares dashboardHost")
@@ -351,7 +480,7 @@ def transform_standard_panel(
         value = token_list[value_index]
         replacements.append((value.start, value.end, "false"))
 
-    replacements.extend(dashboard_replacements(source, token_list, nodes, root, root_id))
+    replacements.extend(dashboard_replacements(source, token_list, nodes, root, root_id, adapter_dir))
 
     return replace_ranges(source, replacements)
 
@@ -442,7 +571,11 @@ def dismiss_guard(token_list: list[Token], root: ObjectNode, root_id: str) -> tu
 
 
 def transform_mapped_panel(
-    source: str, token_list: list[Token], nodes: list[ObjectNode], root: ObjectNode
+    source: str,
+    token_list: list[Token],
+    nodes: list[ObjectNode],
+    root: ObjectNode,
+    adapter_dir: Path | None = None,
 ) -> str:
     """Replace one nested PanelWindow or FloatingWindow with an Item host."""
     if root.type_name != "Item":
@@ -455,6 +588,10 @@ def transform_mapped_panel(
     if len(surfaces) != 1 or surfaces[0].type_name not in ("PanelWindow", "FloatingWindow"):
         raise AdaptationError("expected exactly one nested PanelWindow or FloatingWindow")
     host = surfaces[0]
+    verify_shim_contract(
+        host, token_list, "DashboardHost.qml",
+        Path(adapter_dir) if adapter_dir is not None else DEFAULT_ADAPTER_DIR,
+    )
     if not direct_child(root, host, nodes):
         raise AdaptationError("mapped window must be a direct child of the root Item")
     if direct_property(token_list, root, "dashboardHost"):
@@ -484,14 +621,14 @@ def transform_mapped_panel(
         replacements.append((anchors.type_token.start, anchors.close_token.end, ""))
     replacements.extend(expand_mapped_card(source, token_list, nodes, host))
     replacements.extend(attached_binding_line(source, token_list, host, "WlrLayershell"))
-    replacements.extend(dashboard_replacements(source, token_list, nodes, root, root_id))
+    replacements.extend(dashboard_replacements(source, token_list, nodes, root, root_id, adapter_dir))
     guard = dismiss_guard(token_list, root, root_id)
     if guard is not None:
         replacements.append(guard)
     return replace_ranges(source, replacements)
 
 
-def adapt_qml(source: str) -> tuple[str, str]:
+def adapt_qml(source: str, adapter_dir: Path | None = None) -> tuple[str, str]:
     """Return transformed QML and the layout its Dashboard host should use."""
     token_list = tokens(source)
     nodes = object_nodes(token_list)
@@ -503,20 +640,20 @@ def adapt_qml(source: str) -> tuple[str, str]:
         for node in nodes
     )
     if root.type_name == "Panel":
-        return transform_standard_panel(source, token_list, nodes, root), PADDED_LAYOUT
+        return transform_standard_panel(source, token_list, nodes, root, adapter_dir), PADDED_LAYOUT
     if nested_surface:
-        return transform_mapped_panel(source, token_list, nodes, root), EDGE_TO_EDGE_LAYOUT
+        return transform_mapped_panel(source, token_list, nodes, root, adapter_dir), EDGE_TO_EDGE_LAYOUT
     raise AdaptationError("the root object is neither a standard Panel nor a compatible mapped panel")
 
 
-def transform_qml(source: str) -> str:
+def transform_qml(source: str, adapter_dir: Path | None = None) -> str:
     """Adapt a standard panel or one conservative nested-window panel shape."""
-    return adapt_qml(source)[0]
+    return adapt_qml(source, adapter_dir)[0]
 
 
-def adaptation_layout(source: str) -> str:
+def adaptation_layout(source: str, adapter_dir: Path | None = None) -> str:
     """Describe the host layout selected by the same validation used to adapt QML."""
-    return adapt_qml(source)[1]
+    return adapt_qml(source, adapter_dir)[1]
 
 
 def digest_field(digest: "hashlib._Hash", value: bytes) -> None:
@@ -676,7 +813,10 @@ def read_entry_point(source: Path) -> str:
 
 
 def choose_source(
-    source_dir: Path, entry_point: str, transforms: dict[Path, tuple[str, str]] | None = None
+    source_dir: Path,
+    entry_point: str,
+    transforms: dict[Path, tuple[str, str]] | None = None,
+    adapter_dir: Path | None = None,
 ) -> Path:
     entry = Path(entry_point)
     if entry.is_absolute() or ".." in entry.parts:
@@ -685,20 +825,24 @@ def choose_source(
     if not candidate.is_file() or source_dir not in candidate.parents:
         raise AdaptationError("entry point is outside its plugin directory")
     # Respect a usable declared entry point before looking for bar siblings.
-    if can_adapt_source(candidate, transforms):
+    if can_adapt_source(candidate, transforms, adapter_dir):
         return candidate
     sibling = (candidate.parent / "Panel.qml").resolve()
     if sibling != candidate and sibling.is_file() and source_dir in sibling.parents \
-            and can_adapt_source(sibling, transforms):
+            and can_adapt_source(sibling, transforms, adapter_dir):
         return sibling
-    return discover_sibling_panel(candidate, source_dir, transforms) or candidate
+    return discover_sibling_panel(candidate, source_dir, transforms, adapter_dir) or candidate
 
 
-def can_adapt_source(path: Path, transforms: dict[Path, tuple[str, str]] | None = None) -> bool:
+def can_adapt_source(
+    path: Path,
+    transforms: dict[Path, tuple[str, str]] | None = None,
+    adapter_dir: Path | None = None,
+) -> bool:
     if transforms is not None and path in transforms:
         return True
     try:
-        result = adapt_qml(read_entry_point(path))
+        result = adapt_qml(read_entry_point(path), adapter_dir)
         if transforms is not None:
             transforms[path] = result
         return True
@@ -711,7 +855,10 @@ def has_standard_host(source: str) -> bool:
 
 
 def discover_sibling_panel(
-    entry_source: Path, source_dir: Path, transforms: dict[Path, tuple[str, str]] | None = None
+    entry_source: Path,
+    source_dir: Path,
+    transforms: dict[Path, tuple[str, str]] | None = None,
+    adapter_dir: Path | None = None,
 ) -> Path | None:
     """Find one unambiguous compatible panel beside a bar-widget entry point."""
     candidates: list[Path] = []
@@ -719,7 +866,7 @@ def discover_sibling_panel(
         candidate = sibling.resolve()
         if candidate == entry_source or not candidate.is_file() or source_dir not in candidate.parents:
             continue
-        if can_adapt_source(candidate, transforms):
+        if can_adapt_source(candidate, transforms, adapter_dir):
             candidates.append(candidate)
     if len(candidates) > 1:
         raise AdaptationError("plugin has ambiguous sibling panel candidates")
@@ -1085,9 +1232,9 @@ def build(source_dir: Path, entry_point: str | list[str], cache_root: Path, plug
         transforms: dict[Path, tuple[str, str]] = {}
         for candidate in wanted_entry_points:
             try:
-                entry_source = choose_source(output, candidate, transforms)
+                entry_source = choose_source(output, candidate, transforms, adapter_dir)
                 if entry_source not in transforms:
-                    transforms[entry_source] = adapt_qml(read_entry_point(entry_source))
+                    transforms[entry_source] = adapt_qml(read_entry_point(entry_source), adapter_dir)
                 break
             except AdaptationError as error:
                 failures.append(f"{candidate}: {error}")

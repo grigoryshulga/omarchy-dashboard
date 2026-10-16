@@ -39,6 +39,23 @@ Item {
   readonly property bool interactionAllowed: visible && dashboardHost && dashboardHost.mode === "interact"
   default property alias contentItem: contentHolder.children
 
+  // Lazy content. Omarchy's KeyboardPanel builds a panel body on first open and
+  // exposes it through this contract; every standard panel that uses it assigns
+  // `content:` here and binds against `loadedContent` / `loadedContentHeight`.
+  // Without these members the panel fails to instantiate inside Dashboard with
+  // "Cannot assign to non-existent property content", leaving an empty tile.
+  property Component content: null
+  property bool contentRequested: false
+  readonly property Item loadedContent: contentLoader.item
+  readonly property real loadedContentHeight: contentLoader.item ? contentLoader.item.implicitHeight : 0
+
+  // Build the content without opening the host, for callers that need to reach
+  // it first (KeyboardPanel.ensureContent).
+  function ensureContent() {
+    if (content) contentRequested = true
+    return contentLoader.item
+  }
+
   function fittedContentWidth(value, cap) {
     var desired = Math.max(1, Number(value) || 1)
     Qt.callLater(root.rememberWidth, cap > 0 ? Math.min(desired, Number(cap)) : desired)
@@ -85,7 +102,10 @@ Item {
       event.accepted = true
     }
   }
-  onOpenChanged: if (open) Qt.callLater(root.focusPanel)
+  onOpenChanged: {
+    if (open && content) contentRequested = true
+    if (open) Qt.callLater(root.focusPanel)
+  }
 
   Connections {
     target: root.dashboardHost
@@ -96,4 +116,12 @@ Item {
 
   Rectangle { anchors.fill: parent; color: root.color; z: -1 }
   Item { id: contentHolder; anchors.fill: parent }
+  Loader {
+    id: contentLoader
+    anchors.fill: contentHolder
+    focus: true
+    // Same rule as KeyboardPanel: build on first open, or on request.
+    active: !!root.content && (root.open || root.contentRequested)
+    sourceComponent: root.content
+  }
 }
