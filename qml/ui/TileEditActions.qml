@@ -2,11 +2,12 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls as Controls
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 
 Item {
   id: root
+
+  HostChrome { id: hostChrome }
 
   property bool adding: false
   property bool canAdd: true
@@ -16,7 +17,7 @@ Item {
   property string title: ""
   property string detail: ""
   property string presentationLabel: "Auto"
-  property real edgeInset: Style.space(12)
+  property real edgeInset: hostChrome.space(12)
   signal removeRequested()
   signal presentationRequested()
   signal backgroundRequested()
@@ -26,7 +27,7 @@ Item {
   function closeMenu() { options.close() }
 
   readonly property real availableWidth: Math.max(0, width - edgeInset * 2)
-  readonly property bool compact: availableWidth < Style.space(100) || height < Style.space(86)
+  readonly property bool compact: availableWidth < hostChrome.space(100) || height < hostChrome.space(86)
   readonly property string modeText: (shortcut ? shortcut + " · " : "") + presentationLabel
   onVisibleChanged: if (!visible) options.close()
   onCompactChanged: options.close()
@@ -35,7 +36,7 @@ Item {
     objectName: "editScrim"
     anchors.fill: parent
     visible: root.dimContent
-    radius: Style.cornerRadius
+    radius: hostChrome.cornerRadius
     color: Qt.rgba(0, 0, 0, 0.32)
   }
 
@@ -46,13 +47,13 @@ Item {
     property bool primary: false
     property bool destructive: false
     signal clicked()
-    width: Style.space(28)
-    height: Style.space(28)
-    radius: Style.cornerRadius
+    width: hostChrome.space(28)
+    height: hostChrome.space(28)
+    radius: hostChrome.cornerRadius
     clip: true
     opacity: enabled ? 1 : 0.4
-    color: primary ? Commons.Color.accent : (mouse.containsMouse
-      ? Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.12) : "transparent")
+    color: primary ? hostChrome.accent : (mouse.containsMouse
+      ? Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.12) : "transparent")
     Accessible.role: Accessible.Button
     Accessible.name: label
     Accessible.onPressAction: if (enabled) clicked()
@@ -61,10 +62,10 @@ Item {
       textFormat: Text.PlainText
       anchors.centerIn: parent
       text: action.icon
-      color: action.primary ? Commons.Color.background
-        : (action.destructive ? Qt.rgba(0.95, 0.45, 0.48, 1) : Commons.Color.popups.text)
-      font.family: Style.font.family
-      font.pixelSize: Style.font.bodySmall
+      color: action.primary ? hostChrome.background
+        : (action.destructive ? Qt.rgba(0.95, 0.45, 0.48, 1) : hostChrome.popupText)
+      font.family: hostChrome.fontFamily
+      font.pixelSize: hostChrome.fontBodySmall
     }
 
     Controls.ToolTip {
@@ -73,19 +74,19 @@ Item {
       visible: root.visible && mouse.containsMouse
       delay: 400
       text: action.label
-      padding: Style.spacing.sm
+      padding: hostChrome.spaceSm
       contentItem: Text {
         textFormat: Text.PlainText
         text: tooltip.text
-        color: Commons.Color.popups.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        color: hostChrome.popupText
+        font.family: hostChrome.fontFamily
+        font.pixelSize: hostChrome.fontCaption
       }
       background: Rectangle {
-        radius: Style.cornerRadius
-        color: Commons.Color.popups.background
+        radius: hostChrome.cornerRadius
+        color: hostChrome.popupBackground
         border.width: 1
-        border.color: Commons.Color.accent
+        border.color: hostChrome.accent
       }
     }
 
@@ -100,7 +101,7 @@ Item {
 
   component Actions: Row {
     objectName: "tileEditActions"
-    spacing: Style.space(2)
+    spacing: hostChrome.space(2)
     Action {
       objectName: "tilePresentationButton"
       icon: "⇄"
@@ -137,12 +138,12 @@ Item {
   Rectangle {
     id: plate
     anchors.centerIn: parent
-    width: root.compact ? Math.min(Style.space(28), Math.max(0, root.width - Style.space(6)))
-      : Style.space(100)
-    height: root.compact ? Math.min(Style.space(28), Math.max(0, root.height - Style.space(6)))
-      : Style.space(36)
-    radius: Style.cornerRadius
-    color: Commons.Color.popups.background
+    width: root.compact ? Math.min(hostChrome.space(28), Math.max(0, root.width - hostChrome.space(6)))
+      : hostChrome.space(100)
+    height: root.compact ? Math.min(hostChrome.space(28), Math.max(0, root.height - hostChrome.space(6)))
+      : hostChrome.space(36)
+    radius: hostChrome.cornerRadius
+    color: hostChrome.popupBackground
 
     Loader {
       anchors.centerIn: parent
@@ -163,22 +164,22 @@ Item {
     textFormat: Text.PlainText
     objectName: "tileModeLabel"
     anchors.bottom: plate.top
-    anchors.bottomMargin: Style.space(4)
+    anchors.bottomMargin: hostChrome.space(4)
     anchors.horizontalCenter: parent.horizontalCenter
-    width: Math.min(Math.max(0, root.width - Style.space(6)),
-      Math.max(plate.width, implicitWidth + Style.space(12)))
-    visible: root.height >= Style.space(64)
+    width: Math.min(Math.max(0, root.width - hostChrome.space(6)),
+      Math.max(plate.width, implicitWidth + hostChrome.space(12)))
+    visible: root.height >= hostChrome.space(64)
     Rectangle {
       anchors.fill: parent
-      anchors.margins: -Style.space(2)
+      anchors.margins: -hostChrome.space(2)
       z: -1
-      radius: Style.cornerRadius
-      color: Commons.Color.popups.background
+      radius: hostChrome.cornerRadius
+      color: hostChrome.popupBackground
     }
     text: root.modeText
-    color: Commons.Color.popups.text
-    font.family: Style.font.family
-    font.pixelSize: Style.font.caption
+    color: hostChrome.popupText
+    font.family: hostChrome.fontFamily
+    font.pixelSize: hostChrome.fontCaption
     horizontalAlignment: Text.AlignHCenter
     elide: Text.ElideRight
   }
@@ -186,14 +187,14 @@ Item {
   Text {
     textFormat: Text.PlainText
     anchors.bottom: plate.top
-    anchors.bottomMargin: Style.space(28)
+    anchors.bottomMargin: hostChrome.space(28)
     anchors.horizontalCenter: parent.horizontalCenter
     width: root.availableWidth
-    visible: root.title !== "" && !root.compact && root.height >= Style.space(140)
+    visible: root.title !== "" && !root.compact && root.height >= hostChrome.space(140)
     text: root.title
-    color: Commons.Color.popups.text
-    font.family: Style.font.family
-    font.pixelSize: Style.font.body
+    color: hostChrome.popupText
+    font.family: hostChrome.fontFamily
+    font.pixelSize: hostChrome.fontBody
     font.bold: true
     horizontalAlignment: Text.AlignHCenter
     elide: Text.ElideRight
@@ -202,14 +203,14 @@ Item {
   Text {
     textFormat: Text.PlainText
     anchors.top: plate.bottom
-    anchors.topMargin: Style.space(4)
+    anchors.topMargin: hostChrome.space(4)
     anchors.horizontalCenter: parent.horizontalCenter
     width: root.availableWidth
-    visible: !root.compact && root.height >= Style.space(90)
+    visible: !root.compact && root.height >= hostChrome.space(90)
     text: root.detail
-    color: root.canAdd ? Commons.Color.popups.text : Qt.rgba(0.95, 0.45, 0.48, 1)
-    font.family: Style.font.family
-    font.pixelSize: Style.font.caption
+    color: root.canAdd ? hostChrome.popupText : Qt.rgba(0.95, 0.45, 0.48, 1)
+    font.family: hostChrome.fontFamily
+    font.pixelSize: hostChrome.fontCaption
     horizontalAlignment: Text.AlignHCenter
     elide: Text.ElideRight
   }
@@ -219,9 +220,9 @@ Item {
     objectName: "tileOptionsPopup"
     x: (root.width - width) / 2
     y: (root.height - height) / 2
-    width: Math.max(Style.space(132), popupMode.implicitWidth + padding * 2)
-    padding: Style.space(8)
-    margins: Style.space(8)
+    width: Math.max(hostChrome.space(132), popupMode.implicitWidth + padding * 2)
+    padding: hostChrome.space(8)
+    margins: hostChrome.space(8)
     // Catch clicks around the small tile while the menu is open so that
     // dismissing it cannot start dragging or activate a different tile.
     modal: true
@@ -229,14 +230,14 @@ Item {
     dim: false
     closePolicy: Controls.Popup.CloseOnEscape | Controls.Popup.CloseOnPressOutside
     contentItem: Column {
-      spacing: Style.space(6)
+      spacing: hostChrome.space(6)
       Text {
         textFormat: Text.PlainText
         id: popupMode
         text: root.modeText
-        color: Commons.Color.popups.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.caption
+        color: hostChrome.popupText
+        font.family: hostChrome.fontFamily
+        font.pixelSize: hostChrome.fontCaption
         anchors.horizontalCenter: parent.horizontalCenter
       }
       Loader {
@@ -246,10 +247,10 @@ Item {
       }
     }
     background: Rectangle {
-      radius: Style.cornerRadius
-      color: Commons.Color.popups.background
+      radius: hostChrome.cornerRadius
+      color: hostChrome.popupBackground
       border.width: 1
-      border.color: Commons.Color.accent
+      border.color: hostChrome.accent
     }
   }
 }

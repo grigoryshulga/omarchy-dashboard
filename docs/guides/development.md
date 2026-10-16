@@ -49,6 +49,22 @@ bash tests/live-corner-radius.sh
 This check temporarily changes the effective rounding, checks the response to
 `configreloaded`, and restores the original value.
 
+## Check the system seam
+
+The plugin reads colors, borders, spacing and fonts from the installed shell
+through `qml/system/`. Run the seam check after updating Omarchy, before
+trusting the UI:
+
+```bash
+bash tests/live-system-seam.sh
+```
+
+It loads `HostChrome`, `HostSession` and a few migrated components against the
+*installed* `qs.Commons` and `qs.Ui` (not the test fixture) and fails if any of
+them leaks a binding error. It needs no compositor and changes nothing. When a
+token is renamed or removed, the check still passes and the printed values show
+the built-in fallbacks — that is the point.
+
 ## Find the implementation
 
 The [architecture guide](../../ARCHITECTURE.md) maps responsibilities, command

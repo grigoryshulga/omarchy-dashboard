@@ -3,6 +3,34 @@
 User-visible changes are grouped by release. A version marked **Unreleased**
 is being tested on `dev`; `main` is the stable installation branch.
 
+## [1.8.6] — 2026-10-16
+
+### Fixed
+
+- Keep Dashboard working when an Omarchy update changes the system values it
+  reads. Colors, borders, spacing, and fonts now come from one place with
+  built-in fallbacks, so a token that was renamed or removed leaves a readable
+  surface instead of a broken binding. Previously a missing nested token such as
+  `Color.popups.border` or `Style.font.subtitle` raised `Unable to assign
+  [undefined]` and the affected dialogs, popouts, and tiles lost their colors.
+- Read the focused monitor, the environment, and the screen list through that
+  same place, and load the Hyprland and `hyprctl` pieces behind their own
+  loaders. A module or tool that is unavailable now degrades — no focused
+  monitor, no background blur — instead of failing Dashboard as a whole.
+- Popup, dialog, and card outlines follow the shell's `normalBorderWidth`
+  instead of a fixed 1 pixel, so themes that drop or thicken control borders
+  apply to Dashboard too.
+
+### Development
+
+- Add `qml/system/`, the single seam between Dashboard and the host shell:
+  `HostChrome` for visual tokens, `HostSession` for session resources, and a
+  pure normalization library holding the fallback table.
+- Add `tests/qml/tst_HostChrome.qml` for the fallbacks against an incomplete
+  shell, and `tests/live-system-seam.sh` — a live check that resolves the seam
+  against the installed shell modules and fails when a Dashboard file leaks a
+  binding error. Both are documented in the architecture and development guides.
+
 ## [1.8.5] — 2026-10-14
 
 ### Fixed
@@ -143,4 +171,5 @@ baseline without assigning a retrospective release date.
 [1.8.3]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.2...v1.8.3
 [1.8.4]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.3...v1.8.4
 [1.8.5]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.4...v1.8.5
+[1.8.6]: https://github.com/grigoryshulga/omarchy-dashboard/compare/v1.8.5...v1.8.6
 [1.8.0]: https://github.com/grigoryshulga/omarchy-dashboard/compare/dfb7f4c...v1.8.0

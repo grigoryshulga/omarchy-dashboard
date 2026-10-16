@@ -1,8 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 import "../layout/GridEngine.js" as GridEngine
 import "../layout" as Layout
 import "../ui" as Ui
@@ -10,6 +9,8 @@ import "PluginPresentation.js" as PluginPresentation
 
 Item {
   id: root
+
+  HostChrome { id: hostChrome }
 
   required property var dashboard
   required property string tileId
@@ -66,7 +67,7 @@ Item {
   readonly property bool canInteract: (presentation.kind === "embedded" || presentation.kind === "widget")
     && loadedPage !== null && pageError === ""
   readonly property real frameWidth: !tileBackground && !selected ? 0
-    : (editing || interacting ? Style.space(3) : 1)
+    : (editing || interacting ? hostChrome.space(3) : 1)
   readonly property string keyboardShortcut: dashboard.keyboardShortcutForTile(tile.id)
   readonly property bool keyboardShortcutVisible: dashboard.shortcutHintsVisible
     && keyboardShortcut !== "" && !interacting
@@ -83,8 +84,8 @@ Item {
     ? "Auto · " + PluginPresentation.preferenceLabel(presentation.kind)
     : PluginPresentation.preferenceLabel(presentation.kind)
   readonly property bool compactActionTile: (presentation.kind === "launcher" || presentation.kind === "control")
-    && Math.min(width, height) < Style.space(96)
-  readonly property real resizeHandleWidth: Math.max(Style.space(10), Style.spacing.sm * 2)
+    && Math.min(width, height) < hostChrome.space(96)
+  readonly property real resizeHandleWidth: Math.max(hostChrome.space(10), hostChrome.spaceSm * 2)
 
   x: tile.x
   y: tile.y
@@ -339,15 +340,15 @@ Item {
     objectName: "tileFrame"
     anchors.fill: parent
     opacity: root.dragging || root.resizing ? 0.28 : 1
-    radius: Style.cornerRadius
+    radius: hostChrome.cornerRadius
     color: !root.tileBackground ? "transparent"
       : root.presentation.kind === "launcher" && actionMouse.containsMouse
-      ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent)
-      : Commons.Color.popups.background
+      ? hostChrome.hoverFill(hostChrome.popupText, hostChrome.accent)
+      : hostChrome.popupBackground
     border.width: root.frameWidth
     border.color: root.selected
-      ? Commons.Color.accent
-      : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.09)
+      ? hostChrome.accent
+      : Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.09)
 
     Behavior on opacity { NumberAnimation { duration: 90 } }
 
@@ -355,7 +356,7 @@ Item {
       id: content
       anchors.fill: parent
       anchors.margins: root.presentation.contentLayout === "edge-to-edge" ? 0
-        : (root.compactActionTile ? Style.space(3) : Style.space(10))
+        : (root.compactActionTile ? hostChrome.space(3) : hostChrome.space(10))
       clip: true
       z: root.presentation.kind === "launcher" || root.presentation.kind === "control" ? 5 : 0
 
@@ -377,8 +378,8 @@ Item {
 
       Column {
         anchors.centerIn: parent
-        width: Math.max(0, parent.width - Style.spacing.lg * 2)
-        spacing: Style.spacing.md
+        width: Math.max(0, parent.width - hostChrome.spaceLg * 2)
+        spacing: hostChrome.spaceMd
         z: 5
         visible: root.presentation.kind !== "launcher"
           && root.presentation.kind !== "control"
@@ -391,18 +392,18 @@ Item {
           textFormat: Text.PlainText
           anchors.horizontalCenter: parent.horizontalCenter
           text: root.pageError ? "⚠" : "…"
-          color: root.pageError ? Commons.Color.accent : Commons.Color.popups.text
+          color: root.pageError ? hostChrome.accent : hostChrome.popupText
           opacity: 0.82
-          font.family: Style.font.family
-          font.pixelSize: Style.space(30)
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.space(30)
         }
         Text {
           textFormat: Text.PlainText
           width: parent.width
           text: root.presentation.name || root.tile.label || root.tile.pluginId
-          color: Commons.Color.popups.text
-          font.family: Style.font.family
-          font.pixelSize: Style.font.title
+          color: hostChrome.popupText
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontTitle
           font.bold: true
           horizontalAlignment: Text.AlignHCenter
           elide: Text.ElideRight
@@ -412,10 +413,10 @@ Item {
           width: parent.width
           visible: text.length > 0
           text: root.pageError || root.presentation.reason || ""
-          color: Commons.Color.popups.text
+          color: hostChrome.popupText
           opacity: 0.58
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontCaption
           horizontalAlignment: Text.AlignHCenter
           wrapMode: Text.WordWrap
           maximumLineCount: 2
@@ -425,17 +426,17 @@ Item {
 
       Column {
         anchors.centerIn: parent
-        width: Math.max(0, parent.width - Style.spacing.lg * 2)
-        spacing: root.compactActionTile ? 0 : Style.spacing.md
+        width: Math.max(0, parent.width - hostChrome.spaceLg * 2)
+        spacing: root.compactActionTile ? 0 : hostChrome.spaceMd
         visible: root.presentation.kind === "launcher"
         opacity: root.presentation.canLaunch ? 1 : 0.52
 
         Item {
           anchors.horizontalCenter: parent.horizontalCenter
           width: root.compactActionTile
-            ? Math.max(0, Math.min(Style.space(104), content.width, content.height))
-            : Math.max(Style.space(38), Math.min(
-              Style.space(104), content.width * 0.30, content.height * 0.38))
+            ? Math.max(0, Math.min(hostChrome.space(104), content.width, content.height))
+            : Math.max(hostChrome.space(38), Math.min(
+              hostChrome.space(104), content.width * 0.30, content.height * 0.38))
           height: width
 
           Image {
@@ -456,8 +457,8 @@ Item {
             anchors.centerIn: parent
             visible: root.presentation.iconKind !== "image"
             text: root.presentation.icon
-            color: Commons.Color.popups.text
-            font.family: Style.font.family
+            color: hostChrome.popupText
+            font.family: hostChrome.fontFamily
             font.pixelSize: Math.round(parent.height * 0.72)
           }
         }
@@ -467,9 +468,9 @@ Item {
           width: parent.width
           visible: !root.compactActionTile
           text: root.presentation.name || root.tile.label || root.tile.pluginId
-          color: Commons.Color.popups.text
-          font.family: Style.font.family
-          font.pixelSize: Style.font.title
+          color: hostChrome.popupText
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontTitle
           font.bold: true
           horizontalAlignment: Text.AlignHCenter
           wrapMode: Text.WordWrap
@@ -482,9 +483,9 @@ Item {
           width: parent.width
           visible: !root.compactActionTile && root.launchError.length > 0
           text: root.launchError
-          color: Commons.Color.accent
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
+          color: hostChrome.accent
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontCaption
           horizontalAlignment: Text.AlignHCenter
           elide: Text.ElideRight
         }
@@ -493,35 +494,35 @@ Item {
       Rectangle {
         anchors.fill: parent
         visible: root.presentation.kind === "control" && root.presentation.active
-        radius: Style.cornerRadius
-        color: Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.10)
+        radius: hostChrome.cornerRadius
+        color: Qt.rgba(hostChrome.accent.r, hostChrome.accent.g, hostChrome.accent.b, 0.10)
       }
 
       Column {
         anchors.centerIn: parent
-        width: Math.max(0, parent.width - Style.spacing.lg * 2)
-        spacing: root.compactActionTile ? 0 : Style.spacing.sm
+        width: Math.max(0, parent.width - hostChrome.spaceLg * 2)
+        spacing: root.compactActionTile ? 0 : hostChrome.spaceSm
         visible: root.presentation.kind === "control"
 
         Text {
           textFormat: Text.PlainText
           anchors.horizontalCenter: parent.horizontalCenter
           text: root.presentation.icon
-          color: root.presentation.active ? Commons.Color.accent : Commons.Color.popups.text
+          color: root.presentation.active ? hostChrome.accent : hostChrome.popupText
           opacity: root.presentation.state === "preparing" ? 0.45 : 0.9
-          font.family: Style.font.family
+          font.family: hostChrome.fontFamily
           font.pixelSize: root.compactActionTile
-            ? Math.max(0, Math.min(Style.space(40), Math.floor(Math.min(content.width, content.height) * 0.65)))
-            : Style.space(28)
+            ? Math.max(0, Math.min(hostChrome.space(40), Math.floor(Math.min(content.width, content.height) * 0.65)))
+            : hostChrome.space(28)
         }
         Text {
           textFormat: Text.PlainText
           width: parent.width
           visible: !root.compactActionTile
           text: root.presentation.name || root.tile.label
-          color: Commons.Color.popups.text
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
+          color: hostChrome.popupText
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontBody
           font.bold: true
           horizontalAlignment: Text.AlignHCenter
           elide: Text.ElideRight
@@ -529,21 +530,21 @@ Item {
         Rectangle {
           anchors.horizontalCenter: parent.horizontalCenter
           visible: !root.compactActionTile
-          width: controlStatus.implicitWidth + Style.spacing.md * 2
-          height: Style.space(24)
-          radius: Style.cornerRadius > 0 ? height / 2 : 0
+          width: controlStatus.implicitWidth + hostChrome.spaceMd * 2
+          height: hostChrome.space(24)
+          radius: hostChrome.cornerRadius > 0 ? height / 2 : 0
           color: root.presentation.active
-            ? Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.20)
-            : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.07)
+            ? Qt.rgba(hostChrome.accent.r, hostChrome.accent.g, hostChrome.accent.b, 0.20)
+            : Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.07)
           Text {
             textFormat: Text.PlainText
             id: controlStatus
             anchors.centerIn: parent
             text: root.presentation.statusText || ""
-            color: root.presentation.active ? Commons.Color.accent : Commons.Color.popups.text
+            color: root.presentation.active ? hostChrome.accent : hostChrome.popupText
             opacity: root.presentation.state === "preparing" ? 0.55 : 0.82
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
+            font.family: hostChrome.fontFamily
+            font.pixelSize: hostChrome.fontCaption
             font.bold: true
           }
         }
@@ -552,9 +553,9 @@ Item {
           width: parent.width
           visible: !root.compactActionTile && root.launchError.length > 0
           text: root.launchError
-          color: Commons.Color.accent
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
+          color: hostChrome.accent
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontCaption
           horizontalAlignment: Text.AlignHCenter
           elide: Text.ElideRight
         }
@@ -564,7 +565,7 @@ Item {
     Rectangle {
       anchors.fill: parent
       visible: root.keyboardShortcutVisible && !root.editing
-      radius: Style.cornerRadius
+      radius: hostChrome.cornerRadius
       color: Qt.rgba(0, 0, 0, 0.22)
       z: 5
     }
@@ -572,37 +573,37 @@ Item {
     Rectangle {
       anchors.fill: parent
       visible: root.interacting || root.presentation.contentLayout === "edge-to-edge"
-      radius: Style.cornerRadius
+      radius: hostChrome.cornerRadius
       color: "transparent"
       border.width: root.frameWidth
       border.color: root.selected
-        ? Commons.Color.accent
-        : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.09)
+        ? hostChrome.accent
+        : Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.09)
       z: 10
     }
 
     Rectangle {
       visible: root.keyboardShortcutVisible && !root.editing
       anchors.centerIn: parent
-      width: Math.max(height, shortcutText.implicitWidth + Style.space(32))
-      height: Style.space(58)
-      radius: Style.cornerRadius > 0 ? height / 2 : 0
+      width: Math.max(height, shortcutText.implicitWidth + hostChrome.space(32))
+      height: hostChrome.space(58)
+      radius: hostChrome.cornerRadius > 0 ? height / 2 : 0
       z: 25
-      color: Qt.rgba(Commons.Color.popups.background.r, Commons.Color.popups.background.g,
-        Commons.Color.popups.background.b, 0.90)
+      color: Qt.rgba(hostChrome.popupBackground.r, hostChrome.popupBackground.g,
+        hostChrome.popupBackground.b, 0.90)
       border.width: 1
       border.color: root.selected
-        ? Commons.Color.accent
-        : Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.18)
+        ? hostChrome.accent
+        : Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.18)
 
       Text {
         textFormat: Text.PlainText
         id: shortcutText
         anchors.centerIn: parent
         text: root.keyboardShortcut
-        color: root.selected ? Commons.Color.accent : Commons.Color.popups.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.title
+        color: root.selected ? hostChrome.accent : hostChrome.popupText
+        font.family: hostChrome.fontFamily
+        font.pixelSize: hostChrome.fontTitle
         font.bold: true
       }
     }

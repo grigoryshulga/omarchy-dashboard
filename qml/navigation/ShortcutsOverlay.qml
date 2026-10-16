@@ -1,12 +1,13 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 import "../ui" as Ui
 
 Item {
   id: root
+
+  HostChrome { id: hostChrome }
 
   signal closeRequested()
 
@@ -33,18 +34,18 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Qt.rgba(Commons.Color.background.r, Commons.Color.background.g, Commons.Color.background.b, 0.78)
+    color: Qt.rgba(hostChrome.background.r, hostChrome.background.g, hostChrome.background.b, 0.78)
   }
   MouseArea { anchors.fill: parent; onClicked: root.closeRequested() }
 
   Rectangle {
     anchors.centerIn: parent
-    width: Math.min(parent.width - Style.space(48), Style.space(620))
-    height: Math.min(parent.height - Style.space(48), shortcutsColumn.implicitHeight + Style.spacing.lg * 2)
-    radius: Style.cornerRadius
-    color: Commons.Color.popups.background
-    border.width: 1
-    border.color: Commons.Color.popups.border
+    width: Math.min(parent.width - hostChrome.space(48), hostChrome.space(620))
+    height: Math.min(parent.height - hostChrome.space(48), shortcutsColumn.implicitHeight + hostChrome.spaceLg * 2)
+    radius: hostChrome.cornerRadius
+    color: hostChrome.popupBackground
+    border.width: hostChrome.borderWidth
+    border.color: hostChrome.popupBorder
     MouseArea { anchors.fill: parent; onClicked: {} }
 
     Column {
@@ -52,20 +53,20 @@ Item {
       anchors.left: parent.left
       anchors.right: parent.right
       anchors.top: parent.top
-      anchors.margins: Style.spacing.lg
-      spacing: Style.spacing.sm
+      anchors.margins: hostChrome.spaceLg
+      spacing: hostChrome.spaceSm
 
       Item {
         width: parent.width
-        height: Style.space(34)
+        height: hostChrome.space(34)
         Text {
           textFormat: Text.PlainText
           anchors.left: parent.left
           anchors.verticalCenter: parent.verticalCenter
           text: "Keyboard shortcuts"
-          color: Commons.Color.popups.text
-          font.family: Style.font.family
-          font.pixelSize: Style.font.title
+          color: hostChrome.popupText
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontTitle
           font.bold: true
         }
         Ui.DashboardActionButton {
@@ -82,22 +83,22 @@ Item {
         delegate: Item {
           required property var modelData
           width: shortcutsColumn.width
-          height: Math.max(Style.space(30), actionText.implicitHeight + Style.spacing.xs * 2)
+          height: Math.max(hostChrome.space(30), actionText.implicitHeight + hostChrome.spaceXs * 2)
           Rectangle {
             anchors.left: parent.left
             anchors.top: parent.top
-            anchors.topMargin: Style.spacing.xs
-            width: Style.space(180)
-            height: Math.max(Style.space(25), parent.height - Style.spacing.xs * 2)
-            radius: Style.cornerRadius
-            color: Qt.rgba(Commons.Color.popups.text.r, Commons.Color.popups.text.g, Commons.Color.popups.text.b, 0.07)
+            anchors.topMargin: hostChrome.spaceXs
+            width: hostChrome.space(180)
+            height: Math.max(hostChrome.space(25), parent.height - hostChrome.spaceXs * 2)
+            radius: hostChrome.cornerRadius
+            color: Qt.rgba(hostChrome.popupText.r, hostChrome.popupText.g, hostChrome.popupText.b, 0.07)
             Text {
               textFormat: Text.PlainText
               anchors.centerIn: parent
               text: modelData.key
-              color: Commons.Color.accent
-              font.family: Style.font.family
-              font.pixelSize: Style.font.caption
+              color: hostChrome.accent
+              font.family: hostChrome.fontFamily
+              font.pixelSize: hostChrome.fontCaption
               elide: Text.ElideRight
             }
           }
@@ -105,13 +106,13 @@ Item {
             textFormat: Text.PlainText
             id: actionText
             anchors.left: parent.left
-            anchors.leftMargin: Style.space(196)
+            anchors.leftMargin: hostChrome.space(196)
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: modelData.action
-            color: Commons.Color.popups.text
-            font.family: Style.font.family
-            font.pixelSize: Style.font.bodySmall
+            color: hostChrome.popupText
+            font.family: hostChrome.fontFamily
+            font.pixelSize: hostChrome.fontBodySmall
             wrapMode: Text.WordWrap
           }
         }

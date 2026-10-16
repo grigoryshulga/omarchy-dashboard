@@ -1,12 +1,13 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 import "../state/DashboardModel.js" as DashboardModel
 
 Item {
   id: root
+
+  HostChrome { id: hostChrome }
 
   required property Item canvas
   property var element: null
@@ -52,22 +53,22 @@ Item {
     y: root.canvasOrigin.y + (root.element ? root.element.y : 0)
     width: root.element ? root.element.w : 0
     height: root.element ? root.element.h : 0
-    color: Commons.Color.popups.background
-    radius: Style.cornerRadius
+    color: hostChrome.popupBackground
+    radius: hostChrome.cornerRadius
     border.width: 1
-    border.color: Commons.Color.accent
+    border.color: hostChrome.accent
     clip: true
 
     TextInput {
       id: input
       objectName: "inlineTextInput"
       anchors.fill: parent
-      color: Commons.Color.popups.text
-      selectionColor: Commons.Color.accent
-      selectedTextColor: Commons.Color.background
-      font.family: Style.font.family
+      color: hostChrome.popupText
+      selectionColor: hostChrome.accent
+      selectedTextColor: hostChrome.background
+      font.family: hostChrome.fontFamily
       font.bold: true
-      font.pixelSize: Math.max(Style.font.title, Math.min(Style.space(180), height * 0.78))
+      font.pixelSize: Math.max(hostChrome.fontTitle, Math.min(hostChrome.space(180), height * 0.78))
       maximumLength: DashboardModel.MAX_TEXT_LENGTH
       selectByMouse: true
       horizontalAlignment: root.element && root.element.alignment === "right" ? TextInput.AlignRight

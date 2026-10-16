@@ -1,9 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import Quickshell
-import Quickshell.Hyprland
-import qs.Commons
+import "system"
 import "appearance/DashboardAppearance.js" as DashboardAppearance
 import "state/DashboardModel.js" as DashboardModel
 import "layout/GridEngine.js" as GridEngine
@@ -37,15 +35,15 @@ Item {
   property real gridHeight: GridEngine.DEFAULT_HEIGHT
 
   readonly property string pluginId: manifest && manifest.id ? String(manifest.id) : "gshulga.dashboard"
-  readonly property string home: Quickshell.env("HOME")
+  readonly property string home: hostSession.env("HOME")
   readonly property string stateHome: {
-    var configured = Quickshell.env("XDG_STATE_HOME")
+    var configured = hostSession.env("XDG_STATE_HOME")
     return configured && String(configured).charAt(0) === "/" ? String(configured) : home + "/.local/state"
   }
   readonly property string statePath: stateHome + "/omarchy/gshulga.dashboard.json"
   readonly property string pluginDirectory: decodeURIComponent(Qt.resolvedUrl("../").toString().replace(/^file:\/\//, "").replace(/\/$/, ""))
   readonly property string cacheHome: {
-    var configured = Quickshell.env("XDG_CACHE_HOME")
+    var configured = hostSession.env("XDG_CACHE_HOME")
     return configured && String(configured).charAt(0) === "/" ? String(configured) : home + "/.cache"
   }
   readonly property string cacheRoot: cacheHome + "/omarchy-dashboard"
@@ -100,9 +98,8 @@ Item {
   }
 
   function focusedScreenName() {
-    var screens = Quickshell.screens || []
-    var monitor = Hyprland.focusedMonitor
-    var focusedName = monitor ? String(monitor.name || "") : ""
+    var screens = hostSession.screens() || []
+    var focusedName = hostSession.focusedScreenName()
     for (var index = 0; index < screens.length; index++)
       if (String(screens[index].name || "") === focusedName) return focusedName
     return screens.length > 0 ? String(screens[0].name || "") : ""
@@ -110,7 +107,7 @@ Item {
 
   function existingScreenName(requested) {
     var wanted = String(requested || "")
-    var screens = Quickshell.screens || []
+    var screens = hostSession.screens() || []
     for (var index = 0; index < screens.length; index++)
       if (String(screens[index].name || "") === wanted) return wanted
     return focusedScreenName()
@@ -175,7 +172,7 @@ Item {
       selectedElementId: selectedElementId,
       adaptingPluginId: plugins.adaptingPluginId,
       preload: dashboardSurface.preloadStatus,
-      cornerRadius: Style.cornerRadius,
+      cornerRadius: hostChrome.cornerRadius,
       surfaceMode: surfaceMode,
       blurBackground: blurBackground,
       gridSpacing: dashboardState ? dashboardState.gridSpacing : 10,
@@ -186,12 +183,10 @@ Item {
   }
 
   Connections {
-    target: Hyprland
-    function onRawEvent(event) {
-      if (event && String(event.name || "") === "configreloaded") {
-        Style.scheduleRefresh()
-        blurSettings.scheduleApply()
-      }
+    target: hostSession
+    function onConfigReloaded() {
+      hostChrome.scheduleRefresh()
+      blurSettings.scheduleApply()
     }
   }
 
@@ -837,7 +832,7 @@ Item {
   }
 
   Connections {
-    target: Quickshell
+    target: hostSession
     function onScreensChanged() {
       if (!root.opened) return
       var replacement = root.existingScreenName(root.activeScreenName)
@@ -867,9 +862,18 @@ Item {
     }
   }
 
+  HostChrome {
+    id: hostChrome
+  }
+
+  HostSession {
+    id: hostSession
+  }
+
   Appearance.DashboardBlurSettings {
     id: blurSettings
     active: root.blurBackground
+    hostSession: hostSession
   }
 
   Plugins.PluginRuntime {
@@ -892,7 +896,7 @@ Item {
     id: dashboardSurface
     dashboard: root
     screen: {
-      var screens = Quickshell.screens || []
+      var screens = hostSession.screens() || []
       for (var index = 0; index < screens.length; index++)
         if (String(screens[index].name || "") === root.activeScreenName) return screens[index]
       return screens.length > 0 ? screens[0] : null

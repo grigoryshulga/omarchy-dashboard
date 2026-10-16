@@ -1,12 +1,13 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 import "../state/DashboardModel.js" as DashboardModel
 
 Item {
   id: root
+
+  HostChrome { id: hostChrome }
 
   signal accepted(string value)
   signal rejected()
@@ -24,52 +25,52 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Qt.rgba(Commons.Color.background.r, Commons.Color.background.g, Commons.Color.background.b, 0.78)
+    color: Qt.rgba(hostChrome.background.r, hostChrome.background.g, hostChrome.background.b, 0.78)
   }
   MouseArea { anchors.fill: parent; onClicked: root.rejected() }
 
   Rectangle {
     anchors.centerIn: parent
-    width: Math.min(parent.width - Style.space(48), Style.space(520))
-    height: Style.space(154)
-    radius: Style.cornerRadius
-    color: Commons.Color.popups.background
-    border.width: 1
-    border.color: Commons.Color.popups.border
+    width: Math.min(parent.width - hostChrome.space(48), hostChrome.space(520))
+    height: hostChrome.space(154)
+    radius: hostChrome.cornerRadius
+    color: hostChrome.popupBackground
+    border.width: hostChrome.borderWidth
+    border.color: hostChrome.popupBorder
     MouseArea { anchors.fill: parent; onClicked: {} }
 
     Column {
       anchors.fill: parent
-      anchors.margins: Style.spacing.lg
-      spacing: Style.spacing.md
+      anchors.margins: hostChrome.spaceLg
+      spacing: hostChrome.spaceMd
 
       Text {
         textFormat: Text.PlainText
         text: "Add text"
-        color: Commons.Color.popups.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.title
+        color: hostChrome.popupText
+        font.family: hostChrome.fontFamily
+        font.pixelSize: hostChrome.fontTitle
         font.bold: true
       }
 
       Rectangle {
         width: parent.width
-        height: Style.space(38)
-        radius: Style.cornerRadius
-        color: Style.normalFillFor(Commons.Color.popups.text, Commons.Color.accent)
+        height: hostChrome.space(38)
+        radius: hostChrome.cornerRadius
+        color: hostChrome.normalFill(hostChrome.popupText, hostChrome.accent)
         border.width: 1
-        border.color: input.activeFocus ? Commons.Color.accent : Commons.Color.popups.border
+        border.color: input.activeFocus ? hostChrome.accent : hostChrome.popupBorder
 
         TextInput {
           id: input
           anchors.fill: parent
-          anchors.leftMargin: Style.spacing.md
-          anchors.rightMargin: Style.spacing.md
-          color: Commons.Color.popups.text
-          selectionColor: Commons.Color.accent
+          anchors.leftMargin: hostChrome.spaceMd
+          anchors.rightMargin: hostChrome.spaceMd
+          color: hostChrome.popupText
+          selectionColor: hostChrome.accent
           verticalAlignment: TextInput.AlignVCenter
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontBody
           maximumLength: DashboardModel.MAX_TEXT_LENGTH
           onAccepted: root.accept()
           Keys.onEscapePressed: root.rejected()
@@ -78,7 +79,7 @@ Item {
 
       Row {
         anchors.right: parent.right
-        spacing: Style.spacing.sm
+        spacing: hostChrome.spaceSm
         DashboardActionButton {
           text: "Cancel"
           onClicked: root.rejected()

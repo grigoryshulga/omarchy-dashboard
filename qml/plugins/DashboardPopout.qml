@@ -1,13 +1,14 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import qs.Commons
-import qs.Commons as Commons
+import "../system"
 import "PopoutGeometry.js" as PopoutGeometry
 import "../ui" as Ui
 
 Item {
   id: root
+
+  HostChrome { id: hostChrome }
 
   required property var dashboard
   property var tile: null
@@ -23,9 +24,9 @@ Item {
     var entry = tile ? dashboard.plugins.descriptor(tile.pluginId) : null
     return entry && entry.manifest ? entry.manifest.dashboard || ({}) : ({})
   }
-  readonly property real headerHeight: Style.space(40)
+  readonly property real headerHeight: hostChrome.space(40)
   readonly property real contentPadding: presentation.contentLayout === "edge-to-edge"
-    ? 0 : Style.spacing.panelPadding
+    ? 0 : hostChrome.panelPadding
   readonly property var naturalSize: {
     var surface = embeddedSurface
     var page = loadedPage
@@ -38,8 +39,8 @@ Item {
   }
   readonly property var geometry: PopoutGeometry.resolve(pluginMetadata, naturalSize,
     resizeDraft || savedSize, {
-      width: Math.max(0, Math.min(width * 0.90, width - Style.space(48))),
-      height: Math.max(0, Math.min(height * 0.85, height - Style.space(48)))
+      width: Math.max(0, Math.min(width * 0.90, width - hostChrome.space(48))),
+      height: Math.max(0, Math.min(height * 0.85, height - hostChrome.space(48)))
     }, { width: contentPadding * 2, height: contentPadding * 2 + headerHeight })
   readonly property var presentation: tile ? dashboard.plugins.presentation(tile) : ({})
   readonly property string sourceUrl: String(presentation.source || "")
@@ -112,7 +113,7 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    color: Qt.rgba(Commons.Color.background.r, Commons.Color.background.g, Commons.Color.background.b, 0.24)
+    color: Qt.rgba(hostChrome.background.r, hostChrome.background.g, hostChrome.background.b, 0.24)
     MouseArea {
       anchors.fill: parent
       onClicked: root.closeRequested()
@@ -124,10 +125,10 @@ Item {
     anchors.centerIn: parent
     width: root.geometry.width
     height: root.geometry.height
-    radius: Style.cornerRadius
-    color: Commons.Color.popups.background
+    radius: hostChrome.cornerRadius
+    color: hostChrome.popupBackground
     border.width: 1
-    border.color: Commons.Color.accent
+    border.color: hostChrome.accent
 
     MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -142,31 +143,31 @@ Item {
       Text {
         textFormat: Text.PlainText
         anchors.left: parent.left
-        anchors.leftMargin: Style.spacing.md
+        anchors.leftMargin: hostChrome.spaceMd
         anchors.right: headerActions.left
-        anchors.rightMargin: Style.spacing.sm
+        anchors.rightMargin: hostChrome.spaceSm
         anchors.verticalCenter: parent.verticalCenter
         text: root.presentation.name || "Plugin"
-        color: Commons.Color.popups.text
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
+        color: hostChrome.popupText
+        font.family: hostChrome.fontFamily
+        font.pixelSize: hostChrome.fontBody
         elide: Text.ElideRight
       }
       Row {
         id: headerActions
         anchors.right: parent.right
-        anchors.rightMargin: Style.spacing.sm
+        anchors.rightMargin: hostChrome.spaceSm
         anchors.verticalCenter: parent.verticalCenter
-        spacing: Style.spacing.sm
+        spacing: hostChrome.spaceSm
         Text {
           textFormat: Text.PlainText
           anchors.verticalCenter: parent.verticalCenter
-          visible: root.sizeError !== "" || card.width > Style.space(460)
+          visible: root.sizeError !== "" || card.width > hostChrome.space(460)
           text: root.sizeError || (Math.round(card.width) + " × " + Math.round(card.height))
-          color: root.sizeError ? Commons.Color.accent : Commons.Color.popups.text
+          color: root.sizeError ? hostChrome.accent : hostChrome.popupText
           opacity: 0.6
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontCaption
         }
         Ui.DashboardActionButton {
           icon: "󰒠"
@@ -206,26 +207,26 @@ Item {
 
       Column {
         anchors.centerIn: parent
-        width: Math.max(0, parent.width - Style.spacing.lg * 2)
-        spacing: Style.spacing.md
+        width: Math.max(0, parent.width - hostChrome.spaceLg * 2)
+        spacing: hostChrome.spaceMd
         visible: root.sourceUrl === "" || root.pageError !== "" || pageLoader.status === Loader.Error
 
         Text {
           textFormat: Text.PlainText
           anchors.horizontalCenter: parent.horizontalCenter
           text: root.pageError ? "⚠" : "…"
-          color: root.pageError ? Commons.Color.accent : Commons.Color.popups.text
-          font.family: Style.font.family
-          font.pixelSize: Style.space(32)
+          color: root.pageError ? hostChrome.accent : hostChrome.popupText
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.space(32)
         }
         Text {
           textFormat: Text.PlainText
           width: parent.width
           text: root.pageError || root.presentation.reason || "Preparing plugin…"
-          color: Commons.Color.popups.text
+          color: hostChrome.popupText
           opacity: 0.7
-          font.family: Style.font.family
-          font.pixelSize: Style.font.body
+          font.family: hostChrome.fontFamily
+          font.pixelSize: hostChrome.fontBody
           horizontalAlignment: Text.AlignHCenter
           wrapMode: Text.WordWrap
         }
@@ -235,16 +236,16 @@ Item {
     Rectangle {
       anchors.right: parent.right
       anchors.bottom: parent.bottom
-      width: Style.space(24)
+      width: hostChrome.space(24)
       height: width
-      radius: Style.cornerRadius
-      color: Commons.Color.popups.background
+      radius: hostChrome.cornerRadius
+      color: hostChrome.popupBackground
       Text {
         textFormat: Text.PlainText
         anchors.centerIn: parent
         text: "◢"
-        color: Commons.Color.accent
-        font.pixelSize: Style.font.caption
+        color: hostChrome.accent
+        font.pixelSize: hostChrome.fontCaption
       }
       MouseArea {
         objectName: "popoutResizeHandle"

@@ -19,6 +19,7 @@ the behavior they own.
 | Layout | `qml/layout/` | Grid calculations, placement previews, alignment guides and graphic elements |
 | Navigation | `qml/navigation/` | Reading order, spatial selection, swipe direction and shortcut dispatch |
 | Appearance | `qml/appearance/` | Surface mode normalization and applying Hyprland layer blur |
+| System | `qml/system/` | HostChrome owns visual-token reads and fallbacks; HostSession owns env, screens, focused monitor, config-reload, and the hyprctl command runner |
 | Shared UI | `qml/ui/` | Window composition, dialogs and buttons |
 
 Files that implement the same behavior live together even when one is pure
@@ -112,13 +113,17 @@ behavior they exercise:
 | `tst_ElementStyleControls.qml` | Contextual alignment/thickness controls, rendering and persisted styles |
 | `tst_PlacementActions.qml` | Silhouette actions, compact controls, tooltips and drag handling |
 | `tst_DashboardPopout.qml` | Dismissal, resizing and initialization recovery |
+| `tst_HostChrome.qml` | Token normalization, fallbacks against an incomplete shell and refresh |
 
 Python tests cover CLI behavior, adaptation, icons and secure helpers.
 `test_state_store.py` runs an isolated Quickshell instance to check that saves
 become idle, retain edits made during a write, and retry a failed write.
 `tests/adapter-smoke.sh` adapts installed Omarchy panels using a temporary cache.
-`tests/live-corner-radius.sh` is a separate live-system check. Tests that require
-Shell or real plugins are kept outside the pure model tests.
+`tests/live-system-seam.sh` resolves the seam against the installed shell
+modules and fails when a plugin file leaks a binding error, with no compositor
+needed. `tests/live-corner-radius.sh` is a separate live-system check that
+exercises `configreloaded` on a running session. Tests that require Shell or
+real plugins are kept outside the pure model tests.
 
 After a successful full suite, validate the installed plugin and restart Shell.
 Read-only CLI queries then verify the installed command wiring without changing
